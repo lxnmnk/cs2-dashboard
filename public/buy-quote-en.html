@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>We sell CS2 knives & gloves</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <nav class="top-nav">
+    <a href="/en">Home</a>
+    <a href="/en/sell">Sell</a>
+    <a href="/en/buy" class="active">Buy</a>
+    <a href="/en/my-skins">My skins</a>
+    <span class="nav-sep">|</span>
+    <a href="/buy">UA</a>
+    <a href="/ru/buy">RU</a>
+    <a href="/en/buy" class="active">EN</a>
+    <span class="nav-sep">|</span>
+    <a href="/account">Account</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Buy any <span class="accent">knife</span> or <span class="accent">gloves</span></h1>
+    <p class="hero-sub">Full Youpin898 catalog · Delivery in 5 minutes to 12 hours</p>
+  </section>
+
+  <section class="trust-row">
+    <div class="trust-badge"><span class="icon">💳</span> Full prepayment</div>
+    <div class="trust-badge"><span class="icon">🚀</span> Delivery in 5 min – 12 h</div>
+    <div class="trust-badge"><span class="icon">💰</span> Best prices on the market</div>
+  </section>
+
+  <section class="card">
+    <h2>Get your buying price right now</h2>
+    <p class="card-hint">Need several skins? Add them one by one — we'll total it up.</p>
+
+    <div class="autocomplete-wrap">
+      <label for="itemSearch">Item name</label>
+      <input id="itemSearch" type="text" placeholder="Start typing the item name..." autocomplete="off" />
+      <div id="autocompleteList" class="autocomplete-list"></div>
+    </div>
+
+    <div id="unstableBox" class="unstable" style="display: none;">
+      We can't give an automatic price for this item right now — message
+      <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a> on Telegram and we'll sort it out personally.
+    </div>
+
+    <div id="cartSection" class="cart-section" style="display: none;">
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span id="cartTotal" class="cart-total">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Message on Telegram to arrange</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Clear list</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Deal terms</h2>
+    <ul class="terms-list">
+      <li><span class="icon">💳</span> Payment — full prepayment before shipping</li>
+      <li><span class="icon">🚀</span> Delivery — from 5 minutes to 12 hours after payment</li>
+      <li><span class="icon">💰</span> I offer some of the best prices on the market</li>
+      <li><span class="icon">🎯</span> I can source any skin from the Youpin898 catalog — even rare ones</li>
+    </ul>
+    <p class="reviews-line">Lots of trusted reviews — <a href="https://t.me/csmarket/538169/1594119" target="_blank">see reviews in @csmarket</a>.</p>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Message on Telegram</a>
+    <p>Or see reviews and guarantors in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group</p>
+  </footer>
+
+  <script>
+    window.QUOTE_CONFIG = {
+      quoteEndpoint: "/api/public/buy-quote",
+      messageIntro: "Hi! I want to buy:",
+      totalLabel: "Total:",
+      priceNote: "site price",
+      removeLabel: "Remove",
+    };
+  </script>
+  <script src="/quote-common.js"></script>
+</body>
+</html>

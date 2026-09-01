@@ -1,0 +1,1012 @@
+[
+  {
+    "name": "★ Bayonet | Black Laminate (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Black Laminate (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Black Laminate (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Bayonet | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Gamma Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Bayonet | Lore (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Lore (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Lore (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Night (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Night (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Night (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Bayonet | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bayonet | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Black Laminate (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Black Laminate (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Black Laminate (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Butterfly Knife | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Gamma Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Butterfly Knife | Lore (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Lore (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Lore (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Night (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Night (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Night (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Butterfly Knife | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Butterfly Knife | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Black Laminate (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Black Laminate (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Black Laminate (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Flip Knife | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Gamma Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Flip Knife | Lore (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Lore (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Lore (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Night (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Night (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Night (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Flip Knife | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Flip Knife | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Black Laminate (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Black Laminate (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Black Laminate (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Karambit | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Gamma Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Karambit | Lore (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Lore (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Lore (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Night (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Night (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Night (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Karambit | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Karambit | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Black Laminate (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Black Laminate (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Black Laminate (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ M9 Bayonet | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Gamma Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ M9 Bayonet | Lore (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Lore (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Lore (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Night (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Night (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Night (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ M9 Bayonet | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ M9 Bayonet | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Nomad Knife | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Nomad Knife | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Nomad Knife | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Nomad Knife | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Nomad Knife | Night Stripe (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Nomad Knife | Night Stripe (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Night Stripe (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Nomad Knife | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Paracord Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 5
+  },
+  {
+    "name": "★ Skeleton Knife | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Skeleton Knife | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Skeleton Knife | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Skeleton Knife | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Skeleton Knife | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Skeleton Knife | Night Stripe (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Skeleton Knife | Night Stripe (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Night Stripe (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Skeleton Knife | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Skeleton Knife | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ StatTrak™ Stiletto Knife | Doppler",
+    "buff": 25,
+    "youpin": 30,
+    "phase": "Phase 2"
+  },
+  {
+    "name": "★ Stiletto Knife | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Stiletto Knife | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Stiletto Knife | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Stiletto Knife | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Stiletto Knife | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Stiletto Knife | Night Stripe (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Stiletto Knife | Night Stripe (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Night Stripe (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Stiletto Knife | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Stiletto Knife | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Blue Steel (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Talon Knife | Blue Steel (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Blue Steel (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Crimson Web (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Talon Knife | Crimson Web (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Crimson Web (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 6,
+    "phase": "Phase 3"
+  },
+  {
+    "name": "★ Talon Knife | Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Talon Knife | Marble Fade (Factory New)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Talon Knife | Night Stripe (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Talon Knife | Night Stripe (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Night Stripe (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Slaughter (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Slaughter (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Stained (Field-Tested)",
+    "buff": 8,
+    "youpin": 6
+  },
+  {
+    "name": "★ Talon Knife | Stained (Minimal Wear)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Stained (Well-Worn)",
+    "buff": 9,
+    "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Tiger Tooth (Factory New)",
+    "buff": 7,
+    "youpin": 7
+  }
+]

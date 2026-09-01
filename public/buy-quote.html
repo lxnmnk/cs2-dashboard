@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Продаємо ножі та рукавиці CS2</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <nav class="top-nav">
+    <a href="/">На головну</a>
+    <a href="/sell">Продати</a>
+    <a href="/buy" class="active">Купити</a>
+    <a href="/my-skins">Мої скіни</a>
+    <span class="nav-sep">|</span>
+    <a href="/buy" class="active">UA</a>
+    <a href="/ru/buy">RU</a>
+    <a href="/en/buy">EN</a>
+    <span class="nav-sep">|</span>
+    <a href="/account">Кабінет</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Купуй будь-який <span class="accent">ніж</span> чи <span class="accent">рукавиці</span></h1>
+    <p class="hero-sub">Весь каталог Youpin898 · Доставка від 5 хвилин до 12 годин</p>
+  </section>
+
+  <section class="trust-row">
+    <div class="trust-badge"><span class="icon">💳</span> Повна передоплата</div>
+    <div class="trust-badge"><span class="icon">🚀</span> Доставка від 5 хв до 12 год</div>
+    <div class="trust-badge"><span class="icon">💰</span> Найкращі ціни на ринку</div>
+  </section>
+
+  <section class="card">
+    <h2>Дізнайся ціну купівлі прямо зараз</h2>
+    <p class="card-hint">Потрібно кілька скінів? Додавай їх по одному — порахуємо суму разом.</p>
+
+    <div class="autocomplete-wrap">
+      <label for="itemSearch">Назва предмета</label>
+      <input id="itemSearch" type="text" placeholder="Почни вводити назву..." autocomplete="off" />
+      <div id="autocompleteList" class="autocomplete-list"></div>
+    </div>
+
+    <div id="unstableBox" class="unstable" style="display: none;">
+      Зараз не можемо дати автоматичну ціну на цей предмет — напиши вручну в Telegram
+      <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>, домовимось особисто.
+    </div>
+
+    <div id="cartSection" class="cart-section" style="display: none;">
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-total-row">
+        <span>Разом за все</span>
+        <span id="cartTotal" class="cart-total">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram, щоб домовитись</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Умови угоди</h2>
+    <ul class="terms-list">
+      <li><span class="icon">💳</span> Оплата — повна передоплата перед відправкою</li>
+      <li><span class="icon">🚀</span> Доставка скіна — від 5 хвилин до 12 годин після оплати</li>
+      <li><span class="icon">💰</span> Пропоную одні з найкращих цін на ринку</li>
+      <li><span class="icon">🎯</span> Можу знайти будь-який скін з каталогу Youpin898 — навіть рідкісний</li>
+    </ul>
+    <p class="reviews-line">Багато відгуків на довірі — <a href="https://t.me/csmarket/538169/1594119" target="_blank">дивитись відгуки в @csmarket</a>.</p>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram</a>
+    <p>Або дивись відгуки та гарантів у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  </footer>
+
+  <script>
+    window.QUOTE_CONFIG = {
+      quoteEndpoint: "/api/public/buy-quote",
+      messageIntro: "Привіт! Хочу купити:",
+      totalLabel: "Разом:",
+      priceNote: "за ціною з сайту",
+      removeLabel: "Прибрати",
+    };
+  </script>
+  <script src="/quote-common.js"></script>
+</body>
+</html>

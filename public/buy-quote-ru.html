@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Продаём ножи и перчатки CS2</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <nav class="top-nav">
+    <a href="/ru">На главную</a>
+    <a href="/ru/sell">Продать</a>
+    <a href="/ru/buy" class="active">Купить</a>
+    <a href="/ru/my-skins">Мои скины</a>
+    <span class="nav-sep">|</span>
+    <a href="/buy">UA</a>
+    <a href="/ru/buy" class="active">RU</a>
+    <a href="/en/buy">EN</a>
+    <span class="nav-sep">|</span>
+    <a href="/account">Кабинет</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Купи любой <span class="accent">нож</span> или <span class="accent">перчатки</span></h1>
+    <p class="hero-sub">Весь каталог Youpin898 · Доставка от 5 минут до 12 часов</p>
+  </section>
+
+  <section class="trust-row">
+    <div class="trust-badge"><span class="icon">💳</span> Полная предоплата</div>
+    <div class="trust-badge"><span class="icon">🚀</span> Доставка от 5 мин до 12 ч</div>
+    <div class="trust-badge"><span class="icon">💰</span> Лучшие цены на рынке</div>
+  </section>
+
+  <section class="card">
+    <h2>Узнай цену покупки прямо сейчас</h2>
+    <p class="card-hint">Нужно несколько скинов? Добавляй по одному — посчитаем сумму вместе.</p>
+
+    <div class="autocomplete-wrap">
+      <label for="itemSearch">Название предмета</label>
+      <input id="itemSearch" type="text" placeholder="Начни вводить название..." autocomplete="off" />
+      <div id="autocompleteList" class="autocomplete-list"></div>
+    </div>
+
+    <div id="unstableBox" class="unstable" style="display: none;">
+      Сейчас не можем дать автоматическую цену на этот предмет — напиши вручную в Telegram
+      <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>, договоримся лично.
+    </div>
+
+    <div id="cartSection" class="cart-section" style="display: none;">
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-total-row">
+        <span>Итого за всё</span>
+        <span id="cartTotal" class="cart-total">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram, чтобы договориться</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Очистить список</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Условия сделки</h2>
+    <ul class="terms-list">
+      <li><span class="icon">💳</span> Оплата — полная предоплата перед отправкой</li>
+      <li><span class="icon">🚀</span> Доставка скина — от 5 минут до 12 часов после оплаты</li>
+      <li><span class="icon">💰</span> Предлагаю одни из лучших цен на рынке</li>
+      <li><span class="icon">🎯</span> Могу найти любой скин из каталога Youpin898 — даже редкий</li>
+    </ul>
+    <p class="reviews-line">Много отзывов на доверии — <a href="https://t.me/csmarket/538169/1594119" target="_blank">смотреть отзывы в @csmarket</a>.</p>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram</a>
+    <p>Или смотри отзывы и гарантов в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  </footer>
+
+  <script>
+    window.QUOTE_CONFIG = {
+      quoteEndpoint: "/api/public/buy-quote",
+      messageIntro: "Привет! Хочу купить:",
+      totalLabel: "Итого:",
+      priceNote: "по цене с сайта",
+      removeLabel: "Убрать",
+    };
+  </script>
+  <script src="/quote-common.js"></script>
+</body>
+</html>

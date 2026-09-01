@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CS2 — Profitable Skins Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <header>
+    <h1>project by lxnmnk</h1>
+    <nav class="subnav">
+      <a href="/arbitrage" class="active">Arbitrage</a>
+      <a href="/mytrades">My Trades</a>
+    </nav>
+    <div class="status">
+      <span id="updatedAt">—</span>
+      <button id="refreshBtn">Refresh Now</button>
+      <span id="whoami" class="whoami"></span>
+      <button id="logoutBtn" class="btn-secondary">Logout</button>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="autocomplete-wrap">
+      <input id="searchInput" type="text" placeholder="Search by name..." autocomplete="off" />
+      <div id="searchAutocompleteList" class="autocomplete-list"></div>
+    </div>
+
+    <label>Min Profit $
+      <input id="minProfitUsd" type="number" step="0.1" value="1" />
+    </label>
+
+    <label>Min Profit %
+      <input id="minProfitPercent" type="number" step="0.5" value="5" />
+    </label>
+
+    <label class="checkbox-label">
+      <input id="excludeStatTrak" type="checkbox" />
+      Exclude StatTrak™
+    </label>
+
+    <label class="checkbox-label">
+      <input id="excludeSouvenir" type="checkbox" />
+      Exclude Souvenir
+    </label>
+
+    <label class="checkbox-label">
+      <input id="excludeStickers" type="checkbox" />
+      Exclude Stickers
+    </label>
+
+    <label>Price From $
+      <input id="minPrice" type="number" step="1" placeholder="0" />
+    </label>
+
+    <label>Max Price $
+      <input id="maxPrice" type="number" step="1" placeholder="no limit" />
+    </label>
+
+    <label>Buy On
+      <select id="buySource" title="Pick a source AND price side — e.g. buy at CSFloat's bid instead of its ask">
+        <option value="any">any</option>
+        <option value="csfloat:ask">CSFloat Ask</option>
+        <option value="csfloat:bid">CSFloat Bid</option>
+        <option value="youpin:ask">Youpin898 Ask</option>
+        <option value="youpin:bid">Youpin898 Bid</option>
+        <option value="buff:ask">Buff163 Ask</option>
+        <option value="buff:bid">Buff163 Bid</option>
+        <option value="csmoney:ask">CS.Money Ask</option>
+        <option value="csmoney:bid">CS.Money Bid</option>
+      </select>
+    </label>
+
+    <label>Sell On
+      <select id="sellSource" title="Pick a source AND price side — e.g. sell into CSFloat's ask instead of its bid">
+        <option value="any">any</option>
+        <option value="csfloat:ask">CSFloat Ask</option>
+        <option value="csfloat:bid">CSFloat Bid</option>
+        <option value="youpin:ask">Youpin898 Ask</option>
+        <option value="youpin:bid">Youpin898 Bid</option>
+        <option value="buff:ask">Buff163 Ask</option>
+        <option value="buff:bid">Buff163 Bid</option>
+        <option value="skinbux:bid">Skinbux</option>
+        <option value="csmoney:ask">CS.Money Ask</option>
+        <option value="csmoney:bid">CS.Money Bid</option>
+      </select>
+    </label>
+
+    <label>Doppler Phase
+      <select id="phaseFilter">
+        <option value="">any</option>
+        <option value="Phase 1">Phase 1</option>
+        <option value="Phase 2">Phase 2</option>
+        <option value="Phase 3">Phase 3</option>
+        <option value="Phase 4">Phase 4</option>
+        <option value="Ruby">Ruby</option>
+        <option value="Sapphire">Sapphire</option>
+        <option value="Black Pearl">Black Pearl</option>
+        <option value="Emerald">Emerald</option>
+      </select>
+    </label>
+
+    <label>Max CSFloat Spread %
+      <input id="maxCsfloatSpread" type="number" step="1" placeholder="no limit" />
+    </label>
+
+    <label>Max Youpin898 Spread %
+      <input id="maxYoupinSpread" type="number" step="1" placeholder="no limit" />
+    </label>
+
+    <label>Max Buff163 Spread %
+      <input id="maxBuffSpread" type="number" step="1" placeholder="no limit" />
+    </label>
+
+    <label>Show
+      <select id="viewMode">
+        <option value="top">Profitable Only (Top)</option>
+        <option value="all">All Items</option>
+      </select>
+    </label>
+
+    <button id="applyBtn">Apply</button>
+  </section>
+
+  <div id="errorBox" class="error" style="display:none;"></div>
+
+  <div class="table-card">
+    <table id="pricesTable">
+      <thead>
+        <tr>
+          <th>Item Name</th>
+          <th>Quality</th>
+          <th>CSFloat Ask</th>
+          <th>CSFloat Bid</th>
+          <th>Youpin898 Ask</th>
+          <th>Youpin898 Bid</th>
+          <th>Buff163 Ask</th>
+          <th>Buff163 Bid</th>
+          <th title="Skinbux only buys from you (instant buyback) — no ask side">Skinbux</th>
+          <th>CS.Money Ask</th>
+          <th>CS.Money Bid</th>
+          <th>Buy On</th>
+          <th>Sell On</th>
+          <th class="sortable" data-sort="profitUsd">Profit $ <span class="sort-arrow"></span></th>
+          <th class="sortable" data-sort="profitPercent">Profit % <span class="sort-arrow"></span></th>
+        </tr>
+      </thead>
+      <tbody id="pricesBody">
+        <tr><td colspan="15" class="loading">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script src="auth-ui.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

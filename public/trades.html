@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CS2 — My Trades</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <header>
+    <h1>project by lxnmnk</h1>
+    <nav class="subnav">
+      <a href="/arbitrage">Arbitrage</a>
+      <a href="/mytrades" class="active">My Trades</a>
+    </nav>
+    <div class="status">
+      <span id="updatedAt">—</span>
+      <span id="whoami" class="whoami"></span>
+      <button id="logoutBtn" class="btn-secondary">Logout</button>
+    </div>
+  </header>
+
+  <div id="errorBox" class="error" style="display:none;"></div>
+
+  <section class="summary-cards">
+    <div class="summary-card">
+      <div class="label">Open Positions</div>
+      <div class="value" id="sumHoldingCount">0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Invested Now</div>
+      <div class="value" id="sumInvested">$0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Unrealized Profit</div>
+      <div class="value" id="sumUnrealized">$0</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Realized Profit (all-time)</div>
+      <div class="value" id="sumRealized">$0</div>
+    </div>
+  </section>
+
+  <div class="section-title-row">
+    <div class="section-title">Profit</div>
+    <div class="period-tabs" id="profitPeriodTabs">
+      <button class="period-tab" data-days="7">7d</button>
+      <button class="period-tab" data-days="14">2w</button>
+      <button class="period-tab active" data-days="30">1mo</button>
+      <button class="period-tab" data-days="90">3mo</button>
+      <button class="period-tab" data-days="180">6mo</button>
+      <button class="period-tab" data-days="365">1yr</button>
+      <button class="period-tab" data-days="custom">Custom</button>
+    </div>
+  </div>
+  <div id="profitCustomRange" class="custom-range" style="display:none;">
+    <label>From <input type="date" id="profitFromDate" /></label>
+    <label>To <input type="date" id="profitToDate" /></label>
+  </div>
+  <section class="summary-cards" id="profitByPeriodCards"></section>
+
+  <div class="section-title">Add a Trade (Buy)</div>
+  <section class="trade-form">
+    <label class="autocomplete-wrap">
+      Item
+      <input id="itemSearch" type="text" placeholder="Start typing an item name..." autocomplete="off" />
+      <div id="autocompleteList" class="autocomplete-list"></div>
+    </label>
+
+    <label>Bought On
+      <select id="buySourceInput">
+        <option value="csfloat">CSFloat</option>
+        <option value="youpin">Youpin898</option>
+        <option value="buff">Buff163</option>
+        <option value="skinbux">Skinbux</option>
+        <option value="csmoney">CS.Money</option>
+        <option value="gabenmarket">Gaben.Market</option>
+        <option value="trade">Direct Trade</option>
+      </select>
+    </label>
+
+    <label>Buy Price $ <span class="field-hint">(each)</span>
+      <input id="buyPriceInput" type="number" step="0.01" min="0" />
+    </label>
+
+    <label>Quantity
+      <input id="buyQuantityInput" type="number" step="1" min="1" value="1" title="Buying several identical items at the same price/date? Set how many — each gets its own row." />
+    </label>
+
+    <label>Buy Date &amp; Time
+      <input id="buyDateInput" type="datetime-local" />
+    </label>
+
+    <label>Unlocks At (Steam, optional)
+      <input id="unlockAtInput" type="datetime-local" title="Exact 'Tradable After' value from your Steam inventory page — if left blank, we estimate buy date + 7 days" />
+    </label>
+
+    <button id="addTradeBtn">Add</button>
+  </section>
+
+  <div class="section-title">Balances <span class="section-hint">money from sales, estimated from your sale history — not a real account balance</span></div>
+  <section class="summary-cards" id="balancesCards">
+    <div class="summary-card"><div class="label">Loading...</div></div>
+  </section>
+
+  <div id="bulkDeleteBar" class="bulk-delete-bar" style="display:none;">
+    <span id="bulkDeleteCount"></span>
+    <button id="bulkDeleteBtn" class="btn-small btn-danger">Delete Selected</button>
+    <button id="bulkDeleteClearBtn" class="btn-small btn-secondary">Clear Selection</button>
+  </div>
+
+  <div class="section-title">Holdings <span class="section-hint">click a row to see sell prices by marketplace</span></div>
+  <div class="table-card">
+    <table id="holdingTable">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="holdingSelectAll" title="Select all" /></th>
+          <th>Item Name</th>
+          <th>Quality</th>
+          <th>Bought On</th>
+          <th>Buy Price</th>
+          <th>Buy Date</th>
+          <th>Lock</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="holdingBody">
+        <tr><td colspan="8" class="loading">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-title">Sale History</div>
+  <div class="table-card">
+    <table id="soldTable">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="soldSelectAll" title="Select all" /></th>
+          <th>Item Name</th>
+          <th>Quality</th>
+          <th>Bought</th>
+          <th>Sold</th>
+          <th>Profit $</th>
+          <th>Profit %</th>
+          <th>Held (days)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="soldBody">
+        <tr><td colspan="9" class="loading">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="tradeModal" class="modal-overlay" style="display:none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="modalItemName"></h2>
+        <button id="modalCloseBtn" class="btn-small btn-secondary">✕</button>
+      </div>
+      <div id="modalMeta" class="modal-meta"></div>
+      <div id="modalSnapshot" class="modal-snapshot" style="display:none;"></div>
+
+      <div class="modal-photo">
+        <img id="modalPhoto" class="modal-photo-img" style="display:none;" alt="Item screenshot" />
+        <label class="btn-small btn-secondary modal-photo-upload">
+          Upload screenshot
+          <input id="modalPhotoInput" type="file" accept="image/jpeg,image/png,image/webp" style="display:none;" />
+        </label>
+      </div>
+
+      <div class="modal-filters">
+        <span>Markets to consider:</span>
+        <label><input type="checkbox" data-market="csfloat" /> CSFloat</label>
+        <label><input type="checkbox" data-market="youpin" /> Youpin898</label>
+        <label><input type="checkbox" data-market="buff" /> Buff163</label>
+        <label><input type="checkbox" data-market="skinbux" /> Skinbux</label>
+        <label><input type="checkbox" data-market="csmoney" /> CS.Money</label>
+      </div>
+      <div class="modal-filters">
+        <span>Side:</span>
+        <label><input type="checkbox" data-side="bid" /> Instant</label>
+        <label><input type="checkbox" data-side="ask" /> List</label>
+      </div>
+
+      <div class="modal-manual-sell">
+        <button id="modalManualTradeBtn" class="btn-small btn-secondary" type="button">🔄 Sold via direct Steam trade (enter value manually)</button>
+      </div>
+
+      <div id="modalOptions" class="modal-options"></div>
+      <div id="modalCallout" class="modal-callout" style="display:none;"></div>
+
+      <div id="modalSellForm" class="modal-sell-form" style="display:none;">
+        <span id="modalSellSummary"></span>
+        <input id="modalSellPrice" type="number" step="0.01" min="0" placeholder="price" />
+        <input id="modalSellDate" type="datetime-local" />
+        <button id="modalSellConfirmBtn" class="btn-small">Confirm Sale</button>
+        <button id="modalSellCancelBtn" class="btn-small btn-secondary">Cancel</button>
+      </div>
+
+      <div id="modalTradeForm" class="modal-trade-form" style="display:none;">
+        <div class="modal-trade-header">What did you receive in return? Add each item, same as "Add a Trade" above.</div>
+        <div id="modalTradeItems" class="modal-trade-items"></div>
+        <button id="modalTradeAddItemBtn" class="btn-small btn-secondary" type="button">+ Add item</button>
+
+        <div class="modal-trade-header">Also gave besides this item? (optional — e.g. you threw in another skin)</div>
+        <div id="modalTradeGivenItems" class="modal-trade-items"></div>
+        <button id="modalTradeAddGivenBtn" class="btn-small btn-secondary" type="button">+ Add item</button>
+
+        <div class="modal-trade-footer">
+          <label>Trade date &amp; time
+            <input id="modalTradeDate" type="datetime-local" />
+          </label>
+          <span class="modal-trade-total">
+            Received: <b id="modalTradeReceivedTotal">$0.00</b> · Also gave: <b id="modalTradeGivenTotal">$0.00</b>
+            · Recorded sale price: <b id="modalTradeNetTotal">$0.00</b>
+          </span>
+        </div>
+
+        <div class="modal-trade-actions">
+          <button id="modalTradeConfirmBtn" class="btn-small">Confirm Trade</button>
+          <button id="modalTradeCancelBtn" class="btn-small btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="auth-ui.js"></script>
+  <script src="trades.js"></script>
+</body>
+</html>

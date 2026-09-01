@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My CS2 skins in stock</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <nav class="top-nav">
+    <a href="/en">Home</a>
+    <a href="/en/sell">Sell</a>
+    <a href="/en/buy">Buy</a>
+    <a href="/en/my-skins" class="active">My skins</a>
+    <span class="nav-sep">|</span>
+    <a href="/my-skins">UA</a>
+    <a href="/ru/my-skins">RU</a>
+    <a href="/en/my-skins" class="active">EN</a>
+    <span class="nav-sep">|</span>
+    <a href="/account">Account</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>My <span class="accent">skins</span> in stock</h1>
+    <p class="hero-sub">Everything I actually hold right now — reserve it in advance, even if it's still trade-locked</p>
+  </section>
+
+  <section class="card">
+    <h2>List</h2>
+    <p class="card-hint">🔒 — still trade-locked, with the unlock date.</p>
+
+    <div id="skinsList" class="cart-list"></div>
+    <p id="emptyState" class="card-hint" style="display: none;">Nothing in stock right now — check back a bit later.</p>
+
+    <div id="cartSection" class="cart-section" style="display: none;">
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-total-row">
+        <span>Total</span>
+        <span id="cartTotal" class="cart-total">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Message on Telegram to arrange</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Clear list</button>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Message on Telegram</a>
+    <p>Or see reviews and guarantors in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group</p>
+  </footer>
+
+  <script>
+    window.MY_SKINS_CONFIG = {
+      lockedLabel: "until",
+      readyLabel: "ready to deliver",
+      addLabel: "Add",
+      messageIntro: "Hi! I want to buy from your stock:",
+      totalLabel: "Total:",
+      priceNote: "site price",
+      removeLabel: "Remove",
+    };
+  </script>
+  <script src="/my-skins.js"></script>
+</body>
+</html>

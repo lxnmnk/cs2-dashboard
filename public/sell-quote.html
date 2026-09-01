@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Купуємо ножі та рукавиці CS2</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <nav class="top-nav">
+    <a href="/">На головну</a>
+    <a href="/sell" class="active">Продати</a>
+    <a href="/buy">Купити</a>
+    <a href="/my-skins">Мої скіни</a>
+    <span class="nav-sep">|</span>
+    <a href="/sell" class="active">UA</a>
+    <a href="/ru/sell">RU</a>
+    <a href="/en/sell">EN</a>
+    <span class="nav-sep">|</span>
+    <a href="/account">Кабінет</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Купуємо ваші <span class="accent">ножі</span> та <span class="accent">рукавиці</span></h1>
+    <p class="hero-sub">Від $100 до $10&nbsp;000 · Українські банки та crypto</p>
+  </section>
+
+  <section class="trust-row">
+    <div class="trust-badge"><span class="icon">🛡️</span> Гаранти від групи @csmarket</div>
+    <div class="trust-badge"><span class="icon">⏱️</span> Оплата через 7 днів після обміну</div>
+    <div class="trust-badge"><span class="icon">💰</span> Одні з найкращих % на ринку</div>
+    <div class="trust-badge"><span class="icon">🏦</span> UAH-банки та crypto</div>
+  </section>
+
+  <section class="card">
+    <h2>Дізнайся ціну прямо зараз</h2>
+    <p class="card-hint">Продаєш кілька скінів? Додавай їх по одному — порахуємо суму разом.</p>
+
+    <div class="autocomplete-wrap">
+      <label for="itemSearch">Назва предмета</label>
+      <input id="itemSearch" type="text" placeholder="Почни вводити назву..." autocomplete="off" />
+      <div id="autocompleteList" class="autocomplete-list"></div>
+    </div>
+
+    <div id="unstableBox" class="unstable" style="display: none;">
+      Зараз не можемо дати автоматичну ціну на цей предмет — напиши вручну в Telegram
+      <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>, домовимось особисто.
+    </div>
+
+    <div id="cartSection" class="cart-section" style="display: none;">
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-total-row">
+        <span>Разом за все</span>
+        <span id="cartTotal" class="cart-total">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram, щоб домовитись</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Умови угоди</h2>
+    <ul class="terms-list">
+      <li><span class="icon">🛡️</span> Погоджуюсь працювати через гарантів від групи <a href="https://t.me/csmarket" target="_blank">@csmarket</a></li>
+      <li><span class="icon">⏱️</span> Оплата здійснюється рівно через 7 днів після обміну (термін Steam trade lock)</li>
+      <li><span class="icon">💰</span> Плачу одні з найкращих відсотків від ринкової ціни</li>
+      <li><span class="icon">💎</span> Окремо цікавлять рідкісні флоти, патерни, блю-гейми — за них готовий платити більше звичайного</li>
+    </ul>
+    <p class="reviews-line">Багато відгуків на довірі — <a href="https://t.me/csmarket/538169/1594119" target="_blank">дивитись відгуки в @csmarket</a>.</p>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram</a>
+    <p>Або дивись відгуки та гарантів у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  </footer>
+
+  <script>
+    window.QUOTE_CONFIG = {
+      quoteEndpoint: "/api/public/sell-quote",
+      messageIntro: "Привіт! Хочу продати:",
+      totalLabel: "Разом:",
+      priceNote: "за ціною з сайту",
+      removeLabel: "Прибрати",
+      uah: { enabled: true, rate: 45 },
+    };
+  </script>
+  <script src="/quote-common.js"></script>
+</body>
+</html>

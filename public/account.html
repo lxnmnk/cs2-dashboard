@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Особистий кабінет — CS2 Trade</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <nav class="top-nav">
+    <a href="/">На головну</a>
+    <a href="/sell">Продати</a>
+    <a href="/buy">Купити</a>
+    <a href="/my-skins">Мої скіни</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Особистий <span class="accent">кабінет</span></h1>
+  </section>
+
+  <section id="loggedOutCard" class="card" style="display:none;">
+    <h2>Вхід</h2>
+    <p class="card-hint">Увійди через Steam, щоб отримати особистий кабінет.</p>
+    <a class="btn-gold" href="/auth/steam">Увійти через Steam</a>
+  </section>
+
+  <section id="loggedInCard" class="card" style="display:none;">
+    <h2>Профіль</h2>
+    <div class="account-profile">
+      <img id="accountAvatar" class="account-avatar" alt="" />
+      <div>
+        <div id="accountName" class="account-name"></div>
+        <a id="accountSteamLink" class="account-steam-link" href="#" target="_blank">Профіль у Steam</a>
+      </div>
+    </div>
+    <p class="card-hint" id="accountSince"></p>
+    <button id="logoutBtn" class="btn-clear" type="button">Вийти</button>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram</a>
+    <p>Або дивись відгуки та гарантів у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  </footer>
+
+  <script>
+    fetch("/api/account/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.customer) {
+          document.getElementById("loggedInCard").style.display = "block";
+          document.getElementById("accountAvatar").src = data.customer.avatar || "";
+          document.getElementById("accountName").textContent = data.customer.displayName;
+          document.getElementById("accountSteamLink").href = data.customer.profileUrl;
+          const since = new Date(data.customer.createdAt);
+          document.getElementById("accountSince").textContent =
+            "У кабінеті з " + since.toLocaleDateString("uk-UA");
+        } else {
+          document.getElementById("loggedOutCard").style.display = "block";
+        }
+      });
+
+    document.getElementById("logoutBtn")?.addEventListener("click", () => {
+      window.location.href = "/auth/logout";
+    });
+  </script>
+</body>
+</html>

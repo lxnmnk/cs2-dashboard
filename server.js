@@ -1,0 +1,673 @@
+require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
+const express = require("express");
+const session = require("express-session");
+const multer = require("multer");
+
+const { fetchCs2ShLatest } = require("./sources/cs2sh");
+const { fetchCsMoneyLatest, closeBrowser } = require("./sources/csmoney");
+const { fetchSkinbuxLatest } = require("./sources/skinbux");
+const { buildRows, filterAndSort, applyDisplayFilters, findBestFlip, normalizeSourceSide } = require("./pricingEngine");
+const trades = require("./trades");
+const users = require("./users");
+const { runCsfloatBidScan } = require("./csfloatBidScan");
+const { sendScanToTelegram } = require("./telegramNotifier");
+const { computeSellQuote } = require("./sellQuote");
+const { getSteamImages } = require("./steamImages");
+const { computeBuyQuote } = require("./buyQuote");
+const { matchesSearchQuery } = require("./itemName");
+const { startTelegramArbBot } = require("./telegramArbBot");
+const steamAuth = require("./steamAuth");
+const customers = require("./customers");
+const balanceAdjustments = require("./balanceAdjustments");
+
+const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// ---- Загрузка скриншотов предметов (public/uploads/skins/) ----
+// Файлы отдаются публично (видны на витрине "Мої скіни в наявності" без
+// логина), но сама загрузка — только владельцем сделки, см. роут ниже.
+const UPLOADS_DIR = path.join(__dirname, "public", "uploads", "skins");
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+const ALLOWED_IMAGE_TYPES = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: UPLOADS_DIR,
+    filename: (req, file, cb) => {
+      const ext = ALLOWED_IMAGE_TYPES[file.mimetype] || ".jpg";
+      cb(null, `${req.params.id}-${Date.now()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 }, // 8 МБ
+  fileFilter: (req, file, cb) => {
+    if (!ALLOWED_IMAGE_TYPES[file.mimetype]) return cb(new Error("Разрешены только JPG, PNG или WEBP"));
+    cb(null, true);
+  },
+});
+
+if (!process.env.SESSION_SECRET) {
+  console.error(
+    "SESSION_SECRET не задан в .env — сгенерируйте случайную строку (например: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\") и добавьте её в .env перед деплоем."
+  );
+  process.exit(1);
+}
+
+// ---- Состояние в памяти: последний успешный снапшот цен ----
+let cache = {
+  updatedAt: null,
+  rows: [],
+  error: null,
+  isRefreshing: false,
+};
+
+async function refreshPrices() {
+  if (cache.isRefreshing) return; // не запускаем параллельно
+  cache.isRefreshing = true;
+
+  try {
+    console.log("[refresh] Загружаю цены...");
+
+    const cs2shNeeded =
+      config.sources.csfloat.enabled || config.sources.buff.enabled || config.sources.youpin.enabled;
+
+    const [csMoneyResult, cs2shResult, skinbuxResult] = await Promise.allSettled([
+      fetchCsMoneyLatest(),
+      cs2shNeeded ? fetchCs2ShLatest(process.env.CS2SH_API_KEY) : Promise.resolve({}),
+      config.sources.skinbux.enabled ? fetchSkinbuxLatest(process.env.SKINBUX_API_KEY) : Promise.resolve(new Map()),
+    ]);
+
+    const errors = [];
+    if (csMoneyResult.status === "rejected") errors.push(`cs.money: ${csMoneyResult.reason.message}`);
+    if (cs2shResult.status === "rejected") errors.push(`cs2.sh: ${cs2shResult.reason.message}`);
+    if (skinbuxResult.status === "rejected") errors.push(`skinbux: ${skinbuxResult.reason.message}`);
+
+    const csMoneyMap = csMoneyResult.status === "fulfilled" ? csMoneyResult.value : new Map();
+    const cs2shItems = cs2shResult.status === "fulfilled" ? cs2shResult.value : {};
+    const skinbuxMap = skinbuxResult.status === "fulfilled" ? skinbuxResult.value : new Map();
+
+    const rows = buildRows(cs2shItems, csMoneyMap, skinbuxMap, config);
+
+    cache = {
+      updatedAt: new Date().toISOString(),
+      rows,
+      // Показываем ошибку только если вообще ничего не загрузилось; частичный сбой
+      // одного источника не должен прятать данные остальных.
+      error: rows.length === 0 && errors.length ? errors.join(" | ") : null,
+      isRefreshing: false,
+    };
+
+    if (errors.length) {
+      console.warn(`[refresh] Частичные ошибки: ${errors.join(" | ")}`);
+    }
+    console.log(`[refresh] Готово. Предметов с ценой: ${rows.length}`);
+  } catch (err) {
+    console.error("[refresh] Ошибка:", err.message);
+    cache.error = err.message;
+    cache.isRefreshing = false;
+  }
+}
+
+// ---- Аутентификация ----
+// Аккаунты общие на цены, но у каждого свой трекер сделок (см. trades.js).
+// Открытой регистрации нет — учётки заводит владелец сервера через create-user.js.
+app.use(express.json());
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      // Включите COOKIE_SECURE=true в .env, когда сайт будет за HTTPS —
+      // иначе браузер не будет отправлять cookie обратно.
+      secure: process.env.COOKIE_SECURE === "true",
+      httpOnly: true,
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
+    },
+  })
+);
+
+// trade.html/sell-quote.html/buy-quote.html — отдельные публичные страницы
+// для внешних людей (не аккаунтов сайта), см. sellQuote.js/buyQuote.js.
+// Специально не завязаны на остальной интерфейс.
+const PUBLIC_PATHS = new Set([
+  "/",
+  "/login.html",
+  "/login.js",
+  "/style.css",
+  "/api/login",
+  "/trade.html",
+  "/sell-quote.html",
+  "/buy-quote.html",
+  "/trade-ru.html",
+  "/sell-quote-ru.html",
+  "/buy-quote-ru.html",
+  "/trade-en.html",
+  "/sell-quote-en.html",
+  "/buy-quote-en.html",
+  "/my-skins.html",
+  "/my-skins-ru.html",
+  "/my-skins-en.html",
+  "/ru",
+  "/en",
+  "/sell",
+  "/buy",
+  "/my-skins",
+  "/ru/sell",
+  "/ru/buy",
+  "/ru/my-skins",
+  "/en/sell",
+  "/en/buy",
+  "/en/my-skins",
+  "/my-skins.js",
+  "/quote.css",
+  "/quote-common.js",
+  "/bg-map.jpg",
+  "/api/public/item-search",
+  "/api/public/sell-quote",
+  "/api/public/buy-quote",
+  "/api/public/my-skins",
+  "/account",
+  "/auth/steam",
+  "/auth/steam/return",
+  "/auth/logout",
+  "/api/account/me",
+]);
+
+app.use((req, res, next) => {
+  if (PUBLIC_PATHS.has(req.path)) return next();
+  if (req.path.startsWith("/uploads/")) return next(); // скриншоты предметов — публичные файлы
+  if (req.session?.username) return next();
+  if (req.path.startsWith("/api/")) return res.status(401).json({ error: "Не авторизован" });
+  return res.redirect("/login.html");
+});
+
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body || {};
+  const verified = await users.verifyUser(username, password);
+  if (!verified) {
+    return res.status(401).json({ ok: false, error: "Неверный логин или пароль" });
+  }
+  req.session.username = verified;
+  res.json({ ok: true, username: verified });
+});
+
+app.post("/api/logout", (req, res) => {
+  req.session.destroy(() => res.json({ ok: true }));
+});
+
+app.get("/api/me", (req, res) => {
+  res.json({ username: req.session.username });
+});
+
+// Корень сайта — публичная клиентская страница (выбор Купити/Продати), а не
+// внутренняя закрытая логином панель. Должен идти ДО express.static, иначе
+// static сам отдаст public/index.html (внутренний арбитраж) на "/".
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "trade.html"));
+});
+
+// Чистые адреса внутренней панели вместо голых имён файлов — те же самые
+// закрытые логином страницы (auth-gate выше их не пускает, если нет сессии;
+// "/arbitrage" и "/mytrades" сюда не добавлены в PUBLIC_PATHS специально).
+app.get("/arbitrage", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+app.get("/mytrades", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "trades.html"));
+});
+
+// Старые адреса файлов — не отдаём напрямую, редиректим на чистые.
+app.get("/index.html", (req, res) => res.redirect("/arbitrage"));
+app.get("/trades.html", (req, res) => res.redirect("/mytrades"));
+
+// Чистые адреса публичных страниц (trade*/sell-quote*/buy-quote*/my-skins*) —
+// вместо голых имён файлов с языковым суффиксом. UA — без префикса ("/sell"),
+// RU/EN — с префиксом ("/ru/sell", "/en/sell"); сам лендинг ("/", "/ru", "/en")
+// уже задаёт язык, поэтому дальше по сайту суффикс не повторяется в самом слове.
+const CLEAN_PUBLIC_ROUTES = {
+  "/ru": "trade-ru.html",
+  "/en": "trade-en.html",
+  "/sell": "sell-quote.html",
+  "/buy": "buy-quote.html",
+  "/my-skins": "my-skins.html",
+  "/ru/sell": "sell-quote-ru.html",
+  "/ru/buy": "buy-quote-ru.html",
+  "/ru/my-skins": "my-skins-ru.html",
+  "/en/sell": "sell-quote-en.html",
+  "/en/buy": "buy-quote-en.html",
+  "/en/my-skins": "my-skins-en.html",
+};
+for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
+  app.get(route, (req, res) => res.sendFile(path.join(__dirname, "public", file)));
+}
+
+// Старые адреса этих же страниц — редирект на чистые (ссылка на trade.html
+// уже могла разойтись, например в рекламном посте в Telegram-группе).
+const OLD_PUBLIC_REDIRECTS = {
+  "/trade.html": "/",
+  "/trade-ru.html": "/ru",
+  "/trade-en.html": "/en",
+  "/sell-quote.html": "/sell",
+  "/buy-quote.html": "/buy",
+  "/my-skins.html": "/my-skins",
+  "/sell-quote-ru.html": "/ru/sell",
+  "/buy-quote-ru.html": "/ru/buy",
+  "/my-skins-ru.html": "/ru/my-skins",
+  "/sell-quote-en.html": "/en/sell",
+  "/buy-quote-en.html": "/en/buy",
+  "/my-skins-en.html": "/en/my-skins",
+};
+for (const [oldPath, newPath] of Object.entries(OLD_PUBLIC_REDIRECTS)) {
+  app.get(oldPath, (req, res) => res.redirect(newPath));
+}
+
+// ---- Личный кабинет клиента (вход через Steam, без паролей) ----
+// Отдельная сессия от внутреннего логина (req.session.customer, не
+// req.session.username) — клиент и владелец сайта не пересекаются.
+app.get("/account", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "account.html"));
+});
+
+app.get("/api/account/me", (req, res) => {
+  res.json({ customer: req.session.customer || null });
+});
+
+app.get("/auth/steam", (req, res) => {
+  steamAuth.startLogin(req, res);
+});
+
+app.get("/auth/steam/return", async (req, res) => {
+  try {
+    const steamId = await steamAuth.verifyReturn(req);
+    const profile = await steamAuth.fetchSteamProfile(steamId);
+    const customer = customers.upsertBySteamId(steamId, profile);
+    req.session.customer = customer;
+    res.redirect("/account");
+  } catch (err) {
+    console.error("[steam-auth] Ошибка входа:", err.message);
+    res.redirect("/account");
+  }
+});
+
+app.get("/auth/logout", (req, res) => {
+  delete req.session.customer;
+  res.redirect("/account");
+});
+
+app.use(express.static(path.join(__dirname, "public")));
+
+// Текущий конфиг (для отображения/редактирования параметров в UI)
+app.get("/api/config", (req, res) => {
+  res.json(config);
+});
+
+// Обновить конфиг (комиссии, пороги прибыли) без перезапуска сервера
+app.post("/api/config", (req, res) => {
+  const incoming = req.body || {};
+  Object.assign(config, incoming);
+  fs.writeFileSync(path.join(__dirname, "config.json"), JSON.stringify(config, null, 2));
+  res.json({ ok: true, config });
+});
+
+// Принудительное обновление цен
+app.post("/api/refresh", async (req, res) => {
+  await refreshPrices();
+  res.json({ ok: !cache.error, updatedAt: cache.updatedAt, error: cache.error });
+});
+
+// Данные для таблицы: все строки + отдельно отфильтрованный топ прибыльных
+app.get("/api/items", (req, res) => {
+  const profitFilters = {
+    minProfitUsd: parseFloat(req.query.minProfitUsd ?? config.filters.minProfitUsd),
+    minProfitPercent: parseFloat(req.query.minProfitPercent ?? config.filters.minProfitPercent),
+    maxResults: parseInt(req.query.maxResults ?? config.filters.maxResults, 10),
+  };
+
+  const displayFilters = {
+    excludeStatTrak: parseBool(req.query.excludeStatTrak, config.filters.excludeStatTrak),
+    excludeSouvenir: parseBool(req.query.excludeSouvenir, config.filters.excludeSouvenir),
+    excludeStickers: parseBool(req.query.excludeStickers, config.filters.excludeStickers),
+    minPrice: parseNullableFloat(req.query.minPrice, config.filters.minPrice),
+    maxPrice: parseNullableFloat(req.query.maxPrice, config.filters.maxPrice),
+    maxCsfloatSpreadPercent: parseNullableFloat(
+      req.query.maxCsfloatSpreadPercent,
+      config.filters.maxCsfloatSpreadPercent
+    ),
+    maxYoupinSpreadPercent: parseNullableFloat(
+      req.query.maxYoupinSpreadPercent,
+      config.filters.maxYoupinSpreadPercent
+    ),
+    maxBuffSpreadPercent: parseNullableFloat(
+      req.query.maxBuffSpreadPercent,
+      config.filters.maxBuffSpreadPercent
+    ),
+    phase: (req.query.phase || "").trim() || null,
+  };
+
+  const search = (req.query.search || "").toLowerCase().trim();
+  let rows = cache.rows;
+  if (search) {
+    rows = rows.filter((r) => r.marketHashName.toLowerCase().includes(search));
+  }
+
+  rows = applyDisplayFilters(rows, displayFilters);
+
+  // Ручной выбор связки "купить на X / продать на Y" — если задано хотя бы одно
+  // из двух, пересчитываем профит под эту связку вместо автоматической лучшей.
+  // Значение вида "csfloat:ask" — источник и конкретная сторона цены.
+  const buySource = normalizeSourceSide(req.query.buySource);
+  const sellSource = normalizeSourceSide(req.query.sellSource);
+  if (buySource || sellSource) {
+    rows = rows.map((r) => {
+      const flip = findBestFlip(r.prices, config.sources, buySource, sellSource);
+      return {
+        ...r,
+        bestBuySource: flip?.buySource ?? null,
+        bestBuySide: flip?.buySide ?? null,
+        bestBuyPrice: flip?.buyPrice ?? null,
+        bestSellSource: flip?.sellSource ?? null,
+        bestSellSide: flip?.sellSide ?? null,
+        bestSellPrice: flip?.sellPrice ?? null,
+        profitUsd: flip?.profitUsd ?? null,
+        profitPercent: flip?.profitPercent ?? null,
+      };
+    });
+  }
+
+  res.json({
+    updatedAt: cache.updatedAt,
+    error: cache.error,
+    total: rows.length,
+    all: rows,
+    topProfitable: filterAndSort(rows, profitFilters),
+  });
+});
+
+// ---- Скан-вотчлист для внешнего бота автоперебития CSFloat buy order ----
+// Фильтры берутся из config.csfloatBidScan; результат пишется на диск
+// (csfloat-bid-watchlist.json) и кешируется здесь же для отдачи по GET.
+let lastCsfloatBidScan = null;
+
+async function runScheduledCsfloatBidScan() {
+  lastCsfloatBidScan = runCsfloatBidScan(cache.rows, config);
+  if (!lastCsfloatBidScan) return;
+
+  console.log(`[csfloat-bid-scan] Готово. Новых кандидатов: ${lastCsfloatBidScan.count}`);
+
+  try {
+    const result = await sendScanToTelegram(lastCsfloatBidScan, {
+      botToken: process.env.TELEGRAM_BOT_TOKEN,
+      chatId: process.env.TELEGRAM_CHAT_ID,
+    });
+    if (!result.sent) console.warn(`[csfloat-bid-scan] Telegram пропущен: ${result.reason}`);
+  } catch (err) {
+    console.error(`[csfloat-bid-scan] Ошибка отправки в Telegram: ${err.message}`);
+  }
+}
+
+app.get("/api/csfloat-bid-scan", (req, res) => {
+  res.json(lastCsfloatBidScan || { generatedAt: null, count: 0, items: [] });
+});
+
+// Ручной запуск вне расписания — удобно для проверки, не дожидаясь 12 часов.
+app.post("/api/csfloat-bid-scan/run", async (req, res) => {
+  await runScheduledCsfloatBidScan();
+  res.json(lastCsfloatBidScan || { ok: false, error: "csfloatBidScan отключён в config.json" });
+});
+
+// ---- Публичные страницы-котировщики (sell-quote.html/buy-quote.html) —
+// без логина ----
+// Отдельные от /api/item-search и /api/items эндпоинты: не отдают ничего,
+// кроме названия предмета и уже посчитанной итоговой цены — сырые цены
+// источников (buff/youpin/skinbux) наружу не уходят.
+app.get("/api/public/item-search", (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (q.length < 2) return res.json([]);
+
+  const matches = [];
+  for (const r of cache.rows) {
+    if (matchesSearchQuery(r.marketHashName, q)) {
+      matches.push({ marketHashName: r.marketHashName, name: r.name, wear: r.wear });
+      if (matches.length >= 20) break;
+    }
+  }
+  res.json(matches);
+});
+
+// Картинка предмета (см. steamImages.js) добавляется только когда цена
+// реально посчиталась — незачем ходить в Steam за иконкой для предмета,
+// который всё равно покажет "нестабильная цена".
+app.get("/api/public/sell-quote", async (req, res) => {
+  const name = (req.query.name || "").trim();
+  if (!name) return res.status(400).json({ ok: false, error: "name обязателен" });
+
+  const row = cache.rows.find((r) => r.marketHashName === name);
+  const quote = computeSellQuote(row);
+  if (quote.ok) {
+    const images = await getSteamImages(name);
+    quote.image = images?.thumb || null;
+    quote.imageFull = images?.full || null;
+  }
+  res.json(quote);
+});
+
+app.get("/api/public/buy-quote", async (req, res) => {
+  const name = (req.query.name || "").trim();
+  if (!name) return res.status(400).json({ ok: false, error: "name обязателен" });
+
+  const row = cache.rows.find((r) => r.marketHashName === name);
+  const quote = computeBuyQuote(row);
+  if (quote.ok) {
+    const images = await getSteamImages(name);
+    quote.image = images?.thumb || null;
+    quote.imageFull = images?.full || null;
+  }
+  res.json(quote);
+});
+
+// Публичная витрина "Мої скіни в наявності" (my-skins.html) — реальные
+// холдинги владельца сайта, включая предметы в трейд-бане. Владелец
+// зафиксирован намеренно (это не персональный трекер, а витрина бизнеса).
+const MY_SKINS_OWNER = "lxnmnk";
+
+app.get("/api/public/my-skins", async (req, res) => {
+  res.json(await trades.listPublicHoldings(MY_SKINS_OWNER, config));
+});
+
+// Автодополнение названия предмета при добавлении сделки — ищем по подстроке
+// среди актуального снапшота цен, чтобы название совпадало с реальным
+// market_hash_name (и подхватывало фазы Doppler/Gamma Doppler).
+app.get("/api/item-search", (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (q.length < 2) return res.json([]);
+
+  const matches = [];
+  for (const r of cache.rows) {
+    if (matchesSearchQuery(r.marketHashName, q)) {
+      matches.push({ marketHashName: r.marketHashName, name: r.name, wear: r.wear });
+      if (matches.length >= 20) break;
+    }
+  }
+  res.json(matches);
+});
+
+// ---- Трекер сделок ("Мои сделки") — цены общие, но каждый видит и правит
+// только свои сделки (owner = username из сессии) ----
+app.get("/api/trades", (req, res) => {
+  res.json(trades.listTrades({ owner: req.session.username, rows: cache.rows, config }));
+});
+
+// Сколько денег с продаж сейчас в холде/доступно/зависло по каждой площадке
+// (см. trades.js computeBalances — прикидка по истории продаж, не реальный
+// счёт, площадки не дают API для этого). Поверх расчёта накладываются ручные
+// поправки владельца (balanceAdjustments.js) — например, если он часть денег
+// уже вывел или потратил не через наш трекер.
+app.get("/api/balances", (req, res) => {
+  const raw = trades.computeBalances(req.session.username, config.sources);
+  const adjustments = balanceAdjustments.getAdjustments(req.session.username);
+  res.json(balanceAdjustments.applyAdjustments(raw, adjustments));
+});
+
+// Ручная правка баланса конкретного поля (active/hold/frozen) на площадке —
+// value это то число, которое владелец хочет видеть, а не сама поправка;
+// разницу с текущим "чистым" расчётом мы сохраняем сами (см. balanceAdjustments.js).
+app.post("/api/balances/:source/adjust", (req, res) => {
+  const { field, value } = req.body || {};
+  if (!["active", "hold", "frozen"].includes(field)) {
+    return res.status(400).json({ ok: false, error: "Некорректное поле" });
+  }
+  const num = Number(value);
+  if (!Number.isFinite(num)) {
+    return res.status(400).json({ ok: false, error: "Некорректное значение" });
+  }
+
+  const raw = trades.computeBalances(req.session.username, config.sources);
+  const rawValue = raw[req.params.source]?.[field] ?? 0;
+  balanceAdjustments.setAdjustment(req.session.username, req.params.source, field, num, rawValue);
+
+  const adjustments = balanceAdjustments.getAdjustments(req.session.username);
+  res.json({ ok: true, balances: balanceAdjustments.applyAdjustments(raw, adjustments) });
+});
+
+// Перекинуть часть активного (не в холде/заморозке) баланса с одной площадки
+// на другую — например "$1000 на Skinbux не в холде, вывожу их в Crypto".
+// Это тоже просто цифры в наших поправках, никакого реального вывода денег
+// не происходит — только чтобы дашборд отражал, что деньги теперь "лежат"
+// в другом месте.
+app.post("/api/balances/transfer", (req, res) => {
+  const { fromSource, toSource, amount } = req.body || {};
+  const amt = Number(amount);
+  if (!Number.isFinite(amt) || amt <= 0) {
+    return res.status(400).json({ ok: false, error: "Некорректная сумма" });
+  }
+  if (!fromSource || !toSource || fromSource === toSource) {
+    return res.status(400).json({ ok: false, error: "Некорректные площадки" });
+  }
+
+  const raw = trades.computeBalances(req.session.username, config.sources);
+  const merged = balanceAdjustments.applyAdjustments(raw, balanceAdjustments.getAdjustments(req.session.username));
+
+  const fromActive = merged[fromSource]?.active ?? 0;
+  if (amt > fromActive) {
+    return res.status(400).json({ ok: false, error: `На ${fromSource} нет столько на активном балансе (доступно $${fromActive.toFixed(2)})` });
+  }
+
+  const rawFromActive = raw[fromSource]?.active ?? 0;
+  const rawToActive = raw[toSource]?.active ?? 0;
+  const toActive = merged[toSource]?.active ?? 0;
+
+  balanceAdjustments.setAdjustment(req.session.username, fromSource, "active", fromActive - amt, rawFromActive);
+  balanceAdjustments.setAdjustment(req.session.username, toSource, "active", toActive + amt, rawToActive);
+
+  const updatedAdjustments = balanceAdjustments.getAdjustments(req.session.username);
+  res.json({ ok: true, balances: balanceAdjustments.applyAdjustments(raw, updatedAdjustments) });
+});
+
+app.post("/api/trades", (req, res) => {
+  try {
+    const trade = trades.addTrade({
+      ...req.body,
+      owner: req.session.username,
+      rows: cache.rows,
+      sourcesConfig: config.sources,
+    });
+    res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/trades/:id/sell", (req, res) => {
+  try {
+    const trade = trades.sellTrade(req.params.id, req.session.username, req.body || {});
+    res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/trades/:id/unlock-at", (req, res) => {
+  try {
+    const trade = trades.setUnlockAt(req.params.id, req.session.username, (req.body || {}).unlockAt || null);
+    res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/trades/:id/buy-date", (req, res) => {
+  try {
+    const trade = trades.setBuyDate(req.params.id, req.session.username, (req.body || {}).buyDate);
+    res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.delete("/api/trades/:id", (req, res) => {
+  try {
+    trades.deleteTrade(req.params.id, req.session.username);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(404).json({ ok: false, error: err.message });
+  }
+});
+
+// Скриншот предмета — вызывается только владельцем сделки (req.session.username
+// уже проверен auth-gate'ом выше, findOwnedTrade внутри setTradeImage
+// дополнительно не даст прицепить фото к чужой сделке).
+app.post("/api/trades/:id/image", (req, res) => {
+  upload.single("image")(req, res, (uploadErr) => {
+    if (uploadErr) return res.status(400).json({ ok: false, error: uploadErr.message });
+    if (!req.file) return res.status(400).json({ ok: false, error: "Файл не получен" });
+
+    try {
+      const imagePath = `/uploads/skins/${req.file.filename}`;
+      const trade = trades.setTradeImage(req.params.id, req.session.username, imagePath);
+      res.json({ ok: true, trade });
+    } catch (err) {
+      fs.unlink(req.file.path, () => {}); // не оставляем файл-сироту при ошибке
+      res.status(400).json({ ok: false, error: err.message });
+    }
+  });
+});
+
+function parseBool(value, fallback) {
+  if (value === undefined) return !!fallback;
+  return value === "true" || value === "1";
+}
+
+function parseNullableFloat(value, fallback) {
+  if (value === undefined) return fallback ?? null;
+  if (value === "" || value === "null") return null;
+  const n = parseFloat(value);
+  return Number.isNaN(n) ? null : n;
+}
+
+app.listen(PORT, async () => {
+  console.log(`CS2 price dashboard: http://localhost:${PORT}`);
+  await refreshPrices(); // первая загрузка сразу при старте
+  const intervalMs = (config.refreshIntervalMinutes || 5) * 60 * 1000;
+  setInterval(refreshPrices, intervalMs);
+
+  if (config.csfloatBidScan?.enabled) {
+    runScheduledCsfloatBidScan(); // первый скан сразу после первой загрузки цен
+    const scanIntervalMs = (config.csfloatBidScan.intervalHours || 12) * 60 * 60 * 1000;
+    setInterval(runScheduledCsfloatBidScan, scanIntervalMs);
+  }
+
+  startTelegramArbBot(() => cache.rows, config);
+});
+
+// Корректно закрываем headless-браузер (если открывался) при остановке сервера,
+// чтобы не оставался висящий процесс Chrome.
+process.on("SIGINT", async () => {
+  console.log("\n[*] Останавливаюсь...");
+  await closeBrowser().catch(() => {});
+  process.exit(0);
+});

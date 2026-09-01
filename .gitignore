@@ -1,0 +1,13 @@
+# Секреты — не должны попадать в историю даже локального репозитория
+.env
+
+# Ставится через npm install, не нужен в истории
+node_modules/
+
+# Логи
+*.log
+npm-debug.log*
+
+# Служебные файлы Claude Code / старый мусорный архив деплоя
+.claude/
+cs2-dashboard-update.tar.gz

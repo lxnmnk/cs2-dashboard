@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Мои скины в наличии CS2</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <nav class="top-nav">
+    <a href="/ru">На главную</a>
+    <a href="/ru/sell">Продать</a>
+    <a href="/ru/buy">Купить</a>
+    <a href="/ru/my-skins" class="active">Мои скины</a>
+    <span class="nav-sep">|</span>
+    <a href="/my-skins">UA</a>
+    <a href="/ru/my-skins" class="active">RU</a>
+    <a href="/en/my-skins">EN</a>
+    <span class="nav-sep">|</span>
+    <a href="/account">Кабинет</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Мои <span class="accent">скины</span> в наличии</h1>
+    <p class="hero-sub">Всё, что реально есть на руках — можно забронировать заранее, даже если предмет ещё в трейд-бане</p>
+  </section>
+
+  <section class="card">
+    <h2>Список</h2>
+    <p class="card-hint">🔒 — предмет ещё в трейд-бане, с датой разблокировки.</p>
+
+    <div id="skinsList" class="cart-list"></div>
+    <p id="emptyState" class="card-hint" style="display: none;">Сейчас ничего нет в наличии — загляни чуть позже.</p>
+
+    <div id="cartSection" class="cart-section" style="display: none;">
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-total-row">
+        <span>Итого за всё</span>
+        <span id="cartTotal" class="cart-total">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram, чтобы договориться</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Очистить список</button>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram</a>
+    <p>Или смотри отзывы и гарантов в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  </footer>
+
+  <script>
+    window.MY_SKINS_CONFIG = {
+      lockedLabel: "до",
+      readyLabel: "готово к выдаче",
+      addLabel: "Добавить",
+      messageIntro: "Привет! Хочу купить из наличия:",
+      totalLabel: "Итого:",
+      priceNote: "по цене с сайта",
+      removeLabel: "Убрать",
+    };
+  </script>
+  <script src="/my-skins.js"></script>
+</body>
+</html>

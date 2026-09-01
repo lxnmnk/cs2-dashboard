@@ -1,0 +1,566 @@
+/* Та же тёмно-золотая палитра, что и на публичных страницах (quote.css) —
+   единый стиль по всему сайту. --accent оставлен под старым именем (не
+   --gold), чтобы не переименовывать десятки мест ниже, где он уже
+   использован для акцентного цвета. */
+:root {
+  --bg: #0a0c10;
+  --panel: #12141a;
+  --border: #2a2e37;
+  --text: #ece9e2;
+  --muted: #8b909c;
+  --green: #4caf50;
+  --red: #e0605a;
+  --accent: #d7a84e;
+  --accent-soft: rgba(215, 168, 78, 0.14);
+  --accent-line: rgba(215, 168, 78, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:
+    radial-gradient(60% 32% at 50% -8%, rgba(215, 168, 78, 0.08), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+
+/* Фоновая картинка карты CS2 — та же, что на Sell/Buy/My Skins, приглушена
+   и замаскирована по краям. Все содержательные блоки (header, панели
+   фильтров, таблицы, карточки, модалки) непрозрачны, так что читаемость
+   данных не страдает — фон проглядывает только в узких промежутках между
+   секциями. */
+.bg-decor {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 20%, black 70%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 20%, black 70%, transparent);
+}
+
+header, .controls, .trade-form, .table-card, .modal-overlay {
+  position: relative;
+  z-index: 1;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+header h1 { font-size: 18px; margin: 0; }
+
+.status { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.whoami { color: var(--muted); }
+
+button {
+  background: var(--accent);
+  color: #14100a;
+  font-weight: 600;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+button:hover { opacity: 0.88; }
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+  padding: 16px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.controls input[type="text"],
+.controls input[type="number"],
+.controls select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.controls input[type="number"] { width: 70px; }
+
+.checkbox-label {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--accent);
+}
+
+.error {
+  margin: 16px 24px;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(224, 85, 85, 0.15);
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-size: 13px;
+}
+
+/* Обёртка вокруг таблиц (Arbitrage, Holdings, Sale History) — карточка со
+   скруглением и тенью, как остальные блоки, вместо голой таблицы враспор. */
+.table-card {
+  margin: 0 24px 24px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 600;
+}
+
+thead th.sortable {
+  cursor: pointer;
+  user-select: none;
+}
+thead th.sortable:hover {
+  color: var(--text);
+}
+.sort-arrow {
+  display: inline-block;
+  width: 10px;
+  color: var(--accent);
+}
+
+tbody td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: rgba(255,255,255,0.03); }
+tbody tr.row-selected { background: rgba(255,255,255,0.045); }
+
+.loading { text-align: center; color: var(--muted); padding: 40px; }
+
+.profit-positive { color: var(--green); font-weight: 600; }
+.profit-negative { color: var(--red); }
+.na { color: var(--muted); }
+
+td.cell-buy {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+td.cell-sell {
+  background: rgba(76, 175, 80, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(76, 175, 80, 0.45);
+}
+
+.price-link {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--accent);
+}
+.price-link:hover {
+  color: var(--accent);
+  border-bottom-style: solid;
+}
+
+/* ---- Навигация между подпроектами ---- */
+nav.subnav {
+  display: flex;
+  gap: 4px;
+}
+nav.subnav a {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+nav.subnav a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+nav.subnav a.active { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+
+/* ---- Мои сделки ---- */
+.summary-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 16px 24px;
+}
+.summary-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  min-width: 160px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.summary-card .label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.summary-card .value { font-size: 20px; font-weight: 600; }
+
+.section-title {
+  padding: 0 24px;
+  margin: 24px 0 8px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  margin: 24px 0 8px;
+}
+.section-title-row .section-title { padding: 0; margin: 0; }
+
+.period-tabs {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px;
+}
+.period-tab {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.period-tab:hover { color: var(--text); }
+.period-tab.active { background: var(--panel); color: var(--accent); font-weight: 600; }
+
+.custom-range {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 10px 24px;
+  margin-bottom: 8px;
+}
+.custom-range label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.custom-range input[type="date"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: 6px;
+  color-scheme: dark;
+}
+
+.trade-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  padding: 16px 24px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+.trade-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.trade-form input, .trade-form select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.trade-form input[type="number"] { width: 100px; }
+.trade-form input[type="text"] { width: 260px; }
+.trade-form #buyQuantityInput { width: 70px; }
+.field-hint { font-weight: 400; opacity: 0.7; }
+
+.autocomplete-wrap { position: relative; }
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+  width: 360px;
+  display: none;
+}
+.autocomplete-list.open { display: block; }
+.autocomplete-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: var(--accent-soft); }
+.autocomplete-item .wear { color: var(--muted); font-size: 12px; }
+
+.lock-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.lock-badge.locked { background: rgba(224,85,85,0.15); color: var(--red); }
+.lock-badge.unlocked { background: rgba(76,175,80,0.15); color: var(--green); }
+
+.section-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: 8px;
+  font-weight: normal;
+}
+
+/* ---- Модалка "куда продать" ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.modal-header h2 { font-size: 16px; margin: 0; }
+.modal-meta { color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+.modal-snapshot {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: -10px;
+  margin-bottom: 16px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.modal-photo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.modal-photo-img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.modal-photo-upload { cursor: pointer; }
+
+.modal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-filters label { display: flex; align-items: center; gap: 4px; color: var(--text); cursor: pointer; }
+.modal-filters input[type="checkbox"] { accent-color: var(--accent); }
+
+.modal-manual-sell { margin-bottom: 12px; }
+.modal-manual-sell button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.modal-options { display: flex; flex-direction: column; gap: 6px; }
+.modal-option {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.02);
+  font-size: 13px;
+}
+.modal-option.best { background: rgba(76,175,80,0.1); box-shadow: inset 0 0 0 1px rgba(76,175,80,0.4); }
+
+.side-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  margin-left: 4px;
+}
+.side-tag.instant { background: rgba(76,175,80,0.15); color: var(--green); }
+.side-tag.list { background: var(--accent-soft); color: var(--accent); }
+
+.modal-callout {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+  font-size: 13px;
+}
+
+.modal-sell-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.modal-sell-form input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.modal-sell-form input[type="number"] { width: 90px; }
+
+.modal-trade-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.modal-trade-header { color: var(--muted); }
+.modal-trade-items { display: flex; flex-direction: column; gap: 8px; }
+.modal-trade-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.modal-trade-row .autocomplete-wrap { flex: 1; position: relative; }
+.modal-trade-row input[type="text"],
+.modal-trade-row input[type="number"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 6px;
+  width: 100%;
+}
+.modal-trade-row input[type="number"] { width: 100px; flex: none; }
+.modal-trade-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  color: var(--muted);
+}
+.modal-trade-footer input[type="datetime-local"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-left: 6px;
+}
+.modal-trade-total b { color: var(--text); }
+.modal-trade-actions { display: flex; gap: 8px; }
+
+.btn-small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+/* Только основная (золотая) кнопка — на тёмном фоне тёмный текст, остальные
+   варианты светлее фона, поэтому им нужен светлый текст обратно. */
+.btn-secondary { background: var(--border); color: var(--text); font-weight: 400; }
+.btn-danger { background: var(--red); color: #fff; }
+
+.empty-state { text-align: center; color: var(--muted); padding: 30px; }
+.balance-extra { color: var(--muted); font-size: 11px; margin-top: 2px; }
+.balance-edit-btn { padding: 1px 6px; font-size: 11px; vertical-align: middle; }
+
+.bulk-delete-bar {
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 24px;
+  padding: 10px 14px;
+  background: var(--panel);
+  border: 1px solid var(--red);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text);
+}

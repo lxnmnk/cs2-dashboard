@@ -1,0 +1,129 @@
+{
+  "_comment": "Настройте под себя. buyFee/sellFee — доля комиссии (0.02 = 2%), которую источник берёт при покупке/продаже. ask = цена покупки (самый дешёвый листинг), bid = цена продажи (лучший ордер на покупку / инстант-выкуп).",
+
+  "marketUrls": {
+    "_comment": "Шаблон ссылки на поиск предмета по названию. {name} заменяется на market_hash_name (urlencoded). Если ссылка у какой-то площадки не работает — площадка могла поменять формат поиска, просто поправьте шаблон здесь.",
+    "csfloat": "https://csfloat.com/search?market_hash_name={name}",
+    "buff": "https://buff.163.com/market/csgo#tab=selling&page_num=1&search={name}",
+    "youpin": "https://www.youpin898.com/search?keyword={name}",
+    "skinbux": "https://skinbux.com/market?search={name}",
+    "csmoney": "https://cs.money/market/buy/?search={name}"
+  },
+
+  "sources": {
+    "csfloat": {
+      "enabled": true,
+      "buyFee": 0,
+      "sellFee": 0.02,
+      "canBuy": true,
+      "canSell": true,
+      "instantPercent": 0,
+      "holdDays": 7,
+      "_balanceNote": "CSFloat держит все деньги с продажи 7 дней, потом полностью доступны."
+    },
+    "buff": {
+      "enabled": true,
+      "buyFee": 0,
+      "sellFee": 0.015,
+      "canBuy": true,
+      "canSell": false,
+      "_note": "Пользователь не может продавать на buff163 (регион/аккаунт), поэтому canSell: false — площадка остаётся источником цен для покупки и для сравнения, просто никогда не выбирается стороной продажи во флипе.",
+      "instantPercent": 90,
+      "holdDays": null,
+      "_balanceNote": "Как на Youpin898: 90% доступно сразу, 10% в 'заморозке' — освобождается только если покупатель не использовал свой frozen balance, это условие мы отследить не можем, поэтому 10% считаем зависшими навсегда, пока не поправишь вручную."
+    },
+    "youpin": {
+      "enabled": true,
+      "buyFee": 0,
+      "sellFee": 0,
+      "canBuy": true,
+      "canSell": true,
+      "instantPercent": 90,
+      "holdDays": null,
+      "_balanceNote": "90% с продажи доступно сразу, 10% — в frozen balance (условие освобождения — не использовал ли покупатель свой frozen balance — нам не видно, считаем зависшими навсегда)."
+    },
+    "skinbux": {
+      "enabled": true,
+      "buyFee": 0,
+      "sellFee": 0,
+      "canBuy": false,
+      "canSell": true,
+      "_note": "skinbux используется только как buyback: sellPrice — цена, за которую они выкупают предмет у вас (bid). Сторона продажи (ask, buyPrice) не используется, поэтому canBuy: false.",
+      "instantPercent": 0,
+      "holdDays": 7,
+      "_balanceNote": "Как CSFloat — все деньги 7 дней в холде, потом полностью доступны."
+    },
+    "csmoney": {
+      "enabled": true,
+      "buyFee": 0,
+      "sellFee": 0,
+      "canBuy": true,
+      "canSell": true,
+      "_note": "ask — минимальная цена активного лота на маркете (/min_price/market/all), bid — цена мгновенного выкупа (/instantsell/price/all).",
+      "askSellFeeTiers": [
+        { "maxPrice": 1000, "fee": 0.05 },
+        { "maxPrice": null, "fee": 0.03 }
+      ],
+      "balanceBySide": {
+        "bid": { "instantPercent": 100, "holdDays": 0 },
+        "ask": { "instantPercent": 0, "holdDays": 7 }
+      },
+      "_balanceNote": "У CS.Money правила разные в зависимости от того, как именно продал: через bid (инстант-выкуп самим CS.Money) — 100% доступно сразу, но потратить можно только на предметы с отметкой 'Instant' (боты CS.Money), не на лоты игроков. Через ask (купил реальный игрок) — комиссия 5% если цена предмета < $1000, иначе 3%, и весь остаток (после комиссии) холдится 7 дней, ничего потратить нельзя до разморозки. Старые проданные записи без сохранённой стороны продажи считаются как ask (более осторожный вариант, чтобы не завысить доступный баланс)."
+    }
+  },
+
+  "filters": {
+    "minProfitUsd": 1,
+    "minProfitPercent": 5,
+    "maxResults": 200,
+    "excludeStatTrak": false,
+    "excludeSouvenir": false,
+    "excludeStickers": false,
+    "minPrice": null,
+    "maxPrice": null,
+    "maxCsfloatSpreadPercent": null,
+    "maxYoupinSpreadPercent": null,
+    "maxBuffSpreadPercent": null
+  },
+
+  "refreshIntervalMinutes": 20,
+
+  "csfloatBidScan": {
+    "_comment": "Периодический скан для внешнего бота автоперебития CSFloat buy order. buySource/sellSource в формате 'источник:сторона' (см. Buy On/Sell On в интерфейсе), 'any' = без ограничения. Результат сохраняется в csfloat-bid-watchlist.json и доступен через GET /api/csfloat-bid-scan.",
+    "enabled": true,
+    "intervalHours": 12,
+    "buySource": "csfloat:bid",
+    "sellSource": "any",
+    "maxResults": 30,
+    "minProfitUsd": 10,
+    "minProfitPercent": 5,
+    "excludeStatTrak": true,
+    "excludeSouvenir": true,
+    "excludeStickers": true,
+    "minPrice": 100,
+    "maxPrice": 1000,
+    "maxCsfloatSpreadPercent": 16,
+    "maxYoupinSpreadPercent": 15,
+    "maxBuffSpreadPercent": 20,
+    "phase": null,
+    "patternWearLimits": {
+      "_comment": "Для этих раскрасок покупаем только перечисленные качества, остальные качества этой раскраски выкидываются из результата скана независимо от прибыли. Ключ ищется как подстрока в названии предмета (например 'Tiger Tooth' совпадёт с '★ Karambit | Tiger Tooth').",
+      "Marble Fade": ["Factory New"],
+      "Fade": ["Factory New"],
+      "Doppler": ["Factory New"],
+      "Gamma Doppler": ["Factory New"],
+      "Tiger Tooth": ["Factory New"],
+      "Slaughter": ["Minimal Wear", "Factory New"]
+    }
+  },
+
+  "portfolio": {
+    "_comment": "Настройки трекера сделок (страница 'Мои сделки').",
+    "tradeLockDays": 7
+  },
+
+  "telegramArbBot": {
+    "_comment": "Интерактивный Telegram-бот мониторинга арбитража (telegramArbBot.js) — свои фильтры на каждый чат, свой токен TELEGRAM_ARB_BOT_TOKEN в .env (отдельный от TELEGRAM_BOT_TOKEN, чтобы не конфликтовать по getUpdates с csfloat-bot).",
+    "intervalMinutes": 5
+  }
+}

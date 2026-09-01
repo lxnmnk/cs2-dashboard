@@ -1,0 +1,470 @@
+/* Спільний стиль для публічних сторінок (trade.html, sell-quote.html,
+   buy-quote.html) — самодостатній, не ділиться нічим зі style.css
+   (внутрішній дашборд). Один акцентний колір (приглушене золото —
+   асоціація з ★ ножами/рукавицями в CS2), без веселки рідкісностей. */
+:root {
+  --bg: #0a0c10;
+  --panel: #0a0b0f;
+  --panel-2: #131519;
+  --border: #262b36;
+  --text: #ece9e2;
+  --muted: #8b909c;
+  --gold: #d7a84e;
+  --gold-soft: rgba(215, 168, 78, 0.14);
+  --gold-line: rgba(215, 168, 78, 0.35);
+  --red: #e0605a;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  background:
+    radial-gradient(60% 42% at 50% -6%, rgba(215, 168, 78, 0.10), transparent 60%),
+    var(--bg);
+  color: var(--text);
+}
+
+a { color: var(--gold); }
+
+/* Фонова картинка на весь екран — фіксована, притлумлена й розмита по
+   краях, щоб зливалась з темним фоном (лежить під усім контентом, бо йде
+   першим елементом у <body>; картки вище мають власний непрозорий фон). */
+.bg-decor {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 35%;
+  opacity: 0.20;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 18%, black 75%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 18%, black 75%, transparent);
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* ---- Верхня навігація між Купити/Продати ---- */
+.top-nav {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 18px 20px 0;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.top-nav a {
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+.top-nav a:hover { color: var(--text); border-color: var(--border); }
+.top-nav a.active { color: var(--gold); border-color: var(--gold-line); background: var(--gold-soft); }
+.top-nav .nav-sep { color: var(--border); align-self: center; }
+
+/* ---- Hero ---- */
+.hero {
+  padding: 48px 20px 32px;
+  text-align: center;
+}
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  border: 1px solid var(--gold-line);
+  background: var(--gold-soft);
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+.hero h1 {
+  font-size: 34px;
+  line-height: 1.25;
+  margin: 0 0 12px;
+  font-weight: 700;
+}
+.hero h1 .accent { color: var(--gold); }
+.hero-sub {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0;
+}
+
+/* ---- Trust badges ---- */
+.trust-row {
+  max-width: 760px;
+  margin: 28px auto 0;
+  padding: 0 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+.trust-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+.trust-badge .icon { font-size: 15px; }
+
+/* ---- Cards ---- */
+.card {
+  max-width: 760px;
+  margin: 24px auto 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+}
+.card h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+}
+.card .card-hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 20px;
+}
+
+/* ---- Форма пошуку ---- */
+.autocomplete-wrap { position: relative; display: block; }
+.autocomplete-wrap label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+#itemSearch {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 13px 14px;
+  border-radius: 10px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#itemSearch:focus { border-color: var(--gold-line); }
+
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  display: none;
+}
+.autocomplete-list.open { display: block; }
+.autocomplete-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover { background: var(--gold-soft); }
+.autocomplete-item .wear { color: var(--muted); font-size: 12px; margin-left: 6px; }
+
+/* ---- Список доданих предметів ---- */
+.cart-section {
+  margin-top: 22px;
+}
+.cart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+.cart-item-name {
+  flex: 1;
+  font-size: 14px;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.cart-item-qty {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.cart-item-price {
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.cart-item-remove {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+/* ---- "Мої скіни в наявності" ---- */
+.lock-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.lock-tag.locked { background: rgba(224, 96, 90, 0.14); color: var(--red); }
+.lock-tag.ready { background: rgba(76, 175, 80, 0.14); color: #4caf50; }
+
+.skin-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.skin-thumb-wrap {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  flex-grow: 0;
+}
+.skin-thumb-full {
+  display: none;
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  top: calc(100% + 8px);
+  width: 220px;
+  height: 220px;
+  object-fit: contain;
+  background: var(--panel-2);
+  border: 1px solid var(--gold-line);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+}
+.skin-thumb-wrap:hover .skin-thumb-full { display: block; }
+
+.skin-item-add {
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.skin-item-add:hover { background: var(--gold); color: #14100a; }
+.skin-item-add:disabled { opacity: 0.4; cursor: default; }
+.cart-item-remove:hover { color: var(--red); background: rgba(224, 96, 90, 0.10); }
+
+.cart-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  font-size: 15px;
+}
+.cart-total {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.cart-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+}
+.btn-clear {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.btn-clear:hover { color: var(--text); }
+
+.account-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+.account-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.account-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+.account-steam-link {
+  font-size: 13px;
+  color: var(--gold);
+}
+
+.unstable {
+  margin-top: 22px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: rgba(224, 96, 90, 0.10);
+  border: 1px solid rgba(224, 96, 90, 0.35);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---- Кнопки ---- */
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--gold);
+  color: #14100a;
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  padding: 11px 20px;
+  border-radius: 10px;
+  transition: opacity 0.15s;
+  border: none;
+  cursor: pointer;
+}
+.btn-gold:hover { opacity: 0.88; }
+
+/* ---- Умови ---- */
+.terms-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.terms-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.terms-list .icon { font-size: 16px; flex-shrink: 0; }
+.card .reviews-line {
+  margin: 18px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---- Footer ---- */
+.footer {
+  max-width: 760px;
+  margin: 36px auto 60px;
+  padding: 0 20px;
+  text-align: center;
+}
+.footer p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 14px 0 0;
+}
+
+/* ---- Стартова сторінка: вибір Продати/Купити/Мої скіни ---- */
+.chooser {
+  max-width: 940px;
+  margin: 24px auto 60px;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.chooser-card {
+  display: block;
+  background: var(--panel);
+  border: 1px solid var(--gold-line);
+  border-radius: 14px;
+  padding: 28px 22px;
+  text-align: center;
+  text-decoration: none;
+  color: var(--text);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.chooser-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.6), 0 0 28px rgba(215, 168, 78, 0.25);
+}
+.chooser-card .chooser-icon { font-size: 30px; margin-bottom: 12px; }
+.chooser-card .chooser-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+.chooser-card .chooser-desc { font-size: 13px; color: var(--muted); line-height: 1.4; }
+.chooser-card .chooser-go { display: inline-block; margin-top: 14px; font-size: 13px; color: var(--gold); }
+
+@media (max-width: 860px) {
+  .chooser { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 560px) {
+  .chooser { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .hero { padding: 36px 16px 24px; }
+  .hero h1 { font-size: 27px; }
+  .card { padding: 20px; border-radius: 12px; }
+  .cart-total { font-size: 22px; }
+}
