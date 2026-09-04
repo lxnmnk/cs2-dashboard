@@ -2,10 +2,16 @@
 // skinbuxTransactions.js) — что именно и когда ушло, чтобы вебхук
 // (server.js /api/webhooks/skinbux) знал, какую запись обновлять по
 // приходу статуса, и чтобы можно было свериться вручную при споре.
+//
+// HOLD_DAYS — сколько дней после завершения обміну (клієнт прийняв трейд)
+// гроші лежать у холді, перш ніж їх можна вивести. Узгоджено з публічною
+// обіцянкою на сайті "Оплата через 7 днів після обміну" (термін Steam trade
+// lock) — див. public/sell-quote.html.
 const fs = require("fs");
 const path = require("path");
 
 const FILE = path.join(__dirname, "skinbuxSales.json");
+const HOLD_DAYS = 7;
 
 function loadAll() {
   try {
@@ -42,9 +48,35 @@ function updateStatus(id, status, steamOfferId) {
   if (!sale) return null;
   sale.status = status;
   if (steamOfferId) sale.offerId = steamOfferId;
+  // completedAt фіксуємо один раз, у момент першого переходу в "completed" —
+  // саме від цієї миті рахується 7-денний холд, а не від будь-якого
+  // подальшого оновлення статусу (напр. звіт про повернення заднім числом).
+  if (status === "completed" && !sale.completedAt) {
+    sale.completedAt = new Date().toISOString();
+  }
   sale.updatedAt = new Date().toISOString();
   saveAll(sales);
   return sale;
 }
 
-module.exports = { record, updateStatus, loadAll };
+/**
+ * Угоди конкретного клієнта для розділу "Мої угоди" в кабінеті — з готовими
+ * полями по холду, щоб фронтенду не рахувати дати самому.
+ */
+function listByUser(steamId) {
+  const sales = loadAll().filter((s) => s.steamId === steamId);
+  const now = Date.now();
+  return sales
+    .map((s) => {
+      let unlockAt = null;
+      let unlocked = false;
+      if (s.completedAt) {
+        unlockAt = new Date(new Date(s.completedAt).getTime() + HOLD_DAYS * 86400000).toISOString();
+        unlocked = now >= new Date(unlockAt).getTime();
+      }
+      return { ...s, unlockAt, unlocked };
+    })
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+module.exports = { record, updateStatus, loadAll, listByUser, HOLD_DAYS };

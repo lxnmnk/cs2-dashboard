@@ -357,7 +357,13 @@ a { color: var(--gold); }
   gap: 8px;
   text-decoration: none;
   color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }
+.account-pill-avatar:hover span { color: var(--gold); }
 .account-pill-avatar img {
   width: 28px;
   height: 28px;
@@ -471,6 +477,7 @@ a { color: var(--gold); }
 #tradeUrlStatus, #sellStatus {
   margin: 6px 0 0;
 }
+#tradeUrlStatus.field-error { color: var(--red); }
 
 /* ---- Кнопки ---- */
 .btn-gold {
@@ -489,6 +496,87 @@ a { color: var(--gold); }
   cursor: pointer;
 }
 .btn-gold:hover { opacity: 0.88; }
+
+.btn-small {
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+}
+.btn-small:hover { background: var(--gold); color: #14100a; }
+.btn-small:disabled { opacity: 0.6; cursor: default; }
+
+/* ---- Модалка "Мої угоди" ---- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(5, 6, 8, 0.72);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 80px 16px 16px;
+  overflow-y: auto;
+}
+.modal-panel {
+  width: 100%;
+  max-width: 520px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.modal-header h3 { margin: 0; font-size: 18px; }
+.modal-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.modal-close:hover { color: var(--text); }
+
+.deals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+}
+.deal-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.deal-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.deal-items { color: var(--text); }
+.deal-price { color: var(--gold); font-weight: 700; white-space: nowrap; }
+.deal-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.deal-status-unlocked { color: var(--gold); font-weight: 600; }
+.deal-card .btn-small { margin-top: 8px; padding: 8px 16px; }
 
 /* ---- Умови ---- */
 .terms-list {

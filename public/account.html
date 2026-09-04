@@ -10,11 +10,24 @@
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
 
   <div id="accountPill" class="account-pill" style="display:none;">
-    <a id="accountPillLink" class="account-pill-avatar" href="#" target="_blank" title="Профіль у Steam">
+    <button id="accountPillBtn" class="account-pill-avatar" type="button" title="Мої угоди">
       <img id="accountPillAvatar" src="" alt="" />
       <span id="accountPillName"></span>
-    </a>
+    </button>
     <button id="logoutBtn" class="account-pill-logout" type="button" title="Вийти">⏻</button>
+  </div>
+
+  <div id="dealsModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Мої угоди</h3>
+        <button id="dealsModalClose" class="modal-close" type="button">✕</button>
+      </div>
+      <p class="card-hint"><a id="dealsProfileLink" href="#" target="_blank">Переглянути профіль у Steam →</a></p>
+      <p id="dealsLoading" class="card-hint">Завантажую...</p>
+      <p id="dealsEmpty" class="card-hint" style="display:none;">Ти ще нічого не продавав.</p>
+      <div id="dealsList" class="deals-list"></div>
+    </div>
   </div>
 
   <nav class="top-nav">
@@ -85,7 +98,6 @@
           document.getElementById("inventoryCard").style.display = "block";
           document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
           document.getElementById("accountPillName").textContent = data.customer.displayName;
-          document.getElementById("accountPillLink").href = data.customer.profileUrl;
           document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
           loadInventory();
         } else {
@@ -98,5 +110,6 @@
     });
   </script>
   <script src="/account-inventory.js"></script>
+  <script src="/account-deals.js"></script>
 </body>
 </html>

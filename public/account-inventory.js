@@ -27,20 +27,33 @@ cartClearBtn?.addEventListener("click", () => {
   renderCart();
 });
 
+const tradeUrlSaveLabel = tradeUrlSaveBtn?.textContent;
+
 tradeUrlSaveBtn?.addEventListener("click", async () => {
-  tradeUrlStatusEl.textContent = "Зберігаю...";
+  tradeUrlSaveBtn.disabled = true;
+  tradeUrlStatusEl.textContent = "";
+  tradeUrlStatusEl.classList.remove("field-error");
+
   const res = await fetch("/api/account/trade-url", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tradeUrl: tradeUrlInput.value.trim() }),
   });
   const data = await res.json();
+
   if (!data.ok) {
+    tradeUrlSaveBtn.disabled = false;
     tradeUrlStatusEl.textContent = `Помилка: ${data.error}`;
+    tradeUrlStatusEl.classList.add("field-error");
     return;
   }
+
   window.ACCOUNT_CUSTOMER = data.customer;
-  tradeUrlStatusEl.textContent = "Збережено ✓";
+  tradeUrlSaveBtn.textContent = "Збережено ✓";
+  setTimeout(() => {
+    tradeUrlSaveBtn.textContent = tradeUrlSaveLabel;
+    tradeUrlSaveBtn.disabled = false;
+  }, 1500);
 });
 
 sellAutoBtn?.addEventListener("click", async () => {

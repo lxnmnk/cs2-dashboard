@@ -169,6 +169,7 @@ const PUBLIC_PATHS = new Set([
   "/en/my-skins",
   "/my-skins.js",
   "/account-inventory.js",
+  "/account-deals.js",
   "/quote.css",
   "/quote-common.js",
   "/bg-map.jpg",
@@ -184,6 +185,7 @@ const PUBLIC_PATHS = new Set([
   "/api/account/inventory",
   "/api/account/trade-url",
   "/api/account/sell",
+  "/api/account/sales",
   "/api/webhooks/skinbux",
 ]);
 
@@ -408,6 +410,14 @@ app.post("/api/account/sell", async (req, res) => {
     console.error("[account-sell] Ошибка:", err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
+});
+
+// Список угод клієнта для розділу "Мої угоди" в кабінеті — статус обміну і
+// коли розблокуються гроші (unlockAt/unlocked рахує skinbuxSales.listByUser).
+app.get("/api/account/sales", (req, res) => {
+  if (!req.session.customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const sales = skinbuxSales.listByUser(req.session.customer.steamId);
+  res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
 });
 
 // Вебхук от Skinbux — статус транзакции (created/pending/completed/
