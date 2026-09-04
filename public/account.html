@@ -49,37 +49,42 @@
   </section>
 
   <section id="inventoryCard" class="card" style="display:none;">
-    <h2>Твій інвентар CS2</h2>
-    <p class="card-hint">Ціна — скільки ми готові заплатити прямо зараз за кожен предмет, від найдорожчого. Тягнемо прямо з твого Steam-інвентарю, нічого шукати не треба.</p>
+    <div class="inventory-layout">
+      <div class="inventory-main">
+        <h2>Твій інвентар CS2</h2>
+        <p class="card-hint">Ціна — скільки ми готові заплатити прямо зараз за кожен предмет, від найдорожчого. Тягнемо прямо з твого Steam-інвентарю, нічого шукати не треба.</p>
 
-    <p id="inventoryLoading" class="card-hint">Завантажую інвентар...</p>
-    <div id="inventoryPrivate" class="unstable" style="display:none;">
-      Не вдалося прочитати інвентар — здається, він прихований. Steam → Налаштування → Приватність → "Інвентар" → постав "Загальнодоступний", і онови цю сторінку.
-    </div>
-    <p id="inventoryEmpty" class="card-hint" style="display:none;">У інвентарі немає предметів, які можна продати.</p>
+        <p id="inventoryLoading" class="card-hint">Завантажую інвентар...</p>
+        <div id="inventoryPrivate" class="unstable" style="display:none;">
+          Не вдалося прочитати інвентар — здається, він прихований. Steam → Налаштування → Приватність → "Інвентар" → постав "Загальнодоступний", і онови цю сторінку.
+        </div>
+        <p id="inventoryEmpty" class="card-hint" style="display:none;">У інвентарі немає предметів, які можна продати.</p>
 
-    <div id="tradeUrlSection" class="trade-url-section">
-      <label for="tradeUrlInput">Посилання на обмін Steam <span class="section-hint">(щоб бот міг надіслати тобі обмін) — <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">знайти тут</a></span></label>
-      <div class="trade-url-row">
-        <input id="tradeUrlInput" type="text" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&amp;token=..." />
-        <button id="tradeUrlSaveBtn" class="btn-small" type="button">Зберегти</button>
+        <div id="tradeUrlSection" class="trade-url-section">
+          <label for="tradeUrlInput">Посилання на обмін Steam <span class="section-hint">(щоб бот міг надіслати тобі обмін) — <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">знайти тут</a></span></label>
+          <div class="trade-url-row">
+            <input id="tradeUrlInput" type="text" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&amp;token=..." />
+            <button id="tradeUrlSaveBtn" class="btn-small" type="button">Зберегти</button>
+          </div>
+          <p id="tradeUrlStatus" class="card-hint"></p>
+        </div>
+
+        <div id="inventoryList" class="inventory-grid"></div>
       </div>
-      <p id="tradeUrlStatus" class="card-hint"></p>
-    </div>
 
-    <div id="inventoryList" class="inventory-grid"></div>
-
-    <div id="cartSection" class="cart-section" style="display:none;">
-      <div id="cartList" class="cart-list"></div>
-      <div class="cart-total-row">
-        <span>Разом</span>
-        <span id="cartTotal" class="cart-total">$0.00</span>
-      </div>
-      <p id="sellStatus" class="card-hint"></p>
-      <div class="cart-actions">
-        <button id="sellAutoBtn" class="btn-gold" type="button">Продати автоматично</button>
-        <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
-      </div>
+      <aside id="cartSection" class="cart-sidebar" style="display:none;">
+        <h3>Кошик</h3>
+        <div id="cartList" class="cart-list"></div>
+        <div class="cart-total-row">
+          <span>Разом</span>
+          <span id="cartTotal" class="cart-total">$0.00</span>
+        </div>
+        <p id="sellStatus" class="card-hint"></p>
+        <div class="cart-actions">
+          <button id="sellAutoBtn" class="btn-gold" type="button">Продати автоматично</button>
+          <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
+        </div>
+      </aside>
     </div>
   </section>
 

@@ -192,9 +192,38 @@ a { color: var(--gold); }
 .autocomplete-item:hover { background: var(--gold-soft); }
 .autocomplete-item .wear { color: var(--muted); font-size: 12px; margin-left: 6px; }
 
-/* ---- Список доданих предметів ---- */
-.cart-section {
-  margin-top: 22px;
+/* ---- Особистий кабінет: інвентар + кошик у дві колонки ---- */
+#inventoryCard { max-width: 1180px; }
+.inventory-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+.inventory-main { flex: 1; min-width: 0; }
+
+/* ---- Кошик — sticky-панель праворуч, завжди на видноті під час скролу ---- */
+.cart-sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 20px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+}
+.cart-sidebar h3 {
+  margin: 0 0 14px;
+  font-size: 15px;
+}
+.cart-sidebar .cart-list { max-height: 40vh; overflow-y: auto; }
+.cart-sidebar .cart-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+.cart-sidebar .btn-gold { justify-content: center; }
+.cart-sidebar .btn-clear { text-align: center; }
+
+@media (max-width: 860px) {
+  .inventory-layout { flex-direction: column; }
+  .cart-sidebar { width: 100%; position: static; }
 }
 .cart-list {
   display: flex;
