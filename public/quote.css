@@ -443,6 +443,35 @@ a { color: var(--gold); }
   text-align: center;
 }
 
+/* ---- Посилання на Steam-обмін (потрібно для автопродажу через Skinbux) ---- */
+.trade-url-section {
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+.trade-url-section label {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.trade-url-row {
+  display: flex;
+  gap: 8px;
+}
+.trade-url-row input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+#tradeUrlStatus, #sellStatus {
+  margin: 6px 0 0;
+}
+
 /* ---- Кнопки ---- */
 .btn-gold {
   display: inline-flex;

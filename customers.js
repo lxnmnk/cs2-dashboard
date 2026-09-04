@@ -50,4 +50,26 @@ function findBySteamId(steamId) {
   return loadCustomers().find((c) => c.steamId === steamId) || null;
 }
 
-module.exports = { upsertBySteamId, findBySteamId };
+// Ссылка на Steam-обмен клиента — нужна, чтобы Skinbux мог прислать ему
+// автоматический трейд при продаже (see skinbuxTransactions.js). Не секрет
+// (её и так можно случайно кому угодно скинуть, чтобы получить трейд),
+// поэтому храним как есть, без шифрования.
+const TRADE_URL_RE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=\d+&token=[\w-]+$/;
+
+function isValidTradeUrl(url) {
+  return typeof url === "string" && TRADE_URL_RE.test(url.trim());
+}
+
+function setTradeUrl(steamId, tradeUrl) {
+  if (!isValidTradeUrl(tradeUrl)) {
+    throw new Error("Некоректне посилання на обмін Steam");
+  }
+  const customers = loadCustomers();
+  const customer = customers.find((c) => c.steamId === steamId);
+  if (!customer) throw new Error("Клієнт не знайдений");
+  customer.tradeUrl = tradeUrl.trim();
+  saveCustomers(customers);
+  return customer;
+}
+
+module.exports = { upsertBySteamId, findBySteamId, setTradeUrl, isValidTradeUrl };

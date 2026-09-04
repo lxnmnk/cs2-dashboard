@@ -22,6 +22,9 @@ const steamAuth = require("./steamAuth");
 const customers = require("./customers");
 const balanceAdjustments = require("./balanceAdjustments");
 const { fetchInventory } = require("./steamInventory");
+const skinbuxTx = require("./skinbuxTransactions");
+const skinbuxSales = require("./skinbuxSales");
+const crypto = require("crypto");
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
 
@@ -179,6 +182,9 @@ const PUBLIC_PATHS = new Set([
   "/auth/logout",
   "/api/account/me",
   "/api/account/inventory",
+  "/api/account/trade-url",
+  "/api/account/sell",
+  "/api/webhooks/skinbux",
 ]);
 
 app.use((req, res, next) => {
@@ -318,6 +324,100 @@ app.get("/api/account/inventory", async (req, res) => {
     console.error("[account-inventory] Ошибка:", err.message);
     res.status(500).json({ ok: false, error: "Не удалось загрузить инвентарь" });
   }
+});
+
+// Клиент один раз сохраняет свою ссылку на Steam-обмен — без неё Skinbux
+// некуда отправлять автоматический трейд при продаже.
+app.post("/api/account/trade-url", (req, res) => {
+  if (!req.session.customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  try {
+    const customer = customers.setTradeUrl(req.session.customer.steamId, (req.body || {}).tradeUrl);
+    req.session.customer = customer;
+    res.json({ ok: true, customer });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Продажа клієнтом кількох предметів одразу через Skinbux — предмет(и)
+// реально йдуть у Steam-бота Skinbux, гроші по завершенню приходять на
+// баланс Skinbux власника сайту (див. skinbuxTransactions.js). Ціну НЕ
+// довіряємо клієнту — перераховуємо сервером по кожному assetId заново, щоб
+// підмінений price з фронта не міг пройти.
+app.post("/api/account/sell", async (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  if (!customer.tradeUrl) return res.status(400).json({ ok: false, error: "NO_TRADE_URL" });
+
+  const assetIds = Array.isArray((req.body || {}).assetIds) ? req.body.assetIds : [];
+  if (!assetIds.length) return res.status(400).json({ ok: false, error: "Порожній список предметів" });
+
+  try {
+    const rawItems = await fetchInventory(customer.steamId);
+    const items = [];
+    for (const assetId of assetIds) {
+      const it = rawItems.find((r) => r.assetId === assetId && r.tradable);
+      if (!it) throw new Error(`Предмет ${assetId} більше не знайдено в інвентарі`);
+      const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
+      const quote = computeSellQuote(row);
+      if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
+      // Skinbux хоче повний market_hash_name (з якістю в дужках), не "голу"
+      // назву без wear — приклади в їхній документації це підтверджують.
+      // phase: null — базовий Steam-інвентар не дає надійно визначити фазу
+      // Doppler/Gamma Doppler за самим market_hash_name (там немає суфікса
+      // фази, на відміну від sources/skinbux.js, куди його додає сам Skinbux
+      // у відповіді з цінами) — для звичайних предметів це не проблема.
+      items.push({ assetId: it.assetId, name: it.marketHashName, price: String(quote.price), phase: null });
+    }
+
+    const result = await skinbuxTx.requestSell(process.env.SKINBUX_API_KEY, {
+      items,
+      steamId: customer.steamId,
+      tradeUrl: customer.tradeUrl,
+    });
+
+    const totalPrice = items.reduce((sum, it) => sum + Number(it.price), 0);
+    skinbuxSales.record({
+      id: result.id,
+      steamId: customer.steamId,
+      customerName: customer.displayName,
+      items,
+      totalPrice,
+      offerId: result.offerId,
+      expiresAt: result.expires_at,
+    });
+
+    res.json({ ok: true, totalPrice, ...result });
+  } catch (err) {
+    console.error("[account-sell] Ошибка:", err.message);
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Вебхук от Skinbux — статус транзакции (created/pending/completed/
+// cancelled/hold/reverted). Подпись: sha256(JSON.stringify(body) + secret) в
+// base64, в заголовке x-auth. Без правильного секрета в .env отклоняем всё —
+// иначе кто угодно может подделать "completed" и т.п.
+app.post("/api/webhooks/skinbux", (req, res) => {
+  const secret = process.env.SKINBUX_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error("[skinbux-webhook] SKINBUX_WEBHOOK_SECRET не задан в .env — вебхук отклонён");
+    return res.status(500).json({ ok: false });
+  }
+
+  const signature = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(req.body) + secret)
+    .digest("base64");
+  if (req.get("x-auth") !== signature) {
+    console.error("[skinbux-webhook] Неверная подпись — запрос отклонён");
+    return res.status(401).json({ ok: false });
+  }
+
+  const { id, status, steamOfferId } = req.body || {};
+  skinbuxSales.updateStatus(id, status, steamOfferId);
+  console.log(`[skinbux-webhook] Транзакция ${id} -> ${status}`);
+  res.json({ ok: true });
 });
 
 app.get("/auth/steam", (req, res) => {

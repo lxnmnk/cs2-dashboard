@@ -11,13 +11,63 @@ const inventoryEmptyEl = document.getElementById("inventoryEmpty");
 const cartSection = document.getElementById("cartSection");
 const cartList = document.getElementById("cartList");
 const cartTotal = document.getElementById("cartTotal");
-const cartTelegramLink = document.getElementById("cartTelegramLink");
+const sellAutoBtn = document.getElementById("sellAutoBtn");
+const sellStatusEl = document.getElementById("sellStatus");
 const cartClearBtn = document.getElementById("cartClearBtn");
+const tradeUrlInput = document.getElementById("tradeUrlInput");
+const tradeUrlSaveBtn = document.getElementById("tradeUrlSaveBtn");
+const tradeUrlStatusEl = document.getElementById("tradeUrlStatus");
 
 let inventoryItems = [];
 let cart = []; // [{ assetId, marketHashName, price }] — по одному на кожен фізичний предмет
 
 cartClearBtn?.addEventListener("click", () => {
+  cart = [];
+  renderInventoryList();
+  renderCart();
+});
+
+tradeUrlSaveBtn?.addEventListener("click", async () => {
+  tradeUrlStatusEl.textContent = "Зберігаю...";
+  const res = await fetch("/api/account/trade-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tradeUrl: tradeUrlInput.value.trim() }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    tradeUrlStatusEl.textContent = `Помилка: ${data.error}`;
+    return;
+  }
+  window.ACCOUNT_CUSTOMER = data.customer;
+  tradeUrlStatusEl.textContent = "Збережено ✓";
+});
+
+sellAutoBtn?.addEventListener("click", async () => {
+  if (!cart.length) return;
+  if (!window.ACCOUNT_CUSTOMER?.tradeUrl) {
+    sellStatusEl.textContent = "Спочатку збережи посилання на обмін Steam вище.";
+    return;
+  }
+
+  sellAutoBtn.disabled = true;
+  sellStatusEl.textContent = "Створюю обмін через Skinbux...";
+
+  const res = await fetch("/api/account/sell", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assetIds: cart.map((it) => it.assetId) }),
+  });
+  const data = await res.json();
+
+  sellAutoBtn.disabled = false;
+
+  if (!data.ok) {
+    sellStatusEl.textContent = `Не вдалося: ${data.error}`;
+    return;
+  }
+
+  sellStatusEl.innerHTML = `✅ Обмін надіслано${data.profileDetails ? ` від <b>${escapeHtml(data.profileDetails.displayName)}</b>` : ""} — прийми його в Steam, щоб завершити продаж.`;
   cart = [];
   renderInventoryList();
   renderCart();
@@ -128,10 +178,7 @@ function renderCart() {
 
   const total = cart.reduce((sum, it) => sum + it.price, 0);
   cartTotal.textContent = `$${total.toFixed(2)}`;
-
-  const lines = cart.map((it) => `${it.marketHashName} — $${it.price.toFixed(2)}`);
-  const message = `Привіт! Хочу продати ці скіни зі свого інвентарю:\n${lines.join("\n")}\n\nРазом: $${total.toFixed(2)}.`;
-  cartTelegramLink.href = `https://t.me/lxnmnk?text=${encodeURIComponent(message)}`;
+  sellStatusEl.textContent = "";
 }
 
 function escapeHtml(s) {

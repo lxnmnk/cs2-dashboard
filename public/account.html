@@ -45,6 +45,15 @@
     </div>
     <p id="inventoryEmpty" class="card-hint" style="display:none;">У інвентарі немає предметів, які можна продати.</p>
 
+    <div id="tradeUrlSection" class="trade-url-section">
+      <label for="tradeUrlInput">Посилання на обмін Steam <span class="section-hint">(щоб бот міг надіслати тобі обмін) — <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">знайти тут</a></span></label>
+      <div class="trade-url-row">
+        <input id="tradeUrlInput" type="text" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&amp;token=..." />
+        <button id="tradeUrlSaveBtn" class="btn-small" type="button">Зберегти</button>
+      </div>
+      <p id="tradeUrlStatus" class="card-hint"></p>
+    </div>
+
     <div id="inventoryList" class="inventory-grid"></div>
 
     <div id="cartSection" class="cart-section" style="display:none;">
@@ -53,8 +62,9 @@
         <span>Разом</span>
         <span id="cartTotal" class="cart-total">$0.00</span>
       </div>
+      <p id="sellStatus" class="card-hint"></p>
       <div class="cart-actions">
-        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram, щоб продати</a>
+        <button id="sellAutoBtn" class="btn-gold" type="button">Продати автоматично</button>
         <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
       </div>
     </div>
@@ -70,11 +80,13 @@
       .then((r) => r.json())
       .then((data) => {
         if (data.customer) {
+          window.ACCOUNT_CUSTOMER = data.customer;
           document.getElementById("accountPill").style.display = "flex";
           document.getElementById("inventoryCard").style.display = "block";
           document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
           document.getElementById("accountPillName").textContent = data.customer.displayName;
           document.getElementById("accountPillLink").href = data.customer.profileUrl;
+          document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
           loadInventory();
         } else {
           document.getElementById("loggedOutCard").style.display = "block";
