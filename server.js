@@ -21,6 +21,7 @@ const { startTelegramArbBot } = require("./telegramArbBot");
 const steamAuth = require("./steamAuth");
 const customers = require("./customers");
 const balanceAdjustments = require("./balanceAdjustments");
+const { fetchInventory } = require("./steamInventory");
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
 
@@ -164,6 +165,7 @@ const PUBLIC_PATHS = new Set([
   "/en/buy",
   "/en/my-skins",
   "/my-skins.js",
+  "/account-inventory.js",
   "/quote.css",
   "/quote-common.js",
   "/bg-map.jpg",
@@ -176,6 +178,7 @@ const PUBLIC_PATHS = new Set([
   "/auth/steam/return",
   "/auth/logout",
   "/api/account/me",
+  "/api/account/inventory",
 ]);
 
 app.use((req, res, next) => {
@@ -275,6 +278,37 @@ app.get("/account", (req, res) => {
 
 app.get("/api/account/me", (req, res) => {
   res.json({ customer: req.session.customer || null });
+});
+
+// Инвентарь клиента через Steam (публичный, требует включённой приватности
+// "Открыто для всех" в настройках Steam) — по каждому предмету считаем ту же
+// цену выкупа, что и на "Продати" (см. sellQuote.js), только без ручного
+// поиска: список сразу берётся из реального инвентаря.
+app.get("/api/account/inventory", async (req, res) => {
+  if (!req.session.customer) {
+    return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  }
+  try {
+    const rawItems = await fetchInventory(req.session.customer.steamId);
+    const items = rawItems.map((it) => {
+      const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
+      const quote = computeSellQuote(row);
+      return {
+        assetId: it.assetId,
+        marketHashName: it.marketHashName,
+        tradable: it.tradable,
+        icon: it.icon,
+        price: quote.ok ? quote.price : null,
+      };
+    });
+    res.json({ ok: true, items });
+  } catch (err) {
+    if (err.message === "PRIVATE_INVENTORY") {
+      return res.json({ ok: false, error: "PRIVATE_INVENTORY" });
+    }
+    console.error("[account-inventory] Ошибка:", err.message);
+    res.status(500).json({ ok: false, error: "Не удалось загрузить инвентарь" });
+  }
 });
 
 app.get("/auth/steam", (req, res) => {

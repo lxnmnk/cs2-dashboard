@@ -40,6 +40,31 @@
     <button id="logoutBtn" class="btn-clear" type="button">Вийти</button>
   </section>
 
+  <section id="inventoryCard" class="card" style="display:none;">
+    <h2>Твій інвентар CS2</h2>
+    <p class="card-hint">Ціна — скільки ми готові заплатити прямо зараз за кожен предмет. Тягнемо прямо з твого Steam-інвентарю, нічого шукати не треба.</p>
+
+    <p id="inventoryLoading" class="card-hint">Завантажую інвентар...</p>
+    <div id="inventoryPrivate" class="unstable" style="display:none;">
+      Не вдалося прочитати інвентар — здається, він прихований. Steam → Налаштування → Приватність → "Інвентар" → постав "Загальнодоступний", і онови цю сторінку.
+    </div>
+    <p id="inventoryEmpty" class="card-hint" style="display:none;">У інвентарі немає предметів CS2.</p>
+
+    <div id="inventoryList" class="cart-list"></div>
+
+    <div id="cartSection" class="cart-section" style="display:none;">
+      <div id="cartList" class="cart-list"></div>
+      <div class="cart-total-row">
+        <span>Разом</span>
+        <span id="cartTotal" class="cart-total">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram, щоб продати</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
+      </div>
+    </div>
+  </section>
+
   <footer class="footer">
     <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram</a>
     <p>Або дивись відгуки та гарантів у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
@@ -51,12 +76,14 @@
       .then((data) => {
         if (data.customer) {
           document.getElementById("loggedInCard").style.display = "block";
+          document.getElementById("inventoryCard").style.display = "block";
           document.getElementById("accountAvatar").src = data.customer.avatar || "";
           document.getElementById("accountName").textContent = data.customer.displayName;
           document.getElementById("accountSteamLink").href = data.customer.profileUrl;
           const since = new Date(data.customer.createdAt);
           document.getElementById("accountSince").textContent =
             "У кабінеті з " + since.toLocaleDateString("uk-UA");
+          loadInventory();
         } else {
           document.getElementById("loggedOutCard").style.display = "block";
         }
@@ -66,5 +93,6 @@
       window.location.href = "/auth/logout";
     });
   </script>
+  <script src="/account-inventory.js"></script>
 </body>
 </html>
