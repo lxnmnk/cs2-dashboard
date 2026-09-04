@@ -52,8 +52,11 @@ async function fetchInventory(steamId) {
     throw new Error(`Steam ответил ${resp.status}`);
   }
 
-  const data = await resp.json();
+  const data = await resp.json().catch(() => null);
   if (!data || data.success !== 1 || !Array.isArray(data.assets)) {
+    // Под нагрузкой Steam отдаёт 200 с success:0 — приватность тут ни при чём,
+    // так что прошлый снимок (если есть) честнее, чем совет открыть инвентарь.
+    if (cached) return cached.items;
     throw new Error("PRIVATE_INVENTORY");
   }
 
