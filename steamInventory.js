@@ -8,19 +8,49 @@
 const INVENTORY_URL = (steamId) =>
   `https://steamcommunity.com/inventory/${steamId}/730/2?l=english&count=2000`;
 
+// Steam лимитирует запросы по IP, а IP у нас один на всех клиентов сайта:
+// без кэша каждое открытие кабинета (и каждый повтор после ошибки) бьёт по
+// общему лимиту, и хватает одного 429, чтобы страница легла у всех сразу.
+// Свежий снимок отдаём из памяти, а при ошибке — последний удачный, даже
+// протухший: показать инвентарь минутной давности лучше, чем пустоту.
+const CACHE_TTL_MS = 60 * 1000;
+const MAX_CACHED_USERS = 200;
+const inventoryCache = new Map(); // steamId -> { items, at }
+
+function rememberInventory(steamId, items) {
+  if (inventoryCache.size >= MAX_CACHED_USERS && !inventoryCache.has(steamId)) {
+    inventoryCache.delete(inventoryCache.keys().next().value); // Map хранит порядок вставки — выкидываем самый старый
+  }
+  inventoryCache.set(steamId, { items, at: Date.now() });
+}
+
 // Список сформирован из уникальных пар classid+instanceid — один и тот же
 // предмет (например 3 одинаковых ножа) описан в descriptions один раз, а
 // в assets повторяется трижды с разными assetid.
 async function fetchInventory(steamId) {
-  const resp = await fetch(INVENTORY_URL(steamId), {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; gaben-market-bot/1.0)" },
-  });
+  const cached = inventoryCache.get(steamId);
+  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.items;
 
+  let resp;
+  try {
+    resp = await fetch(INVENTORY_URL(steamId), {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; gaben-market-bot/1.0)" },
+    });
+  } catch (err) {
+    if (cached) return cached.items;
+    throw err;
+  }
+
+  // Приватность — это ответ про самого клиента, тут подставлять старый снимок
+  // нельзя: человек мог закрыть инвентарь намеренно.
   if (resp.status === 403) throw new Error("PRIVATE_INVENTORY");
-  // 429 прилетает по IP сервера и общий для всех клиентов — это НЕ приватный
-  // инвентарь, и советовать человеку менять настройки приватности тут нельзя.
-  if (resp.status === 429) throw new Error("STEAM_RATE_LIMITED");
-  if (!resp.ok) throw new Error(`Steam ответил ${resp.status}`);
+  if (!resp.ok) {
+    if (cached) return cached.items;
+    // 429 прилетает по IP сервера и общий для всех клиентов — это НЕ приватный
+    // инвентарь, и советовать человеку менять настройки приватности тут нельзя.
+    if (resp.status === 429) throw new Error("STEAM_RATE_LIMITED");
+    throw new Error(`Steam ответил ${resp.status}`);
+  }
 
   const data = await resp.json();
   if (!data || data.success !== 1 || !Array.isArray(data.assets)) {
@@ -43,6 +73,7 @@ async function fetchInventory(steamId) {
       icon: desc.icon_url ? `https://community.akamai.steamstatic.com/economy/image/${desc.icon_url}/330fx330f` : null,
     });
   }
+  rememberInventory(steamId, items);
   return items;
 }
 

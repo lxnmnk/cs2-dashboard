@@ -36,7 +36,10 @@ const tradeUrlInput = document.getElementById("tradeUrlInput");
 const tradeUrlSaveBtn = document.getElementById("tradeUrlSaveBtn");
 const tradeUrlStatusEl = document.getElementById("tradeUrlStatus");
 
+const MAX_RETRIES = 3;
+
 let inventoryItems = [];
+let inventoryRetries = 0;
 let cart = []; // [{ assetId, marketHashName, price }] — по одному на кожен фізичний предмет
 
 cartClearBtn?.addEventListener("click", () => {
@@ -123,17 +126,23 @@ async function loadInventory() {
     // Тимчасові причини (ціни на сервері ще не завантажились; Steam ліміт по
     // IP) — не помилка інвентарю клієнта: показуємо, що чекаємо, і пробуємо
     // ще раз самі, замість поради міняти приватність, яка тут ні до чого.
+    // Спроб рівно MAX_RETRIES: нескінченний цикл повторів сам тримав би
+    // Steam у ліміті, з якого сторінка вже не вийшла б.
     const retryMessage = { PRICES_NOT_READY: pricesLoading, STEAM_RATE_LIMITED: steamBusy }[data.error];
     if (retryMessage) {
       inventoryLoadingEl.textContent = retryMessage;
       inventoryLoadingEl.style.display = "block";
-      setTimeout(loadInventory, 8000);
+      if (inventoryRetries < MAX_RETRIES) {
+        inventoryRetries += 1;
+        setTimeout(loadInventory, 8000);
+      }
       return;
     }
     inventoryPrivateEl.style.display = "block";
     return;
   }
 
+  inventoryRetries = 0;
   inventoryItems = data.items;
   renderInventoryList();
 }
