@@ -361,18 +361,31 @@ app.post("/api/account/sell", async (req, res) => {
       const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
       const quote = computeSellQuote(row);
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
+      // quote.price — це наша (уцінена на 5%, див. sellQuote.js) ціна викупу
+      // у КЛІЄНТА, її ми йому і платимо. У сам запит до Skinbux вона НЕ йде:
+      // Skinbux звіряє переданий price зі своєю власною поточною ціною
+      // (currentPriceCents) і відхиляє з INVALID_PRICE при розбіжності —
+      // тому туди має йти їхній власний bid (row.prices.skinbux.bid), саме
+      // він і зараховується на наш баланс Skinbux.
+      const skinbuxBid = row.prices.skinbux.bid;
       // Skinbux хоче повний market_hash_name (з якістю в дужках), не "голу"
       // назву без wear — приклади в їхній документації це підтверджують.
       // phase: null — базовий Steam-інвентар не дає надійно визначити фазу
       // Doppler/Gamma Doppler за самим market_hash_name (там немає суфікса
       // фази, на відміну від sources/skinbux.js, куди його додає сам Skinbux
       // у відповіді з цінами) — для звичайних предметів це не проблема.
-      items.push({ assetId: it.assetId, name: it.marketHashName, price: quote.price, phase: null });
+      items.push({ assetId: it.assetId, name: it.marketHashName, price: quote.price, skinbuxBid, phase: null });
     }
 
     // Skinbux хоче price цілим числом центів рядком (приклад в докладі: "7",
-    // "109"), а не доларами з крапкою — інакше повертає INVALID_PRICE.
-    const skinbuxItems = items.map((it) => ({ ...it, price: String(Math.round(it.price * 100)) }));
+    // "109"), а не доларами з крапкою — інакше повертає INVALID_PRICE. І це
+    // має бути ЇХНЯ ціна (skinbuxBid), не наша уцінена quote.price.
+    const skinbuxItems = items.map((it) => ({
+      assetId: it.assetId,
+      name: it.name,
+      phase: it.phase,
+      price: String(Math.round(it.skinbuxBid * 100)),
+    }));
     const result = await skinbuxTx.requestSell(process.env.SKINBUX_API_KEY, {
       items: skinbuxItems,
       steamId: customer.steamId,
