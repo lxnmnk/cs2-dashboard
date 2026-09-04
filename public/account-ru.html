@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Личный кабинет — CS2 Trade</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <div id="accountPill" class="account-pill" style="display:none;">
+    <button id="accountPillBtn" class="account-pill-avatar" type="button" title="Мои сделки">
+      <img id="accountPillAvatar" src="" alt="" />
+      <span id="accountPillName"></span>
+    </button>
+    <button id="logoutBtn" class="account-pill-logout" type="button" title="Выйти">⏻</button>
+  </div>
+
+  <div id="dealsModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Мои сделки</h3>
+        <button id="dealsModalClose" class="modal-close" type="button">✕</button>
+      </div>
+      <p class="card-hint"><a id="dealsProfileLink" href="#" target="_blank">Посмотреть профиль в Steam →</a></p>
+      <p id="dealsLoading" class="card-hint">Загружаю...</p>
+      <p id="dealsEmpty" class="card-hint" style="display:none;">Ты ещё ничего не продавал.</p>
+      <div id="dealsList" class="deals-list"></div>
+    </div>
+  </div>
+
+  <nav class="top-nav">
+    <a href="/ru">На главную</a>
+    <a href="/ru/sell">Продать</a>
+    <a href="/ru/buy">Купить</a>
+    <a href="/ru/my-skins">Мои скины</a>
+    <span class="nav-sep">|</span>
+    <a href="/account">UA</a>
+    <a href="/ru/account" class="active">RU</a>
+    <a href="/en/account">EN</a>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Личный <span class="accent">кабинет</span></h1>
+  </section>
+
+  <section id="loggedOutCard" class="card" style="display:none;">
+    <h2>Вход</h2>
+    <p class="card-hint">Войди через Steam, чтобы получить личный кабинет.</p>
+    <a class="btn-gold" href="/auth/steam?lang=ru">Войти через Steam</a>
+  </section>
+
+  <section id="inventoryCard" class="card" style="display:none;">
+    <div class="inventory-layout">
+      <div class="inventory-main">
+        <h2>Твой инвентарь CS2</h2>
+        <p class="card-hint">Цена — сколько мы готовы заплатить прямо сейчас за каждый предмет, от самого дорогого. Тянем прямо из твоего Steam-инвентаря, ничего искать не нужно.</p>
+
+        <p id="inventoryLoading" class="card-hint">Загружаю инвентарь...</p>
+        <div id="inventoryPrivate" class="unstable" style="display:none;">
+          Не удалось прочитать инвентарь — похоже, он скрыт. Steam → Настройки → Приватность → "Инвентарь" → поставь "Общедоступный", и обнови эту страницу.
+        </div>
+        <p id="inventoryEmpty" class="card-hint" style="display:none;">В инвентаре нет предметов, которые можно продать.</p>
+
+        <div id="tradeUrlSection" class="trade-url-section">
+          <label for="tradeUrlInput">Ссылка на обмен Steam <span class="section-hint">(чтобы бот мог отправить тебе обмен) — <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">найти тут</a></span></label>
+          <div class="trade-url-row">
+            <input id="tradeUrlInput" type="text" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&amp;token=..." />
+            <button id="tradeUrlSaveBtn" class="btn-small" type="button">Сохранить</button>
+          </div>
+          <p id="tradeUrlStatus" class="card-hint"></p>
+        </div>
+
+        <div id="inventoryList" class="inventory-grid"></div>
+      </div>
+
+      <aside id="cartSection" class="cart-sidebar" style="display:none;">
+        <h3>Корзина</h3>
+        <div id="cartList" class="cart-list"></div>
+        <div class="cart-total-row">
+          <span>Итого</span>
+          <span id="cartTotal" class="cart-total">$0.00</span>
+        </div>
+        <p id="sellStatus" class="card-hint"></p>
+        <div class="cart-actions">
+          <button id="sellAutoBtn" class="btn-gold" type="button">Продать автоматически</button>
+          <button id="cartClearBtn" class="btn-clear" type="button">Очистить список</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram</a>
+    <p>Или смотри отзывы и гарантов в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  </footer>
+
+  <script>
+    window.ACCOUNT_CONFIG = {
+      dateLocale: "ru-RU",
+      saveErrorPrefix: "Ошибка: ",
+      savedLabel: "Сохранено ✓",
+      needTradeUrlFirst: "Сначала сохрани ссылку на обмен Steam выше.",
+      creatingOffer: "Создаю обмен через Skinbux...",
+      sellFailedPrefix: "Не удалось: ",
+      sellSuccessPrefix: "✅ Обмен отправлен",
+      sellSuccessFromWord: " от ",
+      sellSuccessSuffix: " — прими его в Steam, чтобы завершить продажу.",
+      priceUnknown: "цена неизвестна",
+      addLabel: "Продать",
+      addedLabel: "Добавлено ✓",
+      removeLabel: "Убрать",
+      statusLabels: {
+        created: "Ожидает принятия обмена в Steam",
+        pending: "Ожидает принятия обмена в Steam",
+        hold: "На проверке у Skinbux",
+        cancelled: "Отменено",
+        reverted: "Отменено (возврат)",
+      },
+      holdUntilPrefix: "Средства в холде до ",
+      unlockedStatus: "✓ Средства разблокированы, можно вывести",
+      telegramWithdrawBtn: "Написать в Telegram для вывода",
+      telegramMessageTemplate: "Привет! Хочу вывести средства за сделку #{id} на сумму ${amount}.",
+      dealLineTemplate: "Сделка #{id} от {date}",
+    };
+
+    fetch("/api/account/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.customer) {
+          window.ACCOUNT_CUSTOMER = data.customer;
+          document.getElementById("accountPill").style.display = "flex";
+          document.getElementById("inventoryCard").style.display = "block";
+          document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
+          document.getElementById("accountPillName").textContent = data.customer.displayName;
+          document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
+          loadInventory();
+        } else {
+          document.getElementById("loggedOutCard").style.display = "block";
+        }
+      });
+
+    document.getElementById("logoutBtn")?.addEventListener("click", () => {
+      window.location.href = "/auth/logout?lang=ru";
+    });
+  </script>
+  <script src="/account-inventory.js"></script>
+  <script src="/account-deals.js"></script>
+</body>
+</html>

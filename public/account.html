@@ -35,6 +35,10 @@
     <a href="/sell">Продати</a>
     <a href="/buy">Купити</a>
     <a href="/my-skins">Мої скіни</a>
+    <span class="nav-sep">|</span>
+    <a href="/account" class="active">UA</a>
+    <a href="/ru/account">RU</a>
+    <a href="/en/account">EN</a>
   </nav>
 
   <section class="hero">
@@ -94,6 +98,34 @@
   </footer>
 
   <script>
+    window.ACCOUNT_CONFIG = {
+      dateLocale: "uk-UA",
+      saveErrorPrefix: "Помилка: ",
+      savedLabel: "Збережено ✓",
+      needTradeUrlFirst: "Спочатку збережи посилання на обмін Steam вище.",
+      creatingOffer: "Створюю обмін через Skinbux...",
+      sellFailedPrefix: "Не вдалося: ",
+      sellSuccessPrefix: "✅ Обмін надіслано",
+      sellSuccessFromWord: " від ",
+      sellSuccessSuffix: " — прийми його в Steam, щоб завершити продаж.",
+      priceUnknown: "ціна невідома",
+      addLabel: "Продати",
+      addedLabel: "Додано ✓",
+      removeLabel: "Прибрати",
+      statusLabels: {
+        created: "Очікує прийняття обміну в Steam",
+        pending: "Очікує прийняття обміну в Steam",
+        hold: "На перевірці у Skinbux",
+        cancelled: "Скасовано",
+        reverted: "Скасовано (повернення)",
+      },
+      holdUntilPrefix: "Кошти в холді до ",
+      unlockedStatus: "✓ Кошти розблоковано, можна вивести",
+      telegramWithdrawBtn: "Написати в Telegram для виводу",
+      telegramMessageTemplate: "Привіт! Хочу вивести кошти за угоду #{id} на суму ${amount}.",
+      dealLineTemplate: "Угода #{id} від {date}",
+    };
+
     fetch("/api/account/me")
       .then((r) => r.json())
       .then((data) => {

@@ -13,8 +13,12 @@ function baseUrl(req) {
   return process.env.SITE_BASE_URL || `${req.protocol}://${req.get("host")}`;
 }
 
+// req.query.lang зберігається у returnUrl і Steam повертає його назад у
+// query рядку колбека без змін — так /auth/steam/return дізнається, якою
+// мовою був /account, з якого клієнт почав логін.
 function buildRelyingParty(req) {
-  const returnUrl = `${baseUrl(req)}/auth/steam/return`;
+  const lang = ["ru", "en"].includes(req.query.lang) ? `?lang=${req.query.lang}` : "";
+  const returnUrl = `${baseUrl(req)}/auth/steam/return${lang}`;
   const realm = baseUrl(req);
   return new RelyingParty(returnUrl, realm, true, false, []);
 }

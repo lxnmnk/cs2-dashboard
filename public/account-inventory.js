@@ -4,6 +4,23 @@
 // ручного пошуку. Сервер вже віддає тільки те, що реально можна продати
 // (не-tradable типи предметів на кшталт медалей/монет відфільтровані), і
 // відсортовано від найдорожчого.
+// Локалізація — через window.ACCOUNT_CONFIG (кожна мовна версія сторінки
+// задає свій текст перед підключенням цього файлу, як у quote-common.js).
+const {
+  saveErrorPrefix,
+  savedLabel,
+  needTradeUrlFirst,
+  creatingOffer,
+  sellFailedPrefix,
+  sellSuccessPrefix,
+  sellSuccessFromWord,
+  sellSuccessSuffix,
+  priceUnknown,
+  addLabel,
+  addedLabel,
+  removeLabel,
+} = window.ACCOUNT_CONFIG;
+
 const inventoryListEl = document.getElementById("inventoryList");
 const inventoryLoadingEl = document.getElementById("inventoryLoading");
 const inventoryPrivateEl = document.getElementById("inventoryPrivate");
@@ -43,13 +60,13 @@ tradeUrlSaveBtn?.addEventListener("click", async () => {
 
   if (!data.ok) {
     tradeUrlSaveBtn.disabled = false;
-    tradeUrlStatusEl.textContent = `Помилка: ${data.error}`;
+    tradeUrlStatusEl.textContent = `${saveErrorPrefix}${data.error}`;
     tradeUrlStatusEl.classList.add("field-error");
     return;
   }
 
   window.ACCOUNT_CUSTOMER = data.customer;
-  tradeUrlSaveBtn.textContent = "Збережено ✓";
+  tradeUrlSaveBtn.textContent = savedLabel;
   setTimeout(() => {
     tradeUrlSaveBtn.textContent = tradeUrlSaveLabel;
     tradeUrlSaveBtn.disabled = false;
@@ -59,12 +76,12 @@ tradeUrlSaveBtn?.addEventListener("click", async () => {
 sellAutoBtn?.addEventListener("click", async () => {
   if (!cart.length) return;
   if (!window.ACCOUNT_CUSTOMER?.tradeUrl) {
-    sellStatusEl.textContent = "Спочатку збережи посилання на обмін Steam вище.";
+    sellStatusEl.textContent = needTradeUrlFirst;
     return;
   }
 
   sellAutoBtn.disabled = true;
-  sellStatusEl.textContent = "Створюю обмін через Skinbux...";
+  sellStatusEl.textContent = creatingOffer;
 
   const res = await fetch("/api/account/sell", {
     method: "POST",
@@ -76,11 +93,11 @@ sellAutoBtn?.addEventListener("click", async () => {
   sellAutoBtn.disabled = false;
 
   if (!data.ok) {
-    sellStatusEl.textContent = `Не вдалося: ${data.error}`;
+    sellStatusEl.textContent = `${sellFailedPrefix}${data.error}`;
     return;
   }
 
-  sellStatusEl.innerHTML = `✅ Обмін надіслано${data.profileDetails ? ` від <b>${escapeHtml(data.profileDetails.displayName)}</b>` : ""} — прийми його в Steam, щоб завершити продаж.`;
+  sellStatusEl.innerHTML = `${sellSuccessPrefix}${data.profileDetails ? `${sellSuccessFromWord}<b>${escapeHtml(data.profileDetails.displayName)}</b>` : ""}${sellSuccessSuffix}`;
   cart = [];
   renderInventoryList();
   renderCart();
@@ -128,7 +145,7 @@ function renderInventoryList() {
           <div class="inventory-card">
             ${img}
             <div class="inventory-card-name">${nameHtml}</div>
-            <span class="inventory-card-na">ціна невідома</span>
+            <span class="inventory-card-na">${priceUnknown}</span>
           </div>`;
       }
 
@@ -138,7 +155,7 @@ function renderInventoryList() {
           ${img}
           <div class="inventory-card-name">${nameHtml}</div>
           <span class="inventory-card-price">$${it.price.toFixed(2)}</span>
-          <button class="skin-item-add" type="button" data-asset="${escapeHtml(it.assetId)}" ${added ? "disabled" : ""}>${added ? "Додано ✓" : "Продати"}</button>
+          <button class="skin-item-add" type="button" data-asset="${escapeHtml(it.assetId)}" ${added ? "disabled" : ""}>${added ? addedLabel : addLabel}</button>
         </div>`;
     })
     .join("");
@@ -180,7 +197,7 @@ function renderCart() {
         <div class="cart-item">
           <span class="cart-item-name">${escapeHtml(it.marketHashName)}</span>
           <span class="cart-item-price">$${it.price.toFixed(2)}</span>
-          <button class="cart-item-remove" type="button" data-asset="${escapeHtml(it.assetId)}" title="Прибрати">✕</button>
+          <button class="cart-item-remove" type="button" data-asset="${escapeHtml(it.assetId)}" title="${escapeHtml(removeLabel)}">✕</button>
         </div>`
     )
     .join("");

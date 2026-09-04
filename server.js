@@ -178,6 +178,8 @@ const PUBLIC_PATHS = new Set([
   "/api/public/buy-quote",
   "/api/public/my-skins",
   "/account",
+  "/ru/account",
+  "/en/account",
   "/auth/steam",
   "/auth/steam/return",
   "/auth/logout",
@@ -282,6 +284,12 @@ for (const [oldPath, newPath] of Object.entries(OLD_PUBLIC_REDIRECTS)) {
 // req.session.username) — клиент и владелец сайта не пересекаются.
 app.get("/account", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "account.html"));
+});
+app.get("/ru/account", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "account-ru.html"));
+});
+app.get("/en/account", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "account-en.html"));
 });
 
 app.get("/api/account/me", (req, res) => {
@@ -466,26 +474,35 @@ app.post("/api/webhooks/skinbux", (req, res) => {
   res.json({ ok: true });
 });
 
+// ?lang=ru/en едет в returnUrl Steam OpenID и повертається назад у
+// query — так /auth/steam/return знає, на яку мовну версію /account
+// повернути клієнта (Steam-логін проходить через один спільний colбек,
+// не через /ru/... чи /en/...).
+function accountUrlForLang(lang) {
+  return lang === "ru" ? "/ru/account" : lang === "en" ? "/en/account" : "/account";
+}
+
 app.get("/auth/steam", (req, res) => {
   steamAuth.startLogin(req, res);
 });
 
 app.get("/auth/steam/return", async (req, res) => {
+  const accountUrl = accountUrlForLang(req.query.lang);
   try {
     const steamId = await steamAuth.verifyReturn(req);
     const profile = await steamAuth.fetchSteamProfile(steamId);
     const customer = customers.upsertBySteamId(steamId, profile);
     req.session.customer = customer;
-    res.redirect("/account");
+    res.redirect(accountUrl);
   } catch (err) {
     console.error("[steam-auth] Ошибка входа:", err.message);
-    res.redirect("/account");
+    res.redirect(accountUrl);
   }
 });
 
 app.get("/auth/logout", (req, res) => {
   delete req.session.customer;
-  res.redirect("/account");
+  res.redirect(accountUrlForLang(req.query.lang));
 });
 
 app.use(express.static(path.join(__dirname, "public")));
