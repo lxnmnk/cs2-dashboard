@@ -414,9 +414,29 @@ app.post("/api/account/sell", async (req, res) => {
 
 // Список угод клієнта для розділу "Мої угоди" в кабінеті — статус обміну і
 // коли розблокуються гроші (unlockAt/unlocked рахує skinbuxSales.listByUser).
-app.get("/api/account/sales", (req, res) => {
+app.get("/api/account/sales", async (req, res) => {
   if (!req.session.customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
-  const sales = skinbuxSales.listByUser(req.session.customer.steamId);
+  const steamId = req.session.customer.steamId;
+
+  // Поки SKINBUX_WEBHOOK_SECRET не налаштований, вебхук (нижче) відхиляє всі
+  // вхідні запити — статус угоди (скасував клієнт обмін чи прийняв) сам
+  // ніколи не оновиться. Підстраховуємось: при кожному відкритті "Моїх угод"
+  // самі питаємо актуальний статус по ще не завершених угодах.
+  const pending = skinbuxSales
+    .loadAll()
+    .filter((s) => s.steamId === steamId && ["created", "pending"].includes(s.status));
+  for (const sale of pending) {
+    try {
+      const result = await skinbuxTx.getTransactionStatus(process.env.SKINBUX_API_KEY, sale.id);
+      if (result?.status && result.status !== sale.status) {
+        skinbuxSales.updateStatus(sale.id, result.status, result.steamOfferId);
+      }
+    } catch (err) {
+      console.error(`[account-sales] Не вдалося перевірити статус угоди ${sale.id}:`, err.message);
+    }
+  }
+
+  const sales = skinbuxSales.listByUser(steamId);
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
 });
 
