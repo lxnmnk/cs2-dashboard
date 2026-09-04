@@ -18,6 +18,13 @@ const { applyDisplayFilters, findBestFlip, normalizeSourceSide } = require("./pr
 
 const OUTPUT_FILE = path.join(__dirname, "csfloat-bid-watchlist.json");
 
+// Отдельный файл ровно того вида, который принимает импорт csfloat-bot: голый
+// массив [{name, buff, youpin, phase?}]. Снимок целиком (OUTPUT_FILE) боту
+// скармливать нельзя — он декодит тело как []importItemEntry и на объекте с
+// generatedAt/filters/details падает с "cannot unmarshal object into Go value
+// of type []cs2shitems.importItemEntry".
+const IMPORT_FILE = path.join(__dirname, "csfloat-bid-import.json");
+
 // Текущий список предметов, уже отслеживаемых ботом (экспорт из csfloat-bot,
 // тот же формат [{name, buff, youpin, phase?}]) — сканы не предлагают то, что
 // там уже есть. Перечитывается на каждом скане, так что для актуализации
@@ -165,7 +172,8 @@ function runCsfloatBidScan(rows, config) {
   };
 
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(snapshot, null, 2));
+  fs.writeFileSync(IMPORT_FILE, JSON.stringify(importItems, null, 2));
   return snapshot;
 }
 
-module.exports = { runCsfloatBidScan, OUTPUT_FILE };
+module.exports = { runCsfloatBidScan, OUTPUT_FILE, IMPORT_FILE };
