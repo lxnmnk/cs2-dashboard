@@ -30,10 +30,9 @@ accountPillBtn?.addEventListener("click", () => {
   loadDeals();
 });
 
+// Закривається лише хрестиком — клік повз вікно його не ховає, щоб список
+// угод не зникав від випадкового промаху.
 dealsModalClose?.addEventListener("click", closeDealsModal);
-dealsModal?.addEventListener("click", (e) => {
-  if (e.target === dealsModal) closeDealsModal();
-});
 
 function closeDealsModal() {
   dealsModal.style.display = "none";

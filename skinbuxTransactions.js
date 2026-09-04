@@ -42,8 +42,12 @@ function requestSell(apiKey, { items, steamId, tradeUrl }) {
   return call(apiKey, "/transaction/requestSell", { items, steamId, tradeUrl });
 }
 
+// GET /transaction/status/:id -> { type, status } (у bulk-версии в ответе есть
+// ещё id/price/steamTradeId). Путь именно /transaction/status/:id — в тексте
+// документации он упоминается как "/status/:id", но это сокращение, по такому
+// адресу реально отвечает 404.
 async function getTransactionStatus(apiKey, id) {
-  const res = await fetch(`${BASE}/status/${id}`, { headers: { "x-api-key": apiKey } });
+  const res = await fetch(`${BASE}/transaction/status/${id}`, { headers: { "x-api-key": apiKey } });
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.success) {
     throw new Error(data?.error?.message || `Skinbux ответил ${res.status}`);

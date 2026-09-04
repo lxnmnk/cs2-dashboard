@@ -17,6 +17,9 @@ async function fetchInventory(steamId) {
   });
 
   if (resp.status === 403) throw new Error("PRIVATE_INVENTORY");
+  // 429 прилетает по IP сервера и общий для всех клиентов — это НЕ приватный
+  // инвентарь, и советовать человеку менять настройки приватности тут нельзя.
+  if (resp.status === 429) throw new Error("STEAM_RATE_LIMITED");
   if (!resp.ok) throw new Error(`Steam ответил ${resp.status}`);
 
   const data = await resp.json();

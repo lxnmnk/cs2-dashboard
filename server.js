@@ -304,6 +304,13 @@ app.get("/api/account/inventory", async (req, res) => {
   if (!req.session.customer) {
     return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
   }
+  // Первый снапшот цен после рестарта грузится не мгновенно (cs.money часто
+  // отвечает 403 и уходит в headless-браузер), а без него computeSellQuote
+  // вернёт ok:false вообще по каждому предмету — клиент видел бы инвентарь
+  // со сплошным "ціна невідома" и чинил это только руками через F5.
+  if (!cache.rows.length) {
+    return res.json({ ok: false, error: "PRICES_NOT_READY" });
+  }
   try {
     const rawItems = await fetchInventory(req.session.customer.steamId);
     // Предметы, которые в принципе никогда не торгуются (медали, монеты,
@@ -328,6 +335,9 @@ app.get("/api/account/inventory", async (req, res) => {
       .sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
     res.json({ ok: true, items });
   } catch (err) {
+    if (err.message === "STEAM_RATE_LIMITED") {
+      return res.json({ ok: false, error: "STEAM_RATE_LIMITED" });
+    }
     if (err.message === "PRIVATE_INVENTORY") {
       return res.json({ ok: false, error: "PRIVATE_INVENTORY" });
     }
@@ -436,8 +446,10 @@ app.get("/api/account/sales", async (req, res) => {
   for (const sale of pending) {
     try {
       const result = await skinbuxTx.getTransactionStatus(process.env.SKINBUX_API_KEY, sale.id);
+      // steamTradeId — так поле зветься саме у відповіді /transaction/status
+      // (у вебхуку те саме значення приходить як steamOfferId).
       if (result?.status && result.status !== sale.status) {
-        skinbuxSales.updateStatus(sale.id, result.status, result.steamOfferId);
+        skinbuxSales.updateStatus(sale.id, result.status, result.steamTradeId);
       }
     } catch (err) {
       console.error(`[account-sales] Не вдалося перевірити статус угоди ${sale.id}:`, err.message);

@@ -10,7 +10,8 @@ const {
   saveErrorPrefix,
   savedLabel,
   needTradeUrlFirst,
-  creatingOffer,
+  pricesLoading,
+  steamBusy,
   sellFailedPrefix,
   sellSuccessPrefix,
   sellSuccessFromWord,
@@ -81,7 +82,7 @@ sellAutoBtn?.addEventListener("click", async () => {
   }
 
   sellAutoBtn.disabled = true;
-  sellStatusEl.textContent = creatingOffer;
+  sellStatusEl.textContent = "";
 
   const res = await fetch("/api/account/sell", {
     method: "POST",
@@ -119,6 +120,16 @@ async function loadInventory() {
   inventoryLoadingEl.style.display = "none";
 
   if (!data.ok) {
+    // Тимчасові причини (ціни на сервері ще не завантажились; Steam ліміт по
+    // IP) — не помилка інвентарю клієнта: показуємо, що чекаємо, і пробуємо
+    // ще раз самі, замість поради міняти приватність, яка тут ні до чого.
+    const retryMessage = { PRICES_NOT_READY: pricesLoading, STEAM_RATE_LIMITED: steamBusy }[data.error];
+    if (retryMessage) {
+      inventoryLoadingEl.textContent = retryMessage;
+      inventoryLoadingEl.style.display = "block";
+      setTimeout(loadInventory, 8000);
+      return;
+    }
     inventoryPrivateEl.style.display = "block";
     return;
   }
