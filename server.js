@@ -367,11 +367,14 @@ app.post("/api/account/sell", async (req, res) => {
       // Doppler/Gamma Doppler за самим market_hash_name (там немає суфікса
       // фази, на відміну від sources/skinbux.js, куди його додає сам Skinbux
       // у відповіді з цінами) — для звичайних предметів це не проблема.
-      items.push({ assetId: it.assetId, name: it.marketHashName, price: String(quote.price), phase: null });
+      items.push({ assetId: it.assetId, name: it.marketHashName, price: quote.price, phase: null });
     }
 
+    // Skinbux хоче price цілим числом центів рядком (приклад в докладі: "7",
+    // "109"), а не доларами з крапкою — інакше повертає INVALID_PRICE.
+    const skinbuxItems = items.map((it) => ({ ...it, price: String(Math.round(it.price * 100)) }));
     const result = await skinbuxTx.requestSell(process.env.SKINBUX_API_KEY, {
-      items,
+      items: skinbuxItems,
       steamId: customer.steamId,
       tradeUrl: customer.tradeUrl,
     });

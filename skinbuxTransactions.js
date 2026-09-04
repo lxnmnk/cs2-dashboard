@@ -16,6 +16,12 @@ async function call(apiKey, path, body) {
   });
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.success) {
+    console.error(
+      `[skinbux-tx] ${path} отклонён (${res.status}). Запрос:`,
+      JSON.stringify(body),
+      "Ответ:",
+      JSON.stringify(data)
+    );
     const message = data?.error?.message || `Skinbux ответил ${res.status}`;
     const err = new Error(message);
     err.code = data?.error?.code;
