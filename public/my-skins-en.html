@@ -19,7 +19,7 @@
     <a href="/ru/my-skins">RU</a>
     <a href="/en/my-skins" class="active">EN</a>
     <span class="nav-sep">|</span>
-    <a href="/account">Account</a>
+    <a href="/en/account">Account</a>
   </nav>
 
   <section class="hero">
@@ -28,23 +28,28 @@
     <p class="hero-sub">Everything I actually hold right now — reserve it in advance, even if it's still trade-locked</p>
   </section>
 
-  <section class="card">
-    <h2>List</h2>
-    <p class="card-hint">🔒 — still trade-locked, with the unlock date.</p>
+  <section id="skinsCard" class="card">
+    <div class="inventory-layout">
+      <div class="inventory-main">
+        <h2>List</h2>
+        <p class="card-hint">🔒 — still trade-locked, with the unlock date.</p>
 
-    <div id="skinsList" class="cart-list"></div>
-    <p id="emptyState" class="card-hint" style="display: none;">Nothing in stock right now — check back a bit later.</p>
+        <div id="skinsList" class="cart-list"></div>
+        <p id="emptyState" class="card-hint" style="display: none;">Nothing in stock right now — check back a bit later.</p>
+      </div>
 
-    <div id="cartSection" class="cart-section" style="display: none;">
-      <div id="cartList" class="cart-list"></div>
-      <div class="cart-total-row">
-        <span>Total</span>
-        <span id="cartTotal" class="cart-total">$0.00</span>
-      </div>
-      <div class="cart-actions">
-        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Message on Telegram to arrange</a>
-        <button id="cartClearBtn" class="btn-clear" type="button">Clear list</button>
-      </div>
+      <aside id="cartSection" class="cart-sidebar" style="display: none;">
+        <h3>Cart</h3>
+        <div id="cartList" class="cart-list"></div>
+        <div class="cart-total-row">
+          <span>Total</span>
+          <span id="cartTotal" class="cart-total">$0.00</span>
+        </div>
+        <div class="cart-actions">
+          <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Message on Telegram to arrange</a>
+          <button id="cartClearBtn" class="btn-clear" type="button">Clear list</button>
+        </div>
+      </aside>
     </div>
   </section>
 

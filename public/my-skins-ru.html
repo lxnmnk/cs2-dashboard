@@ -19,7 +19,7 @@
     <a href="/ru/my-skins" class="active">RU</a>
     <a href="/en/my-skins">EN</a>
     <span class="nav-sep">|</span>
-    <a href="/account">Кабинет</a>
+    <a href="/ru/account">Кабинет</a>
   </nav>
 
   <section class="hero">
@@ -28,23 +28,28 @@
     <p class="hero-sub">Всё, что реально есть на руках — можно забронировать заранее, даже если предмет ещё в трейд-бане</p>
   </section>
 
-  <section class="card">
-    <h2>Список</h2>
-    <p class="card-hint">🔒 — предмет ещё в трейд-бане, с датой разблокировки.</p>
+  <section id="skinsCard" class="card">
+    <div class="inventory-layout">
+      <div class="inventory-main">
+        <h2>Список</h2>
+        <p class="card-hint">🔒 — предмет ещё в трейд-бане, с датой разблокировки.</p>
 
-    <div id="skinsList" class="cart-list"></div>
-    <p id="emptyState" class="card-hint" style="display: none;">Сейчас ничего нет в наличии — загляни чуть позже.</p>
+        <div id="skinsList" class="cart-list"></div>
+        <p id="emptyState" class="card-hint" style="display: none;">Сейчас ничего нет в наличии — загляни чуть позже.</p>
+      </div>
 
-    <div id="cartSection" class="cart-section" style="display: none;">
-      <div id="cartList" class="cart-list"></div>
-      <div class="cart-total-row">
-        <span>Итого за всё</span>
-        <span id="cartTotal" class="cart-total">$0.00</span>
-      </div>
-      <div class="cart-actions">
-        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram, чтобы договориться</a>
-        <button id="cartClearBtn" class="btn-clear" type="button">Очистить список</button>
-      </div>
+      <aside id="cartSection" class="cart-sidebar" style="display: none;">
+        <h3>Корзина</h3>
+        <div id="cartList" class="cart-list"></div>
+        <div class="cart-total-row">
+          <span>Итого за всё</span>
+          <span id="cartTotal" class="cart-total">$0.00</span>
+        </div>
+        <div class="cart-actions">
+          <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram, чтобы договориться</a>
+          <button id="cartClearBtn" class="btn-clear" type="button">Очистить список</button>
+        </div>
+      </aside>
     </div>
   </section>
 

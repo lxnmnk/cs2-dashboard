@@ -192,8 +192,8 @@ a { color: var(--gold); }
 .autocomplete-item:hover { background: var(--gold-soft); }
 .autocomplete-item .wear { color: var(--muted); font-size: 12px; margin-left: 6px; }
 
-/* ---- Особистий кабінет: інвентар + кошик у дві колонки ---- */
-#inventoryCard { max-width: 1180px; }
+/* ---- Особистий кабінет / мої скіни: список + кошик у дві колонки ---- */
+#inventoryCard, #skinsCard { max-width: 1180px; }
 .inventory-layout {
   display: flex;
   align-items: flex-start;

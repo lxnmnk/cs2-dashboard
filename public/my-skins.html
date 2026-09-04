@@ -28,23 +28,28 @@
     <p class="hero-sub">Все, що реально є на руках — можна забронювати заздалегідь, навіть якщо предмет ще в трейд-бані</p>
   </section>
 
-  <section class="card">
-    <h2>Список</h2>
-    <p class="card-hint">🔒 — предмет ще в трейд-бані, з датою розблокування.</p>
+  <section id="skinsCard" class="card">
+    <div class="inventory-layout">
+      <div class="inventory-main">
+        <h2>Список</h2>
+        <p class="card-hint">🔒 — предмет ще в трейд-бані, з датою розблокування.</p>
 
-    <div id="skinsList" class="cart-list"></div>
-    <p id="emptyState" class="card-hint" style="display: none;">Зараз нічого немає в наявності — загляни трохи пізніше.</p>
+        <div id="skinsList" class="cart-list"></div>
+        <p id="emptyState" class="card-hint" style="display: none;">Зараз нічого немає в наявності — загляни трохи пізніше.</p>
+      </div>
 
-    <div id="cartSection" class="cart-section" style="display: none;">
-      <div id="cartList" class="cart-list"></div>
-      <div class="cart-total-row">
-        <span>Разом за все</span>
-        <span id="cartTotal" class="cart-total">$0.00</span>
-      </div>
-      <div class="cart-actions">
-        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram, щоб домовитись</a>
-        <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
-      </div>
+      <aside id="cartSection" class="cart-sidebar" style="display: none;">
+        <h3>Кошик</h3>
+        <div id="cartList" class="cart-list"></div>
+        <div class="cart-total-row">
+          <span>Разом за все</span>
+          <span id="cartTotal" class="cart-total">$0.00</span>
+        </div>
+        <div class="cart-actions">
+          <a id="cartTelegramLink" class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram, щоб домовитись</a>
+          <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
+        </div>
+      </aside>
     </div>
   </section>
 
