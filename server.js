@@ -336,6 +336,9 @@ app.get("/api/account/inventory", async (req, res) => {
     res.json({ ok: true, items });
   } catch (err) {
     if (err.message === "STEAM_RATE_LIMITED") {
+      // Без этой строки отказ по лимиту нигде не виден: в логах тишина, а
+      // клиент показывает "Steam обмежує запити" — искать причину не по чему.
+      console.warn(`[account-inventory] Steam ограничил запросы (429), кэша для ${req.session.customer.steamId} ещё нет`);
       return res.json({ ok: false, error: "STEAM_RATE_LIMITED" });
     }
     if (err.message === "PRIVATE_INVENTORY") {
