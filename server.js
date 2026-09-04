@@ -16,7 +16,7 @@ const { sendScanToTelegram } = require("./telegramNotifier");
 const { computeSellQuote } = require("./sellQuote");
 const { getSteamImages } = require("./steamImages");
 const { computeBuyQuote } = require("./buyQuote");
-const { matchesSearchQuery } = require("./itemName");
+const { matchesSearchQuery, parseItemName } = require("./itemName");
 const { startTelegramArbBot } = require("./telegramArbBot");
 const steamAuth = require("./steamAuth");
 const customers = require("./customers");
@@ -290,17 +290,26 @@ app.get("/api/account/inventory", async (req, res) => {
   }
   try {
     const rawItems = await fetchInventory(req.session.customer.steamId);
-    const items = rawItems.map((it) => {
-      const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
-      const quote = computeSellQuote(row);
-      return {
-        assetId: it.assetId,
-        marketHashName: it.marketHashName,
-        tradable: it.tradable,
-        icon: it.icon,
-        price: quote.ok ? quote.price : null,
-      };
-    });
+    // Предметы, которые в принципе никогда не торгуются (медали, монеты,
+    // значки — tradable:false у самого типа предмета, не временный трейд-бан),
+    // сразу выкидываем — их нельзя продать в любом случае.
+    const items = rawItems
+      .filter((it) => it.tradable)
+      .map((it) => {
+        const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
+        const quote = computeSellQuote(row);
+        const { baseName, wear } = parseItemName(it.marketHashName);
+        return {
+          assetId: it.assetId,
+          marketHashName: it.marketHashName,
+          name: baseName,
+          wear,
+          icon: it.icon,
+          price: quote.ok ? quote.price : null,
+        };
+      })
+      // Дороже — выше; без цены — в самый низ.
+      .sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
     res.json({ ok: true, items });
   } catch (err) {
     if (err.message === "PRIVATE_INVENTORY") {

@@ -1,8 +1,9 @@
 // Особистий кабінет: інвентар клієнта тягнеться напряму зі Steam
 // (/api/account/inventory), і на кожен предмет одразу порахована ціна
 // викупу — та сама формула, що на "Продати" (sellQuote.js), просто без
-// ручного пошуку. Кошик і повідомлення в Telegram — той самий патерн, що на
-// buy-quote/sell-quote (public/quote-common.js) і my-skins (public/my-skins.js).
+// ручного пошуку. Сервер вже віддає тільки те, що реально можна продати
+// (не-tradable типи предметів на кшталт медалей/монет відфільтровані), і
+// відсортовано від найдорожчого.
 const inventoryListEl = document.getElementById("inventoryList");
 const inventoryLoadingEl = document.getElementById("inventoryLoading");
 const inventoryPrivateEl = document.getElementById("inventoryPrivate");
@@ -14,10 +15,11 @@ const cartTelegramLink = document.getElementById("cartTelegramLink");
 const cartClearBtn = document.getElementById("cartClearBtn");
 
 let inventoryItems = [];
-let cart = []; // { marketHashName, price, qty }
+let cart = []; // [{ assetId, marketHashName, price }] — по одному на кожен фізичний предмет
 
 cartClearBtn?.addEventListener("click", () => {
   cart = [];
+  renderInventoryList();
   renderCart();
 });
 
@@ -51,52 +53,53 @@ function renderInventoryList() {
     inventoryListEl.innerHTML = "";
     return;
   }
+  inventoryEmptyEl.style.display = "none";
 
   inventoryListEl.innerHTML = inventoryItems
     .map((it) => {
-      const thumb = it.icon
-        ? `<span class="skin-thumb-wrap"><img class="skin-thumb" src="${escapeHtml(it.icon)}" alt="" /></span>`
-        : "";
-      let status;
-      let addBtn = "";
-      if (!it.tradable) {
-        status = `<span class="lock-tag locked">🔒 у трейд-бані</span>`;
-      } else if (it.price == null) {
-        status = `<span class="lock-tag locked">ціна невідома</span>`;
-      } else {
-        status = `<span class="cart-item-price">$${it.price.toFixed(2)}</span>`;
-        addBtn = `<button class="skin-item-add" type="button" data-asset="${escapeHtml(it.assetId)}">Додати</button>`;
+      const img = it.icon ? `<img class="inventory-card-img" src="${escapeHtml(it.icon)}" alt="" />` : "";
+      const nameHtml = `${escapeHtml(it.name)}${it.wear ? `<br><span class="cart-item-price" style="font-size:11px;color:var(--muted);font-weight:400;">${escapeHtml(it.wear)}</span>` : ""}`;
+
+      if (it.price == null) {
+        return `
+          <div class="inventory-card">
+            ${img}
+            <div class="inventory-card-name">${nameHtml}</div>
+            <span class="inventory-card-na">ціна невідома</span>
+          </div>`;
       }
+
+      const added = cart.some((c) => c.assetId === it.assetId);
       return `
-        <div class="cart-item">
-          ${thumb}
-          <span class="cart-item-name">${escapeHtml(it.marketHashName)}</span>
-          ${status}
-          ${addBtn}
+        <div class="inventory-card">
+          ${img}
+          <div class="inventory-card-name">${nameHtml}</div>
+          <span class="inventory-card-price">$${it.price.toFixed(2)}</span>
+          <button class="skin-item-add" type="button" data-asset="${escapeHtml(it.assetId)}" ${added ? "disabled" : ""}>${added ? "Додано ✓" : "Продати"}</button>
         </div>`;
     })
     .join("");
 
-  inventoryListEl.querySelectorAll(".skin-item-add").forEach((btn) => {
+  inventoryListEl.querySelectorAll("[data-asset]").forEach((btn) => {
     btn.addEventListener("click", () => addItem(btn.getAttribute("data-asset")));
   });
 }
 
+// Кожен фізичний предмет (assetId) можна додати в кошик лише один раз —
+// кількість = скільки таких предметів реально є в інвентарі, не більше.
 function addItem(assetId) {
   const item = inventoryItems.find((it) => it.assetId === assetId);
   if (!item || item.price == null) return;
+  if (cart.some((c) => c.assetId === assetId)) return;
 
-  const existing = cart.find((it) => it.marketHashName === item.marketHashName);
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    cart.push({ marketHashName: item.marketHashName, price: item.price, qty: 1 });
-  }
+  cart.push({ assetId, marketHashName: item.marketHashName, price: item.price });
+  renderInventoryList();
   renderCart();
 }
 
-function removeItem(name) {
-  cart = cart.filter((it) => it.marketHashName !== name);
+function removeItem(assetId) {
+  cart = cart.filter((it) => it.assetId !== assetId);
+  renderInventoryList();
   renderCart();
 }
 
@@ -113,23 +116,20 @@ function renderCart() {
       (it) => `
         <div class="cart-item">
           <span class="cart-item-name">${escapeHtml(it.marketHashName)}</span>
-          ${it.qty > 1 ? `<span class="cart-item-qty">× ${it.qty}</span>` : ""}
-          <span class="cart-item-price">$${(it.price * it.qty).toFixed(2)}</span>
-          <button class="cart-item-remove" type="button" data-name="${escapeHtml(it.marketHashName)}" title="Прибрати">✕</button>
+          <span class="cart-item-price">$${it.price.toFixed(2)}</span>
+          <button class="cart-item-remove" type="button" data-asset="${escapeHtml(it.assetId)}" title="Прибрати">✕</button>
         </div>`
     )
     .join("");
 
   cartList.querySelectorAll(".cart-item-remove").forEach((btn) => {
-    btn.addEventListener("click", () => removeItem(btn.getAttribute("data-name")));
+    btn.addEventListener("click", () => removeItem(btn.getAttribute("data-asset")));
   });
 
-  const total = cart.reduce((sum, it) => sum + it.price * it.qty, 0);
+  const total = cart.reduce((sum, it) => sum + it.price, 0);
   cartTotal.textContent = `$${total.toFixed(2)}`;
 
-  const lines = cart.map(
-    (it) => `${it.marketHashName}${it.qty > 1 ? ` × ${it.qty}` : ""} — $${(it.price * it.qty).toFixed(2)}`
-  );
+  const lines = cart.map((it) => `${it.marketHashName} — $${it.price.toFixed(2)}`);
   const message = `Привіт! Хочу продати ці скіни зі свого інвентарю:\n${lines.join("\n")}\n\nРазом: $${total.toFixed(2)}.`;
   cartTelegramLink.href = `https://t.me/lxnmnk?text=${encodeURIComponent(message)}`;
 }

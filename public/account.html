@@ -9,6 +9,14 @@
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
 
+  <div id="accountPill" class="account-pill" style="display:none;">
+    <a id="accountPillLink" class="account-pill-avatar" href="#" target="_blank" title="Профіль у Steam">
+      <img id="accountPillAvatar" src="" alt="" />
+      <span id="accountPillName"></span>
+    </a>
+    <button id="logoutBtn" class="account-pill-logout" type="button" title="Вийти">⏻</button>
+  </div>
+
   <nav class="top-nav">
     <a href="/">На головну</a>
     <a href="/sell">Продати</a>
@@ -27,30 +35,17 @@
     <a class="btn-gold" href="/auth/steam">Увійти через Steam</a>
   </section>
 
-  <section id="loggedInCard" class="card" style="display:none;">
-    <h2>Профіль</h2>
-    <div class="account-profile">
-      <img id="accountAvatar" class="account-avatar" alt="" />
-      <div>
-        <div id="accountName" class="account-name"></div>
-        <a id="accountSteamLink" class="account-steam-link" href="#" target="_blank">Профіль у Steam</a>
-      </div>
-    </div>
-    <p class="card-hint" id="accountSince"></p>
-    <button id="logoutBtn" class="btn-clear" type="button">Вийти</button>
-  </section>
-
   <section id="inventoryCard" class="card" style="display:none;">
     <h2>Твій інвентар CS2</h2>
-    <p class="card-hint">Ціна — скільки ми готові заплатити прямо зараз за кожен предмет. Тягнемо прямо з твого Steam-інвентарю, нічого шукати не треба.</p>
+    <p class="card-hint">Ціна — скільки ми готові заплатити прямо зараз за кожен предмет, від найдорожчого. Тягнемо прямо з твого Steam-інвентарю, нічого шукати не треба.</p>
 
     <p id="inventoryLoading" class="card-hint">Завантажую інвентар...</p>
     <div id="inventoryPrivate" class="unstable" style="display:none;">
       Не вдалося прочитати інвентар — здається, він прихований. Steam → Налаштування → Приватність → "Інвентар" → постав "Загальнодоступний", і онови цю сторінку.
     </div>
-    <p id="inventoryEmpty" class="card-hint" style="display:none;">У інвентарі немає предметів CS2.</p>
+    <p id="inventoryEmpty" class="card-hint" style="display:none;">У інвентарі немає предметів, які можна продати.</p>
 
-    <div id="inventoryList" class="cart-list"></div>
+    <div id="inventoryList" class="inventory-grid"></div>
 
     <div id="cartSection" class="cart-section" style="display:none;">
       <div id="cartList" class="cart-list"></div>
@@ -75,14 +70,11 @@
       .then((r) => r.json())
       .then((data) => {
         if (data.customer) {
-          document.getElementById("loggedInCard").style.display = "block";
+          document.getElementById("accountPill").style.display = "flex";
           document.getElementById("inventoryCard").style.display = "block";
-          document.getElementById("accountAvatar").src = data.customer.avatar || "";
-          document.getElementById("accountName").textContent = data.customer.displayName;
-          document.getElementById("accountSteamLink").href = data.customer.profileUrl;
-          const since = new Date(data.customer.createdAt);
-          document.getElementById("accountSince").textContent =
-            "У кабінеті з " + since.toLocaleDateString("uk-UA");
+          document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
+          document.getElementById("accountPillName").textContent = data.customer.displayName;
+          document.getElementById("accountPillLink").href = data.customer.profileUrl;
           loadInventory();
         } else {
           document.getElementById("loggedOutCard").style.display = "block";

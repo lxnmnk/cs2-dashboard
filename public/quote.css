@@ -335,26 +335,56 @@ a { color: var(--gold); }
 }
 .btn-clear:hover { color: var(--text); }
 
-.account-profile {
+/* Компактна плашка профілю у правому верхньому куті сторінки — аватар +
+   ім'я (клік відкриває профіль у Steam) + маленька кнопка виходу поруч. */
+.account-pill {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
   display: flex;
   align-items: center;
-  gap: 16px;
-  margin-top: 10px;
-}
-.account-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 10px;
+  gap: 8px;
+  background: var(--panel-2);
   border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 10px 6px 6px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
 }
-.account-name {
-  font-size: 18px;
-  font-weight: 600;
+.account-pill-avatar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
   color: var(--text);
 }
-.account-steam-link {
+.account-pill-avatar img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.account-pill-avatar span {
   font-size: 13px;
-  color: var(--gold);
+  font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-pill-logout {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.account-pill-logout:hover { color: var(--red); }
+
+@media (max-width: 560px) {
+  .account-pill-avatar span { display: none; }
 }
 
 .unstable {
@@ -365,6 +395,52 @@ a { color: var(--gold); }
   border: 1px solid rgba(224, 96, 90, 0.35);
   font-size: 14px;
   line-height: 1.5;
+}
+
+/* ---- Сітка інвентарю (замість списку у стовпчик) ---- */
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.inventory-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inventory-card-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+.inventory-card-name {
+  font-size: 12px;
+  line-height: 1.3;
+  min-height: 2.6em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.inventory-card-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold);
+}
+.inventory-card-na {
+  font-size: 12px;
+  color: var(--muted);
+}
+.inventory-card button {
+  margin-top: auto;
+  width: 100%;
+  text-align: center;
 }
 
 /* ---- Кнопки ---- */
