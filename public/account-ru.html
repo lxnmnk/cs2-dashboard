@@ -8,15 +8,6 @@
 </head>
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
-
-  <div id="accountPill" class="account-pill" style="display:none;">
-    <button id="accountPillBtn" class="account-pill-avatar" type="button" title="Мои сделки">
-      <img id="accountPillAvatar" src="" alt="" />
-      <span id="accountPillName"></span>
-    </button>
-    <button id="logoutBtn" class="account-pill-logout" type="button" title="Выйти">⏻</button>
-  </div>
-
   <div id="dealsModal" class="modal-overlay" style="display:none;">
     <div class="modal-panel">
       <div class="modal-header">
@@ -30,16 +21,29 @@
     </div>
   </div>
 
-  <nav class="top-nav">
-    <a href="/ru">На главную</a>
-    <a href="/ru/sell">Продать</a>
-    <a href="/ru/buy">Купить</a>
-    <a href="/ru/my-skins">Наши скины</a>
-    <span class="nav-sep">|</span>
-    <a href="/account">UA</a>
-    <a href="/ru/account" class="active">RU</a>
-    <a href="/en/account">EN</a>
-  </nav>
+  <header class="site-header">
+    <a class="site-brand" href="/ru">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/ru/buy"><span class="nav-icon">🛒</span> Купить скины</a>
+      <a href="/ru/account" class="active"><span class="nav-icon">💰</span> Продать скины</a>
+      <a href="/ru/my-skins"><span class="nav-icon">📦</span> Наши скины</a>
+      <a href="/ru/trade"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/account">UA</a>
+        <a href="/ru/account" class="active">RU</a>
+        <a href="/en/account">EN</a>
+      </div>
+      <div id="accountPill" class="account-pill" style="display:none;">
+        <button id="accountPillBtn" class="account-pill-avatar" type="button" title="Мои сделки">
+          <img id="accountPillAvatar" src="" alt="" />
+          <span id="accountPillName"></span>
+        </button>
+        <button id="logoutBtn" class="account-pill-logout" type="button" title="Выйти">⏻</button>
+      </div>
+    </div>
+  </header>
 
   <section class="hero">
     <span class="eyebrow">CS2 SKINS TRADE</span>
@@ -92,9 +96,27 @@
     </div>
   </section>
 
-  <footer class="footer">
-    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написать в Telegram</a>
-    <p>Или смотри отзывы и гарантов в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Связь</h4>
+        <p>Пиши напрямую в Telegram — <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>. Отвечаю лично.</p>
+        <p>Отзывы и гаранты — в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Разделы</h4>
+        <p>
+          <a href="/ru/buy">Купить скины</a> · <a href="/ru/account">Продать скины</a> ·
+          <a href="/ru/my-skins">Наши скины</a> · <a href="/ru/sell">Проверить цену</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      Сайт не связан с Valve Corporation, Steam и не является их официальным партнёром.
+      Counter-Strike 2, названия предметов, изображения и товарные знаки принадлежат их владельцам.
+      Все операции с предметами происходят между пользователями напрямую.
+      <br />© 2026 gaben.market. Все права защищены.
+    </p>
   </footer>
 
   <script>

@@ -793,6 +793,15 @@ a { color: var(--gold); }
 }
 a.btn-small { display: inline-block; text-decoration: none; }
 
+/* У кабінеті профіль у шапці — це той самий accountPill (клік відкриває
+   "Мої угоди", поруч вихід), тому всередині шапки знімаємо з нього
+   позиціонування в куті екрана. */
+.site-header .account-pill {
+  position: static;
+  box-shadow: none;
+  padding: 4px 8px 4px 4px;
+}
+
 @media (max-width: 1100px) {
   .site-nav a { padding: 8px 10px; font-size: 13px; }
   .site-brand { margin-right: 6px; }

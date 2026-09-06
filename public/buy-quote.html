@@ -9,18 +9,23 @@
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
 
-  <nav class="top-nav">
-    <a href="/">На головну</a>
-    <a href="/sell">Продати</a>
-    <a href="/buy" class="active">Купити</a>
-    <a href="/my-skins">Наші скіни</a>
-    <span class="nav-sep">|</span>
-    <a href="/buy" class="active">UA</a>
-    <a href="/ru/buy">RU</a>
-    <a href="/en/buy">EN</a>
-    <span class="nav-sep">|</span>
-    <a href="/account">Кабінет</a>
-  </nav>
+  <header class="site-header">
+    <a class="site-brand" href="/">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/buy" class="active"><span class="nav-icon">🛒</span> Купити скіни</a>
+      <a href="/account"><span class="nav-icon">💰</span> Продати скіни</a>
+      <a href="/my-skins"><span class="nav-icon">📦</span> Наші скіни</a>
+      <a href="/trade"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/buy" class="active">UA</a>
+        <a href="/ru/buy">RU</a>
+        <a href="/en/buy">EN</a>
+      </div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
 
   <section class="hero">
     <span class="eyebrow">CS2 SKINS TRADE</span>
@@ -73,9 +78,27 @@
     <p class="reviews-line">Багато відгуків на довірі — <a href="https://t.me/csmarket/538169/1594119" target="_blank">дивитись відгуки в @csmarket</a>.</p>
   </section>
 
-  <footer class="footer">
-    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Написати в Telegram</a>
-    <p>Або дивись відгуки та гарантів у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a></p>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Зв'язок</h4>
+        <p>Пиши напряму в Telegram — <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>. Відповідаю особисто.</p>
+        <p>Відгуки та гаранти — у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Розділи</h4>
+        <p>
+          <a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> ·
+          <a href="/my-skins">Наші скіни</a> · <a href="/sell">Перевірити ціну</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      Сайт не пов'язаний з Valve Corporation, Steam і не є їхнім офіційним партнером.
+      Counter-Strike 2, назви предметів, зображення та торгові марки належать їхнім власникам.
+      Усі операції з предметами відбуваються між користувачами напряму.
+      <br />© 2026 gaben.market. Усі права захищені.
+    </p>
   </footer>
 
   <script>
@@ -88,5 +111,9 @@
     };
   </script>
   <script src="/quote-common.js"></script>
+  <script>
+    window.NAV_CONFIG = { signInLabel: "Увійти", accountUrl: "/account", loginUrl: "/auth/steam" };
+  </script>
+  <script src="/nav-profile.js"></script>
 </body>
 </html>

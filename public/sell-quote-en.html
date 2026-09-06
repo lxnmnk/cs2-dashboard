@@ -9,18 +9,23 @@
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
 
-  <nav class="top-nav">
-    <a href="/en">Home</a>
-    <a href="/en/sell" class="active">Sell</a>
-    <a href="/en/buy">Buy</a>
-    <a href="/en/my-skins">Our skins</a>
-    <span class="nav-sep">|</span>
-    <a href="/sell">UA</a>
-    <a href="/ru/sell">RU</a>
-    <a href="/en/sell" class="active">EN</a>
-    <span class="nav-sep">|</span>
-    <a href="/en/account">Account</a>
-  </nav>
+  <header class="site-header">
+    <a class="site-brand" href="/en">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/en/buy"><span class="nav-icon">🛒</span> Buy skins</a>
+      <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
+      <a href="/en/my-skins"><span class="nav-icon">📦</span> Our skins</a>
+      <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/sell">UA</a>
+        <a href="/ru/sell">RU</a>
+        <a href="/en/sell" class="active">EN</a>
+      </div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
 
   <section class="hero">
     <span class="eyebrow">CS2 SKINS TRADE</span>
@@ -74,9 +79,27 @@
     <p class="reviews-line">Lots of trusted reviews — <a href="https://t.me/csmarket/538169/1594119" target="_blank">see reviews in @csmarket</a>.</p>
   </section>
 
-  <footer class="footer">
-    <a class="btn-gold" href="https://t.me/lxnmnk" target="_blank">Message on Telegram</a>
-    <p>Or see reviews and guarantors in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group</p>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Contact</h4>
+        <p>Message me directly on Telegram — <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>. I reply personally.</p>
+        <p>Reviews and guarantors — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Sections</h4>
+        <p>
+          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> ·
+          <a href="/en/my-skins">Our skins</a> · <a href="/en/sell">Check a price</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      This site is not affiliated with Valve Corporation or Steam and is not an official partner.
+      Counter-Strike 2, item names, images and trademarks belong to their respective owners.
+      All item transfers happen directly between users.
+      <br />© 2026 gaben.market. All rights reserved.
+    </p>
   </footer>
 
   <script>
@@ -90,5 +113,9 @@
     };
   </script>
   <script src="/quote-common.js"></script>
+  <script>
+    window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en" };
+  </script>
+  <script src="/nav-profile.js"></script>
 </body>
 </html>
