@@ -128,11 +128,6 @@
     "youpin": 8
   },
   {
-    "name": "Glock-18 | Synth Leaf (Factory New)",
-    "buff": 8,
-    "youpin": 8
-  },
-  {
     "name": "★ Karambit | Case Hardened (Minimal Wear)",
     "buff": 7,
     "youpin": 7
@@ -156,8 +151,14 @@
     "phase": "Ruby"
   },
   {
-    "name": "★ Karambit | Autotronic (Battle-Scarred)",
-    "buff": 10,
-    "youpin": 10
+    "name": "Glock-18 | Synth Leaf (Factory New)",
+    "buff": 8,
+    "youpin": 8
+  },
+  {
+    "name": "★ Stiletto Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 8,
+    "phase": "Phase 2"
   }
 ]

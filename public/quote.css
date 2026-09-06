@@ -193,7 +193,8 @@ a { color: var(--gold); }
 .autocomplete-item .wear { color: var(--muted); font-size: 12px; margin-left: 6px; }
 
 /* ---- Особистий кабінет / мої скіни: список + кошик у дві колонки ---- */
-#inventoryCard, #skinsCard { max-width: 1180px; }
+/* Ширше за решту сторінок: тут три колонки — фільтри, сітка предметів, кошик. */
+#inventoryCard, #skinsCard { max-width: 1400px; }
 .inventory-layout {
   display: flex;
   align-items: flex-start;
@@ -890,3 +891,121 @@ a.btn-small { display: inline-block; text-decoration: none; }
 .empty-section .empty-icon { font-size: 40px; margin-bottom: 14px; }
 .empty-section h2 { margin: 0 0 10px; font-size: 22px; }
 .empty-section p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+
+/* ---- Панель фільтрів (вітрина та інвентар у кабінеті) ---- */
+.filters-panel {
+  width: 216px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 76px;
+  align-self: flex-start;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+}
+.filters-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.filters-head h3 { margin: 0; font-size: 15px; }
+.filters-reset {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.filters-reset:hover { color: var(--text); }
+
+.filters-search {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+.filters-search:focus { border-color: var(--gold-line); }
+
+.filters-group {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.filters-group h4 {
+  margin: 0 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.filters-range { display: flex; gap: 8px; margin-bottom: 10px; }
+.filters-range label {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.filters-range input {
+  width: 100%;
+  margin-top: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  outline: none;
+}
+.filters-range input:focus { border-color: var(--gold-line); }
+
+.filters-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.filters-chip {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filters-chip:hover { color: var(--text); border-color: var(--gold-line); }
+.filters-chip.active { background: var(--gold-soft); border-color: var(--gold-line); color: var(--gold); }
+
+.filters-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.filters-check input { accent-color: var(--gold); }
+.tag-stattrak { color: #cf6a32; font-weight: 600; }
+.tag-souvenir { color: #ffd700; font-weight: 600; }
+
+.filters-empty { color: var(--muted); font-size: 14px; margin: 20px 0; }
+
+@media (max-width: 1100px) {
+  /* Три колонки вже не вміщаються — фільтри стають смугою над сіткою.
+     Без flex-wrap повноширинна панель лишалась би в тому ж рядку, що сітка
+     й кошик, і рядок вилазив би за межі сторінки горизонтальним скролом. */
+  .inventory-layout { flex-wrap: wrap; }
+  .filters-panel {
+    width: 100%;
+    position: static;
+    max-height: none;
+    order: -1;
+  }
+  .filters-group { margin-top: 12px; padding-top: 10px; }
+}

@@ -59,6 +59,8 @@
 
   <section id="inventoryCard" class="card" style="display:none;">
     <div class="inventory-layout">
+      <aside id="filtersPanel" class="filters-panel"></aside>
+
       <div class="inventory-main">
         <h2>Твой инвентарь CS2</h2>
         <p class="card-hint">Цена — сколько мы готовы заплатить прямо сейчас за каждый предмет, от самого дорогого. Тянем прямо из твоего Steam-инвентаря, ничего искать не нужно.</p>
@@ -122,6 +124,19 @@
 
   <script>
     window.ACCOUNT_CONFIG = {
+      filtersTitle: "Фильтры",
+      resetLabel: "Сбросить",
+      searchPlaceholder: "Поиск по названию...",
+      priceTitle: "Цена",
+      fromLabel: "От",
+      toLabel: "До",
+      wearTitle: "Качество",
+      specialTitle: "Особые",
+      normalLabel: "Обычные",
+      statusTitle: "Наличие",
+      filtersReadyLabel: "Готово к выдаче",
+      filtersLockedLabel: "В трейд-бане",
+      nothingFound: "По этим фильтрам ничего не найдено.",
       dateLocale: "ru-RU",
       saveErrorPrefix: "Ошибка: ",
       savedLabel: "Сохранено ✓",
@@ -174,6 +189,7 @@
     window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате" };
   </script>
   <script src="/nav-profile.js"></script>
+  <script src="/item-filters.js"></script>
   <script src="/account-inventory.js"></script>
   <script src="/account-deals.js"></script>
 </body>

@@ -20,6 +20,7 @@ const {
   addLabel,
   addedLabel,
   removeLabel,
+  nothingFound,
 } = window.ACCOUNT_CONFIG;
 
 const inventoryListEl = document.getElementById("inventoryList");
@@ -37,6 +38,14 @@ const tradeUrlSaveBtn = document.getElementById("tradeUrlSaveBtn");
 const tradeUrlStatusEl = document.getElementById("tradeUrlStatus");
 
 const MAX_RETRIES = 3;
+
+// Фільтри тільки звужують показане: те, що вже в кошику, з нього не зникає,
+// навіть якщо предмет випав з поточної вибірки.
+const filters = createItemFilters({
+  mount: document.getElementById("filtersPanel"),
+  labels: window.ACCOUNT_CONFIG,
+  onChange: () => renderInventoryList(),
+});
 
 let inventoryItems = [];
 let inventoryRetries = 0;
@@ -155,7 +164,13 @@ function renderInventoryList() {
   }
   inventoryEmptyEl.style.display = "none";
 
-  inventoryListEl.innerHTML = inventoryItems
+  const visible = filters.apply(inventoryItems);
+  if (!visible.length) {
+    inventoryListEl.innerHTML = `<p class="filters-empty">${escapeHtml(nothingFound)}</p>`;
+    return;
+  }
+
+  inventoryListEl.innerHTML = visible
     .map((it) => {
       const img = it.icon ? `<img class="inventory-card-img" src="${escapeHtml(it.icon)}" alt="" />` : "";
       const nameHtml = `${escapeHtml(it.name)}${it.wear ? `<br><span class="cart-item-price" style="font-size:11px;color:var(--muted);font-weight:400;">${escapeHtml(it.wear)}</span>` : ""}`;

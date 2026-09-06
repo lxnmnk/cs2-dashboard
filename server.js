@@ -171,6 +171,7 @@ const PUBLIC_PATHS = new Set([
   "/ru/trade",
   "/en/trade",
   "/my-skins.js",
+  "/item-filters.js",
   "/nav-profile.js",
   "/account-inventory.js",
   "/account-deals.js",

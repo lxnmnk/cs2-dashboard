@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-06T23:25:47.414Z",
+  "generatedAt": "2026-09-06T23:38:42.715Z",
   "filters": {
     "buySource": "csfloat:bid",
     "sellSource": "any",
@@ -18,7 +18,7 @@
   },
   "count": 30,
   "skippedNoWearTier": 0,
-  "skippedAlreadyTracked": 170,
+  "skippedAlreadyTracked": 174,
   "skippedPatternWear": 64,
   "importItems": [
     {
@@ -150,11 +150,6 @@
       "youpin": 8
     },
     {
-      "name": "Glock-18 | Synth Leaf (Factory New)",
-      "buff": 8,
-      "youpin": 8
-    },
-    {
       "name": "★ Karambit | Case Hardened (Minimal Wear)",
       "buff": 7,
       "youpin": 7
@@ -178,9 +173,15 @@
       "phase": "Ruby"
     },
     {
-      "name": "★ Karambit | Autotronic (Battle-Scarred)",
-      "buff": 10,
-      "youpin": 10
+      "name": "Glock-18 | Synth Leaf (Factory New)",
+      "buff": 8,
+      "youpin": 8
+    },
+    {
+      "name": "★ Stiletto Knife | Doppler (Factory New)",
+      "buff": 8,
+      "youpin": 8,
+      "phase": "Phase 2"
     }
   ],
   "details": [
@@ -521,20 +522,6 @@
       "profitPercent": 8.36
     },
     {
-      "marketHashName": "Glock-18 | Synth Leaf (Factory New)",
-      "wear": "Factory New",
-      "phase": null,
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 325,
-      "sellSource": "csmoney",
-      "sellSide": "bid",
-      "sellPrice": 365.54,
-      "profitUsd": 40.54,
-      "profitPercent": 12.47
-    },
-    {
       "marketHashName": "★ Karambit | Case Hardened (Minimal Wear)",
       "wear": "Minimal Wear",
       "phase": null,
@@ -591,18 +578,32 @@
       "profitPercent": 6.13
     },
     {
-      "marketHashName": "★ Karambit | Autotronic (Battle-Scarred)",
-      "wear": "Battle-Scarred",
+      "marketHashName": "Glock-18 | Synth Leaf (Factory New)",
+      "wear": "Factory New",
       "phase": null,
-      "wearTierPct": 10,
+      "wearTierPct": 8,
       "buySource": "csfloat",
       "buySide": "bid",
-      "buyPrice": 665,
-      "sellSource": "youpin",
+      "buyPrice": 327,
+      "sellSource": "csmoney",
       "sellSide": "bid",
-      "sellPrice": 703.29,
-      "profitUsd": 38.29,
-      "profitPercent": 5.76
+      "sellPrice": 365.54,
+      "profitUsd": 38.54,
+      "profitPercent": 11.79
+    },
+    {
+      "marketHashName": "★ Stiletto Knife | Doppler (Factory New)",
+      "wear": "Factory New · Phase 2",
+      "phase": "Phase 2",
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 570,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 608.46,
+      "profitUsd": 38.46,
+      "profitPercent": 6.75
     }
   ]
 }

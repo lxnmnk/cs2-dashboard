@@ -36,6 +36,8 @@
 
   <section id="skinsCard" class="card">
     <div class="inventory-layout">
+      <aside id="filtersPanel" class="filters-panel"></aside>
+
       <div class="inventory-main">
         <h2>Список</h2>
         <p class="card-hint">🔒 — предмет ще в трейд-бані, з датою розблокування.</p>
@@ -84,6 +86,19 @@
 
   <script>
     window.MY_SKINS_CONFIG = {
+      filtersTitle: "Фільтри",
+      resetLabel: "Скинути",
+      searchPlaceholder: "Пошук за назвою...",
+      priceTitle: "Ціна",
+      fromLabel: "Від",
+      toLabel: "До",
+      wearTitle: "Якість",
+      specialTitle: "Особливі",
+      normalLabel: "Звичайні",
+      statusTitle: "Наявність",
+      filtersReadyLabel: "Готово до видачі",
+      filtersLockedLabel: "У трейд-бані",
+      nothingFound: "За цими фільтрами нічого не знайдено.",
       lockedLabel: "до",
       readyLabel: "готово до видачі",
       addLabel: "Додати",
@@ -94,6 +109,7 @@
       removeLabel: "Прибрати",
     };
   </script>
+  <script src="/item-filters.js"></script>
   <script src="/my-skins.js"></script>
   <script>
     window.NAV_CONFIG = { signInLabel: "Увійти", accountUrl: "/account", loginUrl: "/auth/steam", balanceTitle: "Доступно до виплати" };

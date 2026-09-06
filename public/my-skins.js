@@ -29,6 +29,19 @@ const cartClearBtn = document.getElementById("cartClearBtn");
 let skins = [];
 let cart = []; // індекси предметів у skins — по одному запису на кожен предмет
 
+// Фільтри звужують те, що показано, але не чіпають кошик: якщо предмет уже
+// доданий, він лишається в кошику, навіть коли випав з поточного фільтра.
+const filters = createItemFilters({
+  mount: document.getElementById("filtersPanel"),
+  labels: {
+    ...window.MY_SKINS_CONFIG,
+    readyLabel: window.MY_SKINS_CONFIG.filtersReadyLabel,
+    lockedLabel: window.MY_SKINS_CONFIG.filtersLockedLabel,
+  },
+  showStatus: true,
+  onChange: renderSkinsList,
+});
+
 cartClearBtn.addEventListener("click", () => {
   cart = [];
   renderSkinsList();
@@ -54,32 +67,43 @@ function renderSkinsList() {
   }
   emptyStateEl.style.display = "none";
 
-  skinsListEl.innerHTML = skins
-    .map((s, idx) => {
-      const tag = s.isLocked
-        ? `<span class="lock-tag locked">🔒 ${lockedLabel} ${formatUnlockDate(s.unlockAt)}</span>`
-        : `<span class="lock-tag ready">✅ ${readyLabel}</span>`;
-      const img = s.image
-        ? `<img class="inventory-card-img" src="${escapeHtml(s.image)}" alt="" />`
-        : "";
-      const added = cart.includes(idx);
+  // Індекс у повному списку зберігаємо: кошик посилається саме на нього, тож
+  // після зміни фільтра позначки "Додано" не з'їжджають на сусідні предмети.
+  const visible = filters.apply(skins.map((s, idx) => ({ ...s, idx })));
+  if (!visible.length) {
+    skinsListEl.innerHTML = `<p class="filters-empty">${escapeHtml(window.MY_SKINS_CONFIG.nothingFound)}</p>`;
+    return;
+  }
 
-      return `
-        <div class="inventory-card">
-          ${img}
-          <div class="inventory-card-name">${escapeHtml(s.marketHashName)}</div>
-          ${tag}
-          <span class="inventory-card-price">$${s.price.toFixed(2)}</span>
-          <button class="skin-item-add" type="button" data-idx="${idx}" ${added ? "disabled" : ""}>${
-        added ? addedLabel : addLabel
-      }</button>
-        </div>`;
+  skinsListEl.innerHTML = visible
+    .map((s) => {
+      const idx = s.idx;
+      return renderCard(s, idx);
     })
     .join("");
 
   skinsListEl.querySelectorAll(".skin-item-add").forEach((btn) => {
     btn.addEventListener("click", () => addItem(Number(btn.getAttribute("data-idx"))));
   });
+}
+
+function renderCard(s, idx) {
+  const tag = s.isLocked
+    ? `<span class="lock-tag locked">🔒 ${lockedLabel} ${formatUnlockDate(s.unlockAt)}</span>`
+    : `<span class="lock-tag ready">✅ ${readyLabel}</span>`;
+  const img = s.image ? `<img class="inventory-card-img" src="${escapeHtml(s.image)}" alt="" />` : "";
+  const added = cart.includes(idx);
+
+  return `
+    <div class="inventory-card">
+      ${img}
+      <div class="inventory-card-name">${escapeHtml(s.marketHashName)}</div>
+      ${tag}
+      <span class="inventory-card-price">$${s.price.toFixed(2)}</span>
+      <button class="skin-item-add" type="button" data-idx="${idx}" ${added ? "disabled" : ""}>${
+    added ? addedLabel : addLabel
+  }</button>
+    </div>`;
 }
 
 function addItem(idx) {

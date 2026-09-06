@@ -59,6 +59,8 @@
 
   <section id="inventoryCard" class="card" style="display:none;">
     <div class="inventory-layout">
+      <aside id="filtersPanel" class="filters-panel"></aside>
+
       <div class="inventory-main">
         <h2>Your CS2 inventory</h2>
         <p class="card-hint">Price — what we're ready to pay right now for each item, most expensive first. Pulled straight from your Steam inventory, nothing to search for.</p>
@@ -122,6 +124,19 @@
 
   <script>
     window.ACCOUNT_CONFIG = {
+      filtersTitle: "Filters",
+      resetLabel: "Reset",
+      searchPlaceholder: "Search by name...",
+      priceTitle: "Price",
+      fromLabel: "From",
+      toLabel: "To",
+      wearTitle: "Wear",
+      specialTitle: "Special",
+      normalLabel: "Normal",
+      statusTitle: "Availability",
+      filtersReadyLabel: "Ready to deliver",
+      filtersLockedLabel: "Trade-locked",
+      nothingFound: "Nothing matches these filters.",
       dateLocale: "en-US",
       saveErrorPrefix: "Error: ",
       savedLabel: "Saved ✓",
@@ -174,6 +189,7 @@
     window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw" };
   </script>
   <script src="/nav-profile.js"></script>
+  <script src="/item-filters.js"></script>
   <script src="/account-inventory.js"></script>
   <script src="/account-deals.js"></script>
 </body>

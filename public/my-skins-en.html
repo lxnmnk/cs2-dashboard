@@ -36,6 +36,8 @@
 
   <section id="skinsCard" class="card">
     <div class="inventory-layout">
+      <aside id="filtersPanel" class="filters-panel"></aside>
+
       <div class="inventory-main">
         <h2>List</h2>
         <p class="card-hint">🔒 — still trade-locked, with the unlock date.</p>
@@ -84,6 +86,19 @@
 
   <script>
     window.MY_SKINS_CONFIG = {
+      filtersTitle: "Filters",
+      resetLabel: "Reset",
+      searchPlaceholder: "Search by name...",
+      priceTitle: "Price",
+      fromLabel: "From",
+      toLabel: "To",
+      wearTitle: "Wear",
+      specialTitle: "Special",
+      normalLabel: "Normal",
+      statusTitle: "Availability",
+      filtersReadyLabel: "Ready to deliver",
+      filtersLockedLabel: "Trade-locked",
+      nothingFound: "Nothing matches these filters.",
       lockedLabel: "until",
       readyLabel: "ready to deliver",
       addLabel: "Add",
@@ -94,6 +109,7 @@
       removeLabel: "Remove",
     };
   </script>
+  <script src="/item-filters.js"></script>
   <script src="/my-skins.js"></script>
   <script>
     window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw" };
