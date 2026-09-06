@@ -690,3 +690,171 @@ a { color: var(--gold); }
   .card { padding: 20px; border-radius: 12px; }
   .cart-total { font-size: 22px; }
 }
+
+/* ---- Шапка сайту: логотип, розділи, мова, профіль ---- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  height: 60px;
+  background: rgba(10, 11, 15, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.site-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 14px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.site-brand .accent { color: var(--gold); }
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.site-nav::-webkit-scrollbar { display: none; }
+.site-nav a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.site-nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
+.site-nav a.active { color: var(--gold); border-color: var(--gold-line); background: var(--gold-soft); }
+.site-nav .nav-icon { font-size: 15px; line-height: 1; }
+
+.site-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.lang-switch { display: flex; gap: 2px; }
+.lang-switch a {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: 6px;
+}
+.lang-switch a:hover { color: var(--text); }
+.lang-switch a.active { color: var(--gold); background: var(--gold-soft); }
+
+.nav-profile { display: flex; align-items: center; min-height: 36px; }
+.nav-profile-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+.nav-profile-user:hover { border-color: var(--gold-line); }
+.nav-profile-user img {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg);
+}
+.nav-profile-user span {
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.btn-small { display: inline-block; text-decoration: none; }
+
+@media (max-width: 1100px) {
+  .site-nav a { padding: 8px 10px; font-size: 13px; }
+  .site-brand { margin-right: 6px; }
+}
+/* Нижче цієї ширини бренд + мова + профіль перестають вміщатися в один рядок
+   з усіма розділами, і меню починає налазити на перемикач мов — тому воно
+   переїжджає на власний рядок під шапкою. */
+@media (max-width: 1000px) {
+  .site-header { height: auto; flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
+  .site-nav { order: 3; width: 100%; }
+}
+@media (max-width: 620px) {
+  .nav-profile-user span { display: none; }
+}
+
+/* ---- Підвал сайту ---- */
+.site-footer {
+  margin-top: 64px;
+  padding: 30px 20px 44px;
+  border-top: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+}
+.site-footer-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+.site-footer-col { max-width: 560px; }
+.site-footer-col h4 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.site-footer-col p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.site-footer-legal {
+  max-width: 1180px;
+  margin: 26px auto 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* ---- Порожній розділ (Trade — поки в розробці) ---- */
+.empty-section {
+  max-width: 620px;
+  margin: 80px auto;
+  padding: 0 20px;
+  text-align: center;
+}
+.empty-section .empty-icon { font-size: 40px; margin-bottom: 14px; }
+.empty-section h2 { margin: 0 0 10px; font-size: 22px; }
+.empty-section p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }

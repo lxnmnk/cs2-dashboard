@@ -167,7 +167,11 @@ const PUBLIC_PATHS = new Set([
   "/en/sell",
   "/en/buy",
   "/en/my-skins",
+  "/trade",
+  "/ru/trade",
+  "/en/trade",
   "/my-skins.js",
+  "/nav-profile.js",
   "/account-inventory.js",
   "/account-deals.js",
   "/quote.css",
@@ -254,6 +258,11 @@ const CLEAN_PUBLIC_ROUTES = {
   "/en/sell": "sell-quote-en.html",
   "/en/buy": "buy-quote-en.html",
   "/en/my-skins": "my-skins-en.html",
+  // Розділ Trade поки порожній — сторінка-заглушка, щоб пункт меню вів
+  // хоч кудись, а не в 404.
+  "/trade": "trade-soon.html",
+  "/ru/trade": "trade-soon-ru.html",
+  "/en/trade": "trade-soon-en.html",
 };
 for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
   app.get(route, (req, res) => res.sendFile(path.join(__dirname, "public", file)));

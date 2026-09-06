@@ -3,19 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CS2 Skins Trade</title>
+  <title>CS2 Skins Trade — купівля та продаж скінів</title>
   <link rel="stylesheet" href="/quote.css" />
 </head>
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
 
-  <nav class="top-nav">
-    <a href="/" class="active">UA</a>
-    <a href="/ru">RU</a>
-    <a href="/en">EN</a>
-    <span class="nav-sep">|</span>
-    <a href="/account">Кабінет</a>
-  </nav>
+  <header class="site-header">
+    <a class="site-brand" href="/">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/buy"><span class="nav-icon">🛒</span> Купити скіни</a>
+      <a href="/account"><span class="nav-icon">💰</span> Продати скіни</a>
+      <a href="/my-skins"><span class="nav-icon">📦</span> Наші скіни</a>
+      <a href="/trade"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/" class="active">UA</a>
+        <a href="/ru">RU</a>
+        <a href="/en">EN</a>
+      </div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
 
   <section class="hero">
     <span class="eyebrow">CS2 SKINS TRADE</span>
@@ -24,10 +34,10 @@
   </section>
 
   <div class="chooser">
-    <a class="chooser-card" href="/sell">
+    <a class="chooser-card" href="/account">
       <div class="chooser-icon">💰</div>
       <div class="chooser-title">Продати скіни</div>
-      <div class="chooser-desc">Дізнайся ціну викупу за секунди — введи назву й побач, скільки готові заплатити.</div>
+      <div class="chooser-desc">Увійди через Steam — ми самі підтягнемо твій інвентар і покажемо ціну викупу за кожен предмет.</div>
       <div class="chooser-go">Продати →</div>
     </a>
 
@@ -40,11 +50,42 @@
 
     <a class="chooser-card" href="/my-skins">
       <div class="chooser-icon">📦</div>
-      <div class="chooser-title">Мої скіни</div>
-      <div class="chooser-desc">Все, що вже є на руках — можна забронювати заздалегідь, навіть якщо предмет у трейд-бані.</div>
+      <div class="chooser-title">Наші скіни</div>
+      <div class="chooser-desc">Усе, що вже є в наявності — можна забронювати заздалегідь, навіть якщо предмет у трейд-бані.</div>
       <div class="chooser-go">Дивитись →</div>
     </a>
   </div>
 
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Зв'язок</h4>
+        <p>Пиши напряму в Telegram — <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>. Відповідаю особисто.</p>
+        <p>Відгуки та гаранти — у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Розділи</h4>
+        <p>
+          <a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> ·
+          <a href="/my-skins">Наші скіни</a> · <a href="/sell">Перевірити ціну</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      Сайт не пов'язаний з Valve Corporation, Steam і не є їхнім офіційним партнером.
+      Counter-Strike 2, назви предметів, зображення та торгові марки належать їхнім власникам.
+      Усі операції з предметами відбуваються між користувачами напряму.
+      <br />© 2026 gaben.market. Усі права захищені.
+    </p>
+  </footer>
+
+  <script>
+    window.NAV_CONFIG = {
+      signInLabel: "Увійти",
+      accountUrl: "/account",
+      loginUrl: "/auth/steam",
+    };
+  </script>
+  <script src="/nav-profile.js"></script>
 </body>
 </html>
