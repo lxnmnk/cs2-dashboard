@@ -1009,3 +1009,54 @@ a.btn-small { display: inline-block; text-decoration: none; }
   }
   .filters-group { margin-top: 12px; padding-top: 10px; }
 }
+
+/* ---- Вікно "обмін надіслано" ---- */
+.sell-result-lead { margin: 0 0 12px; font-size: 14px; }
+.sell-result-open { width: 100%; justify-content: center; }
+.sell-result-url {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-all;
+}
+.sell-result-warning { margin-top: 14px; font-size: 13px; }
+.sell-result-subtitle {
+  margin: 20px 0 10px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sender-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.sender-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--panel-2);
+}
+.sender-info { min-width: 0; }
+.sender-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.sender-line {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  word-break: break-all;
+}
+a.sender-line { color: var(--gold); }
+
+.deal-offer-link { display: inline-block; margin-top: 8px; font-size: 13px; }

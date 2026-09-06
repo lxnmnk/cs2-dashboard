@@ -448,6 +448,10 @@ app.post("/api/account/sell", async (req, res) => {
       totalPrice,
       offerId: result.offerId,
       expiresAt: result.expires_at,
+      // steamId у відповіді — це бот Skinbux, а не клієнт (у запиті ми
+      // передаємо клієнтський, у прикладах документації вони різні).
+      botSteamId: result.steamId,
+      botProfile: result.profileDetails,
     });
 
     res.json({ ok: true, totalPrice, ...result });

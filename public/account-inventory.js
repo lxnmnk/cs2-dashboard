@@ -13,9 +13,16 @@ const {
   pricesLoading,
   steamBusy,
   sellFailedPrefix,
-  sellSuccessPrefix,
-  sellSuccessFromWord,
-  sellSuccessSuffix,
+  acceptOnlyVia,
+  openOfferBtn,
+  offerLinkPending,
+  scamWarning,
+  senderTitle,
+  steamIdLabel,
+  levelLabel,
+  registeredLabel,
+  openProfile,
+  dateLocale,
   priceUnknown,
   addLabel,
   addedLabel,
@@ -36,6 +43,12 @@ const cartClearBtn = document.getElementById("cartClearBtn");
 const tradeUrlInput = document.getElementById("tradeUrlInput");
 const tradeUrlSaveBtn = document.getElementById("tradeUrlSaveBtn");
 const tradeUrlStatusEl = document.getElementById("tradeUrlStatus");
+const sellResultModal = document.getElementById("sellResultModal");
+const sellResultBody = document.getElementById("sellResultBody");
+
+document.getElementById("sellResultClose")?.addEventListener("click", () => {
+  sellResultModal.style.display = "none";
+});
 
 const MAX_RETRIES = 3;
 
@@ -110,11 +123,47 @@ sellAutoBtn?.addEventListener("click", async () => {
     return;
   }
 
-  sellStatusEl.innerHTML = `${sellSuccessPrefix}${data.profileDetails ? `${sellSuccessFromWord}<b>${escapeHtml(data.profileDetails.displayName)}</b>` : ""}${sellSuccessSuffix}`;
+  showSellResult(data);
   cart = [];
   renderInventoryList();
   renderCart();
 });
+
+// Вікно "обмін надіслано". Головне тут — пряме посилання саме на цей обмін і
+// дані бота, який його шле: клієнту треба бачити, від кого чекати пропозицію,
+// щоб не прийняти підроблену від шахрая з таким самим предметом.
+function showSellResult(data) {
+  const bot = data.profileDetails || {};
+  const offerUrl = data.offerId ? `https://steamcommunity.com/tradeoffer/${data.offerId}/` : null;
+  const profileUrl = data.steamId ? `https://steamcommunity.com/profiles/${data.steamId}` : null;
+  const registered = bot.registrationDate
+    ? new Date(bot.registrationDate).toLocaleDateString(dateLocale)
+    : null;
+
+  sellResultBody.innerHTML = `
+    <p class="sell-result-lead">${escapeHtml(acceptOnlyVia)}</p>
+    ${
+      offerUrl
+        ? `<a class="btn-gold sell-result-open" href="${escapeHtml(offerUrl)}" target="_blank">${escapeHtml(openOfferBtn)}</a>
+           <p class="sell-result-url">${escapeHtml(offerUrl)}</p>`
+        : `<p class="card-hint">${escapeHtml(offerLinkPending)}</p>`
+    }
+    <div class="unstable sell-result-warning">${escapeHtml(scamWarning)}</div>
+
+    <h4 class="sell-result-subtitle">${escapeHtml(senderTitle)}</h4>
+    <div class="sender-card">
+      ${bot.profileImageUrl ? `<img class="sender-avatar" src="${escapeHtml(bot.profileImageUrl)}" alt="" />` : ""}
+      <div class="sender-info">
+        <div class="sender-name">${escapeHtml(bot.displayName || "—")}</div>
+        <div class="sender-line">${escapeHtml(steamIdLabel)}: ${escapeHtml(data.steamId || "—")}</div>
+        ${bot.level != null ? `<div class="sender-line">${escapeHtml(levelLabel)}: ${bot.level}</div>` : ""}
+        ${registered ? `<div class="sender-line">${escapeHtml(registeredLabel)}: ${escapeHtml(registered)}</div>` : ""}
+        ${profileUrl ? `<a class="sender-line" href="${escapeHtml(profileUrl)}" target="_blank">${escapeHtml(openProfile)} →</a>` : ""}
+      </div>
+    </div>`;
+
+  sellResultModal.style.display = "flex";
+}
 
 async function loadInventory() {
   inventoryLoadingEl.style.display = "block";

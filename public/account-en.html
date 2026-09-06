@@ -21,6 +21,16 @@
     </div>
   </div>
 
+  <div id="sellResultModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Trade offer sent</h3>
+        <button id="sellResultClose" class="modal-close" type="button">✕</button>
+      </div>
+      <div id="sellResultBody"></div>
+    </div>
+  </div>
+
   <header class="site-header">
     <a class="site-brand" href="/en">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
@@ -144,9 +154,15 @@
       pricesLoading: "Refreshing prices, one moment...",
       steamBusy: "Steam is rate-limiting us right now — retrying, hang on a moment.",
       sellFailedPrefix: "Failed: ",
-      sellSuccessPrefix: "✅ Trade offer sent",
-      sellSuccessFromWord: " from ",
-      sellSuccessSuffix: " — accept it in Steam to complete the sale.",
+      acceptOnlyVia: "Accept the offer only through this link:",
+      openOfferBtn: "Open the trade in Steam",
+      offerLinkPending: "The trade link appears in a few seconds — refresh the page and check \"My deals\".",
+      scamWarning: "Any other trade with this item is a scam. Don't accept offers that didn't come through this link, even if the item and the amount match.",
+      senderTitle: "Who sends the trade",
+      steamIdLabel: "SteamID",
+      levelLabel: "Level",
+      registeredLabel: "Account created",
+      openProfile: "Steam profile",
       priceUnknown: "price unknown",
       addLabel: "Sell",
       addedLabel: "Added ✓",

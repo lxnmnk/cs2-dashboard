@@ -14,6 +14,7 @@ const {
   telegramWithdrawBtn,
   telegramMessageTemplate,
   dealLineTemplate,
+  openOfferBtn,
 } = window.ACCOUNT_CONFIG;
 
 const accountPillBtn = document.getElementById("accountPillBtn");
@@ -84,7 +85,15 @@ function renderDeal(sale) {
       statusHtml = `<p class="deal-status">${escapeHtml(holdUntilPrefix)}${unlockDate}</p>`;
     }
   } else {
-    statusHtml = `<p class="deal-status">${escapeHtml(statusLabels[sale.status] || sale.status)}</p>`;
+    // Для угоди, яка ще чекає прийняття, показуємо пряме посилання на обмін —
+    // щоб клієнт міг знайти його й після того, як закрив вікно продажу.
+    const offerLink =
+      ["created", "pending"].includes(sale.status) && sale.offerId
+        ? `<a class="deal-offer-link" href="https://steamcommunity.com/tradeoffer/${escapeHtml(
+            String(sale.offerId)
+          )}/" target="_blank">${escapeHtml(openOfferBtn)} →</a>`
+        : "";
+    statusHtml = `<p class="deal-status">${escapeHtml(statusLabels[sale.status] || sale.status)}</p>${offerLink}`;
   }
 
   return `

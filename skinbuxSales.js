@@ -25,7 +25,11 @@ function saveAll(sales) {
   fs.writeFileSync(FILE, JSON.stringify(sales, null, 2));
 }
 
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt }) {
+// botSteamId/botProfile — чий саме бот надсилає обмін (Skinbux повертає це у
+// відповіді на requestSell). Зберігаємо, щоб клієнт міг знайти пряме
+// посилання на обмін і дані відправника пізніше, а не лише у вікні одразу
+// після продажу.
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile }) {
   const sales = loadAll();
   sales.push({
     id,
@@ -35,6 +39,8 @@ function record({ id, steamId, customerName, items, totalPrice, offerId, expires
     totalPrice,
     offerId,
     expiresAt,
+    botSteamId: botSteamId || null,
+    botProfile: botProfile || null,
     status: "created",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
