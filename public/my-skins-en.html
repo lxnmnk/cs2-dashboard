@@ -23,6 +23,7 @@
         <a href="/ru/my-skins">RU</a>
         <a href="/en/my-skins" class="active">EN</a>
       </div>
+      <div id="navBalance"></div>
       <div id="navProfile" class="nav-profile"></div>
     </div>
   </header>
@@ -39,7 +40,7 @@
         <h2>List</h2>
         <p class="card-hint">🔒 — still trade-locked, with the unlock date.</p>
 
-        <div id="skinsList" class="cart-list"></div>
+        <div id="skinsList" class="inventory-grid"></div>
         <p id="emptyState" class="card-hint" style="display: none;">Nothing in stock right now — check back a bit later.</p>
       </div>
 
@@ -86,6 +87,7 @@
       lockedLabel: "until",
       readyLabel: "ready to deliver",
       addLabel: "Add",
+      addedLabel: "Added ✓",
       messageIntro: "Hi! I want to buy from your stock:",
       totalLabel: "Total:",
       priceNote: "site price",
@@ -94,7 +96,7 @@
   </script>
   <script src="/my-skins.js"></script>
   <script>
-    window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en" };
+    window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw" };
   </script>
   <script src="/nav-profile.js"></script>
 </body>

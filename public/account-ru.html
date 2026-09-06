@@ -35,6 +35,7 @@
         <a href="/ru/account" class="active">RU</a>
         <a href="/en/account">EN</a>
       </div>
+      <div id="navBalance"></div>
       <div id="accountPill" class="account-pill" style="display:none;">
         <button id="accountPillBtn" class="account-pill-avatar" type="button" title="Мои сделки">
           <img id="accountPillAvatar" src="" alt="" />
@@ -169,6 +170,10 @@
       window.location.href = "/auth/logout?lang=ru";
     });
   </script>
+  <script>
+    window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате" };
+  </script>
+  <script src="/nav-profile.js"></script>
   <script src="/account-inventory.js"></script>
   <script src="/account-deals.js"></script>
 </body>

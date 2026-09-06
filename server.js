@@ -301,8 +301,22 @@ app.get("/en/account", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "account-en.html"));
 });
 
+// Разом з профілем віддаємо баланс — цей роут смикає кожна сторінка сайту
+// для шапки, тож окремий запит за балансом був би зайвим.
 app.get("/api/account/me", (req, res) => {
-  res.json({ customer: req.session.customer || null });
+  const customer = req.session.customer || null;
+  if (!customer) return res.json({ customer: null });
+
+  const balance = skinbuxSales.computeBalance(customer.steamId);
+  res.json({
+    customer,
+    balance: {
+      ...balance,
+      availableUah: Math.round(balance.available * config.uahRate),
+      holdUah: Math.round(balance.hold * config.uahRate),
+      uahRate: config.uahRate,
+    },
+  });
 });
 
 // Инвентарь клиента через Steam (публичный, требует включённой приватности
@@ -470,6 +484,16 @@ app.get("/api/account/sales", async (req, res) => {
 
   const sales = skinbuxSales.listByUser(steamId);
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
+});
+
+// Отметка "деньги клиенту выплачены" — только для владельца сайта: роут не в
+// PUBLIC_PATHS, поэтому гейт выше пропустит лишь сессию с req.session.username.
+// Без неё выплаченная сделка продолжала бы висеть в балансе клиента.
+app.post("/api/sales/:id/paid", (req, res) => {
+  const sale = skinbuxSales.markPaid(req.params.id);
+  if (!sale) return res.status(404).json({ ok: false, error: "Угода не знайдена" });
+  console.log(`[sales] Угода ${sale.id} позначена як виплачена`);
+  res.json({ ok: true, sale });
 });
 
 // Вебхук от Skinbux — статус транзакции (created/pending/completed/

@@ -79,4 +79,43 @@ function listByUser(steamId) {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
-module.exports = { record, updateStatus, loadAll, listByUser, HOLD_DAYS };
+/**
+ * Баланс клієнта: скільки ми йому винні за завершені продажі. Рахуються
+ * тільки угоди зі статусом "completed" (обмін реально відбувся) і без
+ * позначки paidAt — скасовані та вже виплачені в баланс не входять.
+ * available — холд минув, гроші можна забирати; hold — ще лежать.
+ */
+function computeBalance(steamId) {
+  const now = Date.now();
+  let available = 0;
+  let hold = 0;
+
+  for (const sale of loadAll()) {
+    if (sale.steamId !== steamId) continue;
+    if (sale.status !== "completed" || sale.paidAt || !sale.completedAt) continue;
+
+    const unlockAt = new Date(sale.completedAt).getTime() + HOLD_DAYS * 86400000;
+    if (now >= unlockAt) available += sale.totalPrice;
+    else hold += sale.totalPrice;
+  }
+
+  return { available: round2(available), hold: round2(hold) };
+}
+
+// Позначка "виплачено" — після неї угода перестає враховуватись у балансі.
+// Ставить власник сайту, коли реально переказав гроші клієнту.
+function markPaid(id) {
+  const sales = loadAll();
+  const sale = sales.find((s) => String(s.id) === String(id));
+  if (!sale) return null;
+  sale.paidAt = new Date().toISOString();
+  sale.updatedAt = sale.paidAt;
+  saveAll(sales);
+  return sale;
+}
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+module.exports = { record, updateStatus, loadAll, listByUser, computeBalance, markPaid, HOLD_DAYS };

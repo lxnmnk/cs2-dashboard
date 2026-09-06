@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-06T23:07:08.932Z",
+  "generatedAt": "2026-09-06T23:25:47.414Z",
   "filters": {
     "buySource": "csfloat:bid",
     "sellSource": "any",
@@ -86,6 +86,11 @@
       "youpin": 7
     },
     {
+      "name": "★ Specialist Gloves | Blackbook (Minimal Wear)",
+      "buff": 7,
+      "youpin": 7
+    },
+    {
       "name": "★ Sport Gloves | Occult (Minimal Wear)",
       "buff": 7,
       "youpin": 7
@@ -130,11 +135,6 @@
       "youpin": 8
     },
     {
-      "name": "★ Specialist Gloves | Blackbook (Minimal Wear)",
-      "buff": 7,
-      "youpin": 7
-    },
-    {
       "name": "★ Karambit | Safari Mesh (Well-Worn)",
       "buff": 8,
       "youpin": 8
@@ -166,16 +166,16 @@
       "phase": "Phase 1"
     },
     {
-      "name": "★ Falchion Knife | Doppler (Factory New)",
-      "buff": 8,
-      "youpin": 8,
-      "phase": "Ruby"
-    },
-    {
       "name": "★ Falchion Knife | Gamma Doppler (Factory New)",
       "buff": 8,
       "youpin": 8,
       "phase": "Emerald"
+    },
+    {
+      "name": "★ Falchion Knife | Doppler (Factory New)",
+      "buff": 8,
+      "youpin": 8,
+      "phase": "Ruby"
     },
     {
       "name": "★ Karambit | Autotronic (Battle-Scarred)",
@@ -208,9 +208,9 @@
       "buyPrice": 830,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 922.53,
-      "profitUsd": 92.53,
-      "profitPercent": 11.15
+      "sellPrice": 922.49,
+      "profitUsd": 92.49,
+      "profitPercent": 11.14
     },
     {
       "marketHashName": "Glock-18 | Ghost Protocol (Factory New)",
@@ -222,9 +222,9 @@
       "buyPrice": 486,
       "sellSource": "csmoney",
       "sellSide": "bid",
-      "sellPrice": 567.56,
-      "profitUsd": 81.56,
-      "profitPercent": 16.78
+      "sellPrice": 565.48,
+      "profitUsd": 79.48,
+      "profitPercent": 16.35
     },
     {
       "marketHashName": "MAG-7 | Cinquedea (Factory New)",
@@ -264,9 +264,9 @@
       "buyPrice": 775,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 836.3,
-      "profitUsd": 61.3,
-      "profitPercent": 7.91
+      "sellPrice": 836.35,
+      "profitUsd": 61.35,
+      "profitPercent": 7.92
     },
     {
       "marketHashName": "★ Stiletto Knife | Doppler (Factory New)",
@@ -278,9 +278,9 @@
       "buyPrice": 960,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 1019.52,
-      "profitUsd": 59.52,
-      "profitPercent": 6.2
+      "sellPrice": 1019.95,
+      "profitUsd": 59.95,
+      "profitPercent": 6.24
     },
     {
       "marketHashName": "★ Sport Gloves | Nocts (Well-Worn)",
@@ -306,8 +306,8 @@
       "buyPrice": 670,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 726.03,
-      "profitUsd": 56.03,
+      "sellPrice": 726.02,
+      "profitUsd": 56.02,
       "profitPercent": 8.36
     },
     {
@@ -320,9 +320,9 @@
       "buyPrice": 630,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 685.72,
-      "profitUsd": 55.72,
-      "profitPercent": 8.84
+      "sellPrice": 685.91,
+      "profitUsd": 55.91,
+      "profitPercent": 8.87
     },
     {
       "marketHashName": "AWP | Sovereign Flame (Factory New)",
@@ -334,9 +334,9 @@
       "buyPrice": 397,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 452.46,
-      "profitUsd": 55.46,
-      "profitPercent": 13.97
+      "sellPrice": 452.42,
+      "profitUsd": 55.42,
+      "profitPercent": 13.96
     },
     {
       "marketHashName": "AWP | Desert Hydra (Field-Tested)",
@@ -351,6 +351,20 @@
       "sellPrice": 1013.22,
       "profitUsd": 53.22,
       "profitPercent": 5.54
+    },
+    {
+      "marketHashName": "★ Specialist Gloves | Blackbook (Minimal Wear)",
+      "wear": "Minimal Wear",
+      "phase": null,
+      "wearTierPct": 7,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 495,
+      "sellSource": "csmoney",
+      "sellSide": "bid",
+      "sellPrice": 546.24,
+      "profitUsd": 51.24,
+      "profitPercent": 10.35
     },
     {
       "marketHashName": "★ Sport Gloves | Occult (Minimal Wear)",
@@ -404,9 +418,9 @@
       "buyPrice": 955,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 1004.33,
-      "profitUsd": 49.33,
-      "profitPercent": 5.17
+      "sellPrice": 1004.32,
+      "profitUsd": 49.32,
+      "profitPercent": 5.16
     },
     {
       "marketHashName": "★ Butterfly Knife | Case Hardened (Minimal Wear)",
@@ -418,9 +432,9 @@
       "buyPrice": 800,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 847.59,
-      "profitUsd": 47.59,
-      "profitPercent": 5.95
+      "sellPrice": 847.93,
+      "profitUsd": 47.93,
+      "profitPercent": 5.99
     },
     {
       "marketHashName": "AUG | Akihabara Accept (Minimal Wear)",
@@ -446,8 +460,8 @@
       "buyPrice": 715,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 760.35,
-      "profitUsd": 45.35,
+      "sellPrice": 760.34,
+      "profitUsd": 45.34,
       "profitPercent": 6.34
     },
     {
@@ -463,20 +477,6 @@
       "sellPrice": 402.23,
       "profitUsd": 45.23,
       "profitPercent": 12.67
-    },
-    {
-      "marketHashName": "★ Specialist Gloves | Blackbook (Minimal Wear)",
-      "wear": "Minimal Wear",
-      "phase": null,
-      "wearTierPct": 7,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 495,
-      "sellSource": "csmoney",
-      "sellSide": "bid",
-      "sellPrice": 540.23,
-      "profitUsd": 45.23,
-      "profitPercent": 9.14
     },
     {
       "marketHashName": "★ Karambit | Safari Mesh (Well-Worn)",
@@ -516,9 +516,9 @@
       "buyPrice": 515,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 557.97,
-      "profitUsd": 42.97,
-      "profitPercent": 8.34
+      "sellPrice": 558.03,
+      "profitUsd": 43.03,
+      "profitPercent": 8.36
     },
     {
       "marketHashName": "Glock-18 | Synth Leaf (Factory New)",
@@ -558,9 +558,23 @@
       "buyPrice": 745,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 784.26,
-      "profitUsd": 39.26,
-      "profitPercent": 5.27
+      "sellPrice": 784.05,
+      "profitUsd": 39.05,
+      "profitPercent": 5.24
+    },
+    {
+      "marketHashName": "★ Falchion Knife | Gamma Doppler (Factory New)",
+      "wear": "Factory New · Emerald",
+      "phase": "Emerald",
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 470,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 508.77,
+      "profitUsd": 38.77,
+      "profitPercent": 8.25
     },
     {
       "marketHashName": "★ Falchion Knife | Doppler (Factory New)",
@@ -575,20 +589,6 @@
       "sellPrice": 668.62,
       "profitUsd": 38.62,
       "profitPercent": 6.13
-    },
-    {
-      "marketHashName": "★ Falchion Knife | Gamma Doppler (Factory New)",
-      "wear": "Factory New · Emerald",
-      "phase": "Emerald",
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 470,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 508.32,
-      "profitUsd": 38.32,
-      "profitPercent": 8.15
     },
     {
       "marketHashName": "★ Karambit | Autotronic (Battle-Scarred)",

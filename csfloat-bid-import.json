@@ -64,6 +64,11 @@
     "youpin": 7
   },
   {
+    "name": "★ Specialist Gloves | Blackbook (Minimal Wear)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
     "name": "★ Sport Gloves | Occult (Minimal Wear)",
     "buff": 7,
     "youpin": 7
@@ -108,11 +113,6 @@
     "youpin": 8
   },
   {
-    "name": "★ Specialist Gloves | Blackbook (Minimal Wear)",
-    "buff": 7,
-    "youpin": 7
-  },
-  {
     "name": "★ Karambit | Safari Mesh (Well-Worn)",
     "buff": 8,
     "youpin": 8
@@ -144,16 +144,16 @@
     "phase": "Phase 1"
   },
   {
-    "name": "★ Falchion Knife | Doppler (Factory New)",
-    "buff": 8,
-    "youpin": 8,
-    "phase": "Ruby"
-  },
-  {
     "name": "★ Falchion Knife | Gamma Doppler (Factory New)",
     "buff": 8,
     "youpin": 8,
     "phase": "Emerald"
+  },
+  {
+    "name": "★ Falchion Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 8,
+    "phase": "Ruby"
   },
   {
     "name": "★ Karambit | Autotronic (Battle-Scarred)",

@@ -23,6 +23,7 @@
         <a href="/ru/my-skins" class="active">RU</a>
         <a href="/en/my-skins">EN</a>
       </div>
+      <div id="navBalance"></div>
       <div id="navProfile" class="nav-profile"></div>
     </div>
   </header>
@@ -39,7 +40,7 @@
         <h2>Список</h2>
         <p class="card-hint">🔒 — предмет ещё в трейд-бане, с датой разблокировки.</p>
 
-        <div id="skinsList" class="cart-list"></div>
+        <div id="skinsList" class="inventory-grid"></div>
         <p id="emptyState" class="card-hint" style="display: none;">Сейчас ничего нет в наличии — загляни чуть позже.</p>
       </div>
 
@@ -86,6 +87,7 @@
       lockedLabel: "до",
       readyLabel: "готово к выдаче",
       addLabel: "Добавить",
+      addedLabel: "Добавлено ✓",
       messageIntro: "Привет! Хочу купить из наличия:",
       totalLabel: "Итого:",
       priceNote: "по цене с сайта",
@@ -94,7 +96,7 @@
   </script>
   <script src="/my-skins.js"></script>
   <script>
-    window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru" };
+    window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате" };
   </script>
   <script src="/nav-profile.js"></script>
 </body>

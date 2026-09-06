@@ -1,12 +1,17 @@
-// Публічна вітрина "Мої скіни в наявності" — не пошук по каталогу (як
+// Публічна вітрина "Наші скіни в наявності" — не пошук по каталогу (як
 // buy-quote), а фіксований список того, що реально лежить на руках у
 // власника сайту (/api/public/my-skins), включно з предметами в трейд-бані.
 // Локалізація — через window.MY_SKINS_CONFIG (кожна мовна версія сторінки
 // задає свій текст перед підключенням цього файлу).
+//
+// Кожен елемент відповіді — окремий фізичний предмет, тому в кошик він
+// додається рівно один раз: раніше кількість нарощувалась без обмеження, і
+// можна було "забронювати" 32 ножі, коли в наявності 10.
 const {
   lockedLabel,
   readyLabel,
   addLabel,
+  addedLabel,
   messageIntro,
   totalLabel,
   priceNote,
@@ -22,10 +27,11 @@ const cartTelegramLink = document.getElementById("cartTelegramLink");
 const cartClearBtn = document.getElementById("cartClearBtn");
 
 let skins = [];
-let cart = []; // { marketHashName, price, qty }
+let cart = []; // індекси предметів у skins — по одному запису на кожен предмет
 
 cartClearBtn.addEventListener("click", () => {
   cart = [];
+  renderSkinsList();
   renderCart();
 });
 
@@ -49,46 +55,43 @@ function renderSkinsList() {
   emptyStateEl.style.display = "none";
 
   skinsListEl.innerHTML = skins
-    .map((s) => {
+    .map((s, idx) => {
       const tag = s.isLocked
         ? `<span class="lock-tag locked">🔒 ${lockedLabel} ${formatUnlockDate(s.unlockAt)}</span>`
         : `<span class="lock-tag ready">✅ ${readyLabel}</span>`;
-      const thumb = s.image
-        ? `<span class="skin-thumb-wrap">
-             <img class="skin-thumb" src="${escapeHtml(s.image)}" alt="" />
-             <img class="skin-thumb-full" src="${escapeHtml(s.imageFull || s.image)}" alt="" />
-           </span>`
+      const img = s.image
+        ? `<img class="inventory-card-img" src="${escapeHtml(s.image)}" alt="" />`
         : "";
+      const added = cart.includes(idx);
+
       return `
-        <div class="cart-item">
-          ${thumb}
-          <span class="cart-item-name">${escapeHtml(s.marketHashName)}${tag}</span>
-          <span class="cart-item-price">$${s.price.toFixed(2)}</span>
-          <button class="skin-item-add" type="button" data-name="${escapeHtml(s.marketHashName)}">${addLabel}</button>
+        <div class="inventory-card">
+          ${img}
+          <div class="inventory-card-name">${escapeHtml(s.marketHashName)}</div>
+          ${tag}
+          <span class="inventory-card-price">$${s.price.toFixed(2)}</span>
+          <button class="skin-item-add" type="button" data-idx="${idx}" ${added ? "disabled" : ""}>${
+        added ? addedLabel : addLabel
+      }</button>
         </div>`;
     })
     .join("");
 
   skinsListEl.querySelectorAll(".skin-item-add").forEach((btn) => {
-    btn.addEventListener("click", () => addItem(btn.getAttribute("data-name")));
+    btn.addEventListener("click", () => addItem(Number(btn.getAttribute("data-idx"))));
   });
 }
 
-function addItem(name) {
-  const skin = skins.find((s) => s.marketHashName === name);
-  if (!skin) return;
-
-  const existing = cart.find((it) => it.marketHashName === name);
-  if (existing) {
-    existing.qty += 1;
-  } else {
-    cart.push({ marketHashName: name, price: skin.price, qty: 1 });
-  }
+function addItem(idx) {
+  if (!skins[idx] || cart.includes(idx)) return;
+  cart.push(idx);
+  renderSkinsList();
   renderCart();
 }
 
-function removeItem(name) {
-  cart = cart.filter((it) => it.marketHashName !== name);
+function removeItem(idx) {
+  cart = cart.filter((i) => i !== idx);
+  renderSkinsList();
   renderCart();
 }
 
@@ -101,27 +104,38 @@ function renderCart() {
 
   cartSection.style.display = "block";
   cartList.innerHTML = cart
-    .map(
-      (it) => `
+    .map((idx) => {
+      const s = skins[idx];
+      return `
         <div class="cart-item">
-          <span class="cart-item-name">${escapeHtml(it.marketHashName)}</span>
-          ${it.qty > 1 ? `<span class="cart-item-qty">× ${it.qty}</span>` : ""}
-          <span class="cart-item-price">$${(it.price * it.qty).toFixed(2)}</span>
-          <button class="cart-item-remove" type="button" data-name="${escapeHtml(it.marketHashName)}" title="${escapeHtml(removeLabel)}">✕</button>
-        </div>`
-    )
+          <span class="cart-item-name">${escapeHtml(s.marketHashName)}</span>
+          <span class="cart-item-price">$${s.price.toFixed(2)}</span>
+          <button class="cart-item-remove" type="button" data-idx="${idx}" title="${escapeHtml(removeLabel)}">✕</button>
+        </div>`;
+    })
     .join("");
 
   cartList.querySelectorAll(".cart-item-remove").forEach((btn) => {
-    btn.addEventListener("click", () => removeItem(btn.getAttribute("data-name")));
+    btn.addEventListener("click", () => removeItem(Number(btn.getAttribute("data-idx"))));
   });
 
-  const total = cart.reduce((sum, it) => sum + it.price * it.qty, 0);
+  const total = cart.reduce((sum, idx) => sum + skins[idx].price, 0);
   cartTotal.textContent = `$${total.toFixed(2)}`;
 
-  const lines = cart.map(
-    (it) => `${it.marketHashName}${it.qty > 1 ? ` × ${it.qty}` : ""} — $${(it.price * it.qty).toFixed(2)}`
+  // У повідомленні однакові предмети згортаємо в один рядок з кількістю —
+  // так зрозуміліше, ніж десять однакових рядків підряд.
+  const grouped = new Map();
+  for (const idx of cart) {
+    const s = skins[idx];
+    const entry = grouped.get(s.marketHashName) || { qty: 0, sum: 0 };
+    entry.qty += 1;
+    entry.sum += s.price;
+    grouped.set(s.marketHashName, entry);
+  }
+  const lines = [...grouped].map(
+    ([name, { qty, sum }]) => `${name}${qty > 1 ? ` × ${qty}` : ""} — $${sum.toFixed(2)}`
   );
+
   const message = `${messageIntro}\n${lines.join("\n")}\n\n${totalLabel} $${total.toFixed(2)} (${priceNote}).`;
   cartTelegramLink.href = `https://t.me/lxnmnk?text=${encodeURIComponent(message)}`;
 }

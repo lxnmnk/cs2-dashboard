@@ -477,6 +477,12 @@ a { color: var(--gold); }
   width: 100%;
   text-align: center;
 }
+/* Мітка трейд-бана всередині картки — окремим рядком, без відступу зліва,
+   який потрібен лише у списковому вигляді поруч з назвою. */
+.inventory-card .lock-tag {
+  margin-left: 0;
+  align-self: flex-start;
+}
 
 /* ---- Посилання на Steam-обмін (потрібно для автопродажу через Skinbux) ---- */
 .trade-url-section {
@@ -762,6 +768,23 @@ a { color: var(--gold); }
 }
 .lang-switch a:hover { color: var(--text); }
 .lang-switch a.active { color: var(--gold); background: var(--gold-soft); }
+
+/* Баланс у шапці: долари великим, гривні дрібним під ними */
+.nav-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  padding: 4px 12px;
+  border-radius: 10px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-balance:hover { background: rgba(215, 168, 78, 0.22); }
+.nav-balance-usd { font-size: 14px; font-weight: 700; color: var(--gold); }
+.nav-balance-uah { font-size: 11px; color: var(--muted); }
 
 .nav-profile { display: flex; align-items: center; min-height: 36px; }
 .nav-profile-user {
