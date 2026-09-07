@@ -154,6 +154,7 @@
       filtersLockedLabel: "Trade-locked",
       nothingFound: "Nothing matches these filters.",
       tradeLockedLabel: "trade-locked",
+      unavailableLabel: "not accepted",
       dateLocale: "en-US",
       saveErrorPrefix: "Error: ",
       savedLabel: "Saved ✓",
@@ -190,6 +191,13 @@
       dealLineTemplate: "Deal #{id} from {date}",
     };
 
+    // account-inventory.js подключён ниже: если ответ придёт раньше, чем
+    // браузер его выполнит, прямой вызов loadInventory() упадёт.
+    function whenScriptsReady(fn) {
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, { once: true });
+      else fn();
+    }
+
     fetch("/api/account/me")
       .then((r) => r.json())
       .then((data) => {
@@ -200,7 +208,7 @@
           document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
           document.getElementById("accountPillName").textContent = data.customer.displayName;
           document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
-          loadInventory();
+          whenScriptsReady(loadInventory);
         } else {
           document.getElementById("loggedOutCard").style.display = "block";
         }

@@ -27,6 +27,7 @@ const {
   removeLabel,
   nothingFound,
   tradeLockedLabel,
+  unavailableLabel,
 } = window.ACCOUNT_CONFIG;
 
 // dateLocale і openOfferBtn беремо через конфіг, а не деструктуризацією:
@@ -247,6 +248,17 @@ function renderInventoryList() {
             <div class="inventory-card-name">${nameHtml}</div>
             <span class="lock-tag locked">🔒 ${escapeHtml(it.tradableAfter || tradeLockedLabel)}</span>
             ${it.price != null ? `<span class="inventory-card-price">$${it.price.toFixed(2)}</span>` : ""}
+          </div>`;
+      }
+
+      // Skinbux цей предмет не приймає — показуємо, але без кнопки продажу.
+      // Раніше клієнт дізнавався про це лише коли тиснув "Продати".
+      if (it.sellAccept === false) {
+        return `
+          <div class="inventory-card">
+            ${img}
+            <div class="inventory-card-name">${nameHtml}</div>
+            <span class="inventory-card-na">${escapeHtml(unavailableLabel)}</span>
           </div>`;
       }
 

@@ -22,6 +22,7 @@ const steamAuth = require("./steamAuth");
 const customers = require("./customers");
 const balanceAdjustments = require("./balanceAdjustments");
 const { fetchInventory } = require("./steamInventory");
+const skinbuxInventory = require("./skinbuxInventory");
 const skinbuxTx = require("./skinbuxTransactions");
 const skinbuxSales = require("./skinbuxSales");
 const crypto = require("crypto");
@@ -320,6 +321,24 @@ app.get("/api/account/me", (req, res) => {
   });
 });
 
+// Инвентарь клиента: основной источник — Skinbux, запасной — публичный
+// инвентарь Steam. Steam отдаёт не все предметы (проверено: 61 из заявленных
+// им же 71, причём среди пропавших были ножи, которые Skinbux спокойно
+// принимает), поэтому спрашиваем в первую очередь тех, кто эти предметы и
+// будет забирать. Если их API недоступен — не оставляем клиента без списка.
+async function loadClientInventory(steamId, { force = false } = {}) {
+  try {
+    const items = await skinbuxInventory.fetchUserInventory(process.env.SKINBUX_API_KEY, steamId, { force });
+    return { items, source: "skinbux" };
+  } catch (err) {
+    console.warn(`[account-inventory] Skinbux не отдал инвентарь (${err.message}) — беру из Steam`);
+    // sellAccept тут неизвестен: Steam про приём предметов ничего не знает,
+    // поэтому не помечаем ничего недоступным, чтобы не врать клиенту.
+    const items = await fetchInventory(steamId, { force });
+    return { items: items.map((it) => ({ ...it, sellAccept: true, skinbuxPriceCents: null, float: null, phase: null })), source: "steam" };
+  }
+}
+
 // Инвентарь клиента через Steam (публичный, требует включённой приватности
 // "Открыто для всех" в настройках Steam) — по каждому предмету считаем ту же
 // цену выкупа, что и на "Продати" (см. sellQuote.js), только без ручного
@@ -336,7 +355,7 @@ app.get("/api/account/inventory", async (req, res) => {
     return res.json({ ok: false, error: "PRICES_NOT_READY" });
   }
   try {
-    const rawItems = await fetchInventory(req.session.customer.steamId, {
+    const { items: rawItems } = await loadClientInventory(req.session.customer.steamId, {
       force: req.query.refresh === "1",
     });
     // Предметы, которые в принципе никогда не торгуются (медали, монеты,
@@ -357,6 +376,12 @@ app.get("/api/account/inventory", async (req, res) => {
           icon: it.icon,
           tradable: it.tradable,
           tradableAfter: it.tradableAfter,
+          // sellAccept: false — Skinbux этот предмет не принимает вообще.
+          // Показываем его, но помечаем: раньше клиент узнавал об этом только
+          // при попытке продать.
+          sellAccept: it.sellAccept !== false,
+          phase: it.phase ?? null,
+          float: it.float ?? null,
           price: quote.ok ? quote.price : null,
         };
       })
@@ -405,44 +430,53 @@ app.post("/api/account/sell", async (req, res) => {
   if (!assetIds.length) return res.status(400).json({ ok: false, error: "Порожній список предметів" });
 
   try {
-    const rawItems = await fetchInventory(customer.steamId);
+    const { items: rawItems } = await loadClientInventory(customer.steamId);
     const items = [];
     for (const assetId of assetIds) {
-      const found = rawItems.find((r) => r.assetId === assetId);
-      if (!found) throw new Error(`Предмет ${assetId} більше не знайдено в інвентарі`);
+      const it = rawItems.find((r) => r.assetId === assetId);
+      if (!it) throw new Error(`Предмет ${assetId} більше не знайдено в інвентарі`);
       // Предмети в трейд-бані тепер видно в списку, тож у продаж вони теж
       // можуть прилетіти — відмовляємо зрозумілою причиною, а не "не знайдено".
-      if (!found.tradable) {
-        throw new Error(`"${found.marketHashName}" ще в трейд-бані, його не можна продати`);
+      if (!it.tradable) {
+        throw new Error(`"${it.marketHashName}" ще в трейд-бані, його не можна продати`);
       }
-      const it = found;
+      if (it.sellAccept === false) {
+        throw new Error(`Skinbux не приймає "${it.marketHashName}"`);
+      }
+
       const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
       const quote = computeSellQuote(row);
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
+
       // quote.price — це наша (уцінена на 5%, див. sellQuote.js) ціна викупу
       // у КЛІЄНТА, її ми йому і платимо. У сам запит до Skinbux вона НЕ йде:
-      // Skinbux звіряє переданий price зі своєю власною поточною ціною
-      // (currentPriceCents) і відхиляє з INVALID_PRICE при розбіжності —
-      // тому туди має йти їхній власний bid (row.prices.skinbux.bid), саме
-      // він і зараховується на наш баланс Skinbux.
-      const skinbuxBid = row.prices.skinbux.bid;
+      // Skinbux звіряє переданий price зі своєю власною поточною ціною і
+      // відхиляє з INVALID_PRICE при розбіжності — тому туди йде їхня ціна.
+      // Беремо її з інвентарю: там ціна саме цього предмета, з урахуванням
+      // фази, а не усереднений bid із загального прайс-листа.
+      const skinbuxCents =
+        it.skinbuxPriceCents ?? (row.prices.skinbux.bid != null ? Math.round(row.prices.skinbux.bid * 100) : null);
+      if (skinbuxCents == null) throw new Error(`Skinbux не дав ціни на "${it.marketHashName}"`);
+
       // Skinbux хоче повний market_hash_name (з якістю в дужках), не "голу"
-      // назву без wear — приклади в їхній документації це підтверджують.
-      // phase: null — базовий Steam-інвентар не дає надійно визначити фазу
-      // Doppler/Gamma Doppler за самим market_hash_name (там немає суфікса
-      // фази, на відміну від sources/skinbux.js, куди його додає сам Skinbux
-      // у відповіді з цінами) — для звичайних предметів це не проблема.
-      items.push({ assetId: it.assetId, name: it.marketHashName, price: quote.price, skinbuxBid, phase: null });
+      // назву без wear. phase тепер приходить з їхнього ж інвентарю — раніше
+      // ми слали null, бо зі Steam фазу Doppler не дістати.
+      items.push({
+        assetId: it.assetId,
+        name: it.marketHashName,
+        price: quote.price,
+        skinbuxCents,
+        phase: it.phase ?? null,
+      });
     }
 
     // Skinbux хоче price цілим числом центів рядком (приклад в докладі: "7",
-    // "109"), а не доларами з крапкою — інакше повертає INVALID_PRICE. І це
-    // має бути ЇХНЯ ціна (skinbuxBid), не наша уцінена quote.price.
+    // "109"), а не доларами з крапкою — інакше повертає INVALID_PRICE.
     const skinbuxItems = items.map((it) => ({
       assetId: it.assetId,
       name: it.name,
       phase: it.phase,
-      price: String(Math.round(it.skinbuxBid * 100)),
+      price: String(it.skinbuxCents),
     }));
     const result = await skinbuxTx.requestSell(process.env.SKINBUX_API_KEY, {
       items: skinbuxItems,
