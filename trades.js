@@ -67,20 +67,35 @@ function addTrade({ marketHashName, name, wear, buySource, buyPrice, buyDate, un
   return trade;
 }
 
-function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide }) {
-  if (!sellSource) throw new Error("sellSource обязателен");
+// sellSource может быть как площадкой из config.sources, так и любым своим
+// названием (продал где-то ещё) — во втором случае правил холда мы не знаем,
+// поэтому их можно задать вручную через sellHoldDays, см. computeBalances.
+function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide, sellHoldDays }) {
+  const source = typeof sellSource === "string" ? sellSource.trim() : "";
+  if (!source) throw new Error("sellSource обязателен");
+  if (source.length > 40) throw new Error("Название площадки слишком длинное");
+
   const price = Number(sellPrice);
   if (!Number.isFinite(price) || price <= 0) throw new Error("sellPrice должен быть положительным числом");
+
+  let holdDays = null;
+  if (sellHoldDays !== undefined && sellHoldDays !== null && sellHoldDays !== "") {
+    holdDays = Number(sellHoldDays);
+    if (!Number.isFinite(holdDays) || holdDays < 0 || holdDays > 365) {
+      throw new Error("Холд должен быть числом от 0 до 365 дней");
+    }
+  }
 
   const trades = loadTrades();
   const trade = findOwnedTrade(trades, id, owner);
   if (trade.status === "sold") throw new Error("Сделка уже отмечена как проданная");
 
   trade.status = "sold";
-  trade.sellSource = sellSource;
+  trade.sellSource = source;
   // bid/ask — на некоторых площадках (сейчас CS.Money) от этого зависят
   // правила холда денег, см. computeBalances.
   trade.sellSide = sellSide || null;
+  trade.sellHoldDays = holdDays;
   trade.sellPrice = price;
   trade.sellDate = sellDate ? new Date(sellDate).toISOString() : new Date().toISOString();
 
@@ -283,19 +298,26 @@ function computeBalances(owner, sourcesConfig) {
   for (const t of loadTrades()) {
     if (t.owner !== owner || t.status !== "sold") continue;
     const cfg = sourcesConfig[t.sellSource];
-    if (!cfg) continue;
 
-    // Источники с разными правилами для bid/ask (сейчас только CS.Money).
-    // Если сторона продажи не сохранена (старые записи до этой фичи) —
-    // консервативно считаем это ask: дольше холд, меньше сразу доступно,
-    // чтобы не завысить баланс.
-    const rule = cfg.balanceBySide ? cfg.balanceBySide[t.sellSide] || cfg.balanceBySide.ask : cfg;
+    // Площадка, которой нет в config.sources — это своя, введённая руками при
+    // продаже. Правил комиссий и холда мы про неё не знаем, поэтому деньги
+    // считаем доступными сразу, а если при продаже указали срок холда —
+    // держим их до его окончания.
+    const rule = !cfg
+      ? { instantPercent: t.sellHoldDays ? 0 : 100, holdDays: t.sellHoldDays ?? null }
+      : // Источники с разными правилами для bid/ask (сейчас только CS.Money).
+        // Если сторона продажи не сохранена (старые записи до этой фичи) —
+        // консервативно считаем это ask: дольше холд, меньше сразу доступно,
+        // чтобы не завысить баланс.
+        cfg.balanceBySide
+        ? cfg.balanceBySide[t.sellSide] || cfg.balanceBySide.ask
+        : cfg;
     // Источники без instantPercent/holdDays вообще (например ручной "trade" —
     // прямой Steam-трейд, или "gabenmarket") — это не биржевой счёт, пропускаем.
     if (!rule || rule.instantPercent == null) continue;
 
     let sellPrice = t.sellPrice;
-    if (cfg.askSellFeeTiers && (t.sellSide === "ask" || (cfg.balanceBySide && !t.sellSide))) {
+    if (cfg?.askSellFeeTiers && (t.sellSide === "ask" || (cfg.balanceBySide && !t.sellSide))) {
       sellPrice = round2(sellPrice * (1 - tieredFee(sellPrice, cfg.askSellFeeTiers)));
     }
 

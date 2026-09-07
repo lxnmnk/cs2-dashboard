@@ -187,6 +187,7 @@
 
       <div class="modal-manual-sell">
         <button id="modalManualTradeBtn" class="btn-small btn-secondary" type="button">🔄 Sold via direct Steam trade (enter value manually)</button>
+        <button id="modalOtherSourceBtn" class="btn-small btn-secondary" type="button">🏷️ Sold somewhere else (type the marketplace)</button>
       </div>
 
       <div id="modalOptions" class="modal-options"></div>
@@ -194,6 +195,16 @@
 
       <div id="modalSellForm" class="modal-sell-form" style="display:none;">
         <span id="modalSellSummary"></span>
+        <input id="modalSellSourceInput" type="text" placeholder="marketplace name" list="knownSources" style="display:none;" />
+        <datalist id="knownSources">
+          <option value="Skinport"></option>
+          <option value="Waxpeer"></option>
+          <option value="Market.CSGO"></option>
+          <option value="Bitskins"></option>
+          <option value="DMarket"></option>
+          <option value="Steam Market"></option>
+        </datalist>
+        <input id="modalSellHoldDays" type="number" min="0" max="365" step="1" placeholder="hold days" title="How many days until the money is withdrawable. Leave empty if it's available right away." style="display:none;" />
         <input id="modalSellPrice" type="number" step="0.01" min="0" placeholder="price" />
         <input id="modalSellDate" type="datetime-local" />
         <button id="modalSellConfirmBtn" class="btn-small">Confirm Sale</button>

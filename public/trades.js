@@ -201,9 +201,12 @@ document.addEventListener("keydown", (e) => {
 // (modalSellForm) и форма прямого Steam-трейда — можно добавить несколько
 // полученных предметов, как в "Add a Trade" сверху (modalTradeForm).
 function showModalOptionsView() {
-  document.getElementById("modalSellForm").style.display = "none";
+  const form = document.getElementById("modalSellForm");
+  form.style.display = "none";
+  delete form.dataset.custom;
   document.getElementById("modalTradeForm").style.display = "none";
   document.getElementById("modalManualTradeBtn").style.display = "inline-block";
+  document.getElementById("modalOtherSourceBtn").style.display = "inline-block";
   document.getElementById("modalOptions").style.display = "flex";
   renderModalOptions(); // пересчитать callout и т.п. на случай, если он был скрыт
 }
@@ -212,6 +215,7 @@ function showModalSellForm(source, price, side) {
   document.getElementById("modalOptions").style.display = "none";
   document.getElementById("modalCallout").style.display = "none";
   document.getElementById("modalManualTradeBtn").style.display = "none";
+  document.getElementById("modalOtherSourceBtn").style.display = "none";
   document.getElementById("modalTradeForm").style.display = "none";
 
   const form = document.getElementById("modalSellForm");
@@ -220,7 +224,26 @@ function showModalSellForm(source, price, side) {
   document.getElementById("modalSellSummary").textContent = `Selling on ${sourceLabel(source)} for`;
   document.getElementById("modalSellPrice").value = price || "";
   document.getElementById("modalSellDate").value = nowForDatetimeLocal();
+  document.getElementById("modalSellSourceInput").style.display = "none";
+  document.getElementById("modalSellHoldDays").style.display = "none";
   form.style.display = "flex";
+}
+
+// Продажа на площадке, которой нет в списке: название вводится руками и
+// становится отдельным источником в балансах. Холд можно указать, если на
+// той площадке деньги приходят не сразу.
+function showModalOtherSourceForm() {
+  showModalSellForm("", "", "");
+  document.getElementById("modalSellSummary").textContent = "Sold on";
+
+  const sourceInput = document.getElementById("modalSellSourceInput");
+  const holdInput = document.getElementById("modalSellHoldDays");
+  sourceInput.value = "";
+  holdInput.value = "";
+  sourceInput.style.display = "inline-block";
+  holdInput.style.display = "inline-block";
+  document.getElementById("modalSellForm").dataset.custom = "1";
+  sourceInput.focus();
 }
 
 function hideModalSellForm() {
@@ -334,6 +357,7 @@ function hideModalTradeForm() {
 }
 
 document.getElementById("modalManualTradeBtn").addEventListener("click", showModalTradeForm);
+document.getElementById("modalOtherSourceBtn").addEventListener("click", showModalOtherSourceForm);
 document.getElementById("modalTradeAddItemBtn").addEventListener("click", () => {
   document.getElementById("modalTradeItems").appendChild(createModalTradeRow());
 });
@@ -428,10 +452,17 @@ function round2(n) {
 
 document.getElementById("modalSellConfirmBtn").addEventListener("click", async () => {
   const form = document.getElementById("modalSellForm");
-  const sellSource = form.dataset.source;
-  const sellSide = form.dataset.side || null;
+  const isCustom = form.dataset.custom === "1";
+  const sellSource = isCustom ? document.getElementById("modalSellSourceInput").value.trim() : form.dataset.source;
+  const sellSide = isCustom ? null : form.dataset.side || null;
+  const sellHoldDays = isCustom ? document.getElementById("modalSellHoldDays").value : null;
   const sellPrice = parseFloat(document.getElementById("modalSellPrice").value);
   const sellDateRaw = document.getElementById("modalSellDate").value;
+
+  if (isCustom && !sellSource) {
+    alert("Enter where you sold it");
+    return;
+  }
   if (!sellPrice || sellPrice <= 0) {
     alert("Enter a sell price");
     return;
@@ -441,7 +472,7 @@ document.getElementById("modalSellConfirmBtn").addEventListener("click", async (
   const res = await fetch(`/api/trades/${modalTradeId}/sell`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ sellSource, sellSide, sellPrice, sellDate }),
+    body: JSON.stringify({ sellSource, sellSide, sellPrice, sellDate, sellHoldDays }),
   });
   const data = await res.json();
   if (!data.ok) {
@@ -1020,7 +1051,12 @@ function wireBalanceButtons(container) {
 function renderBalances(balances) {
   const container = document.getElementById("balancesCards");
   const marketplaceSources = BALANCE_SOURCE_ORDER.filter((s) => balances[s]);
-  const sources = [...marketplaceSources, ...STEAM_CRYPTO_SOURCES];
+  // Площадки, введённые руками при продаже, в фиксированном порядке не значатся —
+  // добавляем их следом, иначе деньги с них нигде не показывались бы.
+  const customSources = Object.keys(balances)
+    .filter((s) => !BALANCE_SOURCE_ORDER.includes(s) && !STEAM_CRYPTO_SOURCES.includes(s))
+    .sort();
+  const sources = [...marketplaceSources, ...customSources, ...STEAM_CRYPTO_SOURCES];
 
   container.innerHTML = sources
     .map((s) => {
