@@ -170,11 +170,13 @@
       statusLabels: {
         created: "Ожидает принятия обмена в Steam",
         pending: "Ожидает принятия обмена в Steam",
-        hold: "На проверке у Skinbux",
+        hold: "Средства в холде",
         cancelled: "Отменено",
         reverted: "Отменено (возврат)",
       },
       holdUntilPrefix: "Средства в холде до ",
+      holdLabel: "Средства в холде",
+      paidLabel: "Выплачено ✓",
       unlockedStatus: "✓ Средства разблокированы, можно вывести",
       telegramWithdrawBtn: "Написать в Telegram для вывода",
       telegramMessageTemplate: "Привет! Хочу вывести средства за сделку #{id} на сумму ${amount}.",
@@ -202,7 +204,7 @@
     });
   </script>
   <script>
-    window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате" };
+    window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате", holdTitle: "В холде" };
   </script>
   <script src="/nav-profile.js"></script>
   <script src="/item-filters.js"></script>

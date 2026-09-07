@@ -14,7 +14,6 @@ const {
   steamBusy,
   sellFailedPrefix,
   acceptOnlyVia,
-  openOfferBtn,
   offerLinkPending,
   scamWarning,
   senderTitle,
@@ -22,13 +21,17 @@ const {
   levelLabel,
   registeredLabel,
   openProfile,
-  dateLocale,
   priceUnknown,
   addLabel,
   addedLabel,
   removeLabel,
   nothingFound,
 } = window.ACCOUNT_CONFIG;
+
+// dateLocale і openOfferBtn беремо через конфіг, а не деструктуризацією:
+// ці ж імена оголошує account-deals.js, а два звичайні <script> ділять одну
+// глобальну область — повторний const ламає весь другий файл.
+const CFG = window.ACCOUNT_CONFIG;
 
 const inventoryListEl = document.getElementById("inventoryList");
 const inventoryLoadingEl = document.getElementById("inventoryLoading");
@@ -137,14 +140,14 @@ function showSellResult(data) {
   const offerUrl = data.offerId ? `https://steamcommunity.com/tradeoffer/${data.offerId}/` : null;
   const profileUrl = data.steamId ? `https://steamcommunity.com/profiles/${data.steamId}` : null;
   const registered = bot.registrationDate
-    ? new Date(bot.registrationDate).toLocaleDateString(dateLocale)
+    ? new Date(bot.registrationDate).toLocaleDateString(CFG.dateLocale)
     : null;
 
   sellResultBody.innerHTML = `
     <p class="sell-result-lead">${escapeHtml(acceptOnlyVia)}</p>
     ${
       offerUrl
-        ? `<a class="btn-gold sell-result-open" href="${escapeHtml(offerUrl)}" target="_blank">${escapeHtml(openOfferBtn)}</a>
+        ? `<a class="btn-gold sell-result-open" href="${escapeHtml(offerUrl)}" target="_blank">${escapeHtml(CFG.openOfferBtn)}</a>
            <p class="sell-result-url">${escapeHtml(offerUrl)}</p>`
         : `<p class="card-hint">${escapeHtml(offerLinkPending)}</p>`
     }

@@ -170,11 +170,13 @@
       statusLabels: {
         created: "Waiting for you to accept the trade in Steam",
         pending: "Waiting for you to accept the trade in Steam",
-        hold: "Under review by Skinbux",
+        hold: "Funds on hold",
         cancelled: "Cancelled",
         reverted: "Cancelled (reverted)",
       },
       holdUntilPrefix: "Funds on hold until ",
+      holdLabel: "Funds on hold",
+      paidLabel: "Paid out ✓",
       unlockedStatus: "✓ Funds unlocked, ready to withdraw",
       telegramWithdrawBtn: "Message Telegram to withdraw",
       telegramMessageTemplate: "Hi! I want to withdraw funds for deal #{id}, amount ${amount}.",
@@ -202,7 +204,7 @@
     });
   </script>
   <script>
-    window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw" };
+    window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw", holdTitle: "On hold" };
   </script>
   <script src="/nav-profile.js"></script>
   <script src="/item-filters.js"></script>

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-06T23:38:42.715Z",
+  "generatedAt": "2026-09-07T00:07:40.109Z",
   "filters": {
     "buySource": "csfloat:bid",
     "sellSource": "any",
@@ -27,12 +27,6 @@
       "youpin": 8
     },
     {
-      "name": "★ Huntsman Knife | Doppler (Factory New)",
-      "buff": 8,
-      "youpin": 8,
-      "phase": "Ruby"
-    },
-    {
       "name": "Glock-18 | Ghost Protocol (Factory New)",
       "buff": 8,
       "youpin": 8
@@ -41,6 +35,18 @@
       "name": "MAG-7 | Cinquedea (Factory New)",
       "buff": 8,
       "youpin": 8
+    },
+    {
+      "name": "★ Huntsman Knife | Doppler (Factory New)",
+      "buff": 8,
+      "youpin": 8,
+      "phase": "Ruby"
+    },
+    {
+      "name": "★ Ursus Knife | Doppler (Factory New)",
+      "buff": 8,
+      "youpin": 8,
+      "phase": "Ruby"
     },
     {
       "name": "★ Sport Gloves | Violet Beadwork (Minimal Wear)",
@@ -64,18 +70,6 @@
       "youpin": 8
     },
     {
-      "name": "★ Nomad Knife | Doppler (Factory New)",
-      "buff": 8,
-      "youpin": 8,
-      "phase": "Sapphire"
-    },
-    {
-      "name": "★ Ursus Knife | Doppler (Factory New)",
-      "buff": 8,
-      "youpin": 8,
-      "phase": "Ruby"
-    },
-    {
       "name": "AWP | Sovereign Flame (Factory New)",
       "buff": 8,
       "youpin": 8
@@ -84,6 +78,17 @@
       "name": "AWP | Desert Hydra (Field-Tested)",
       "buff": 7,
       "youpin": 7
+    },
+    {
+      "name": "★ Nomad Knife | Doppler (Factory New)",
+      "buff": 8,
+      "youpin": 8,
+      "phase": "Sapphire"
+    },
+    {
+      "name": "AK-47 | Consequence of the Jinn (Factory New)",
+      "buff": 8,
+      "youpin": 8
     },
     {
       "name": "★ Specialist Gloves | Blackbook (Minimal Wear)",
@@ -96,12 +101,6 @@
       "youpin": 7
     },
     {
-      "name": "★ Bowie Knife | Doppler (Factory New)",
-      "buff": 8,
-      "youpin": 8,
-      "phase": "Ruby"
-    },
-    {
       "name": "★ Paracord Knife | Doppler (Factory New)",
       "buff": 8,
       "youpin": 8,
@@ -111,17 +110,18 @@
       "name": "★ Talon Knife | Doppler (Factory New)",
       "buff": 8,
       "youpin": 8,
-      "phase": "Phase 2"
-    },
-    {
-      "name": "★ Butterfly Knife | Case Hardened (Minimal Wear)",
-      "buff": 7,
-      "youpin": 7
+      "phase": "Phase 1"
     },
     {
       "name": "AUG | Akihabara Accept (Minimal Wear)",
       "buff": 7,
       "youpin": 7
+    },
+    {
+      "name": "★ Talon Knife | Doppler (Factory New)",
+      "buff": 8,
+      "youpin": 8,
+      "phase": "Phase 4"
     },
     {
       "name": "★ Skeleton Knife | Doppler (Factory New)",
@@ -145,7 +145,18 @@
       "youpin": 7
     },
     {
-      "name": "AK-47 | Consequence of the Jinn (Factory New)",
+      "name": "★ Butterfly Knife | Case Hardened (Minimal Wear)",
+      "buff": 7,
+      "youpin": 7
+    },
+    {
+      "name": "★ Bowie Knife | Doppler (Factory New)",
+      "buff": 8,
+      "youpin": 8,
+      "phase": "Ruby"
+    },
+    {
+      "name": "★ Karambit | Autotronic (Well-Worn)",
       "buff": 8,
       "youpin": 8
     },
@@ -153,12 +164,6 @@
       "name": "★ Karambit | Case Hardened (Minimal Wear)",
       "buff": 7,
       "youpin": 7
-    },
-    {
-      "name": "★ Talon Knife | Doppler (Factory New)",
-      "buff": 8,
-      "youpin": 8,
-      "phase": "Phase 1"
     },
     {
       "name": "★ Falchion Knife | Gamma Doppler (Factory New)",
@@ -176,12 +181,6 @@
       "name": "Glock-18 | Synth Leaf (Factory New)",
       "buff": 8,
       "youpin": 8
-    },
-    {
-      "name": "★ Stiletto Knife | Doppler (Factory New)",
-      "buff": 8,
-      "youpin": 8,
-      "phase": "Phase 2"
     }
   ],
   "details": [
@@ -195,23 +194,9 @@
       "buyPrice": 880,
       "sellSource": "youpin",
       "sellSide": "bid",
-      "sellPrice": 974.48,
-      "profitUsd": 94.48,
+      "sellPrice": 974.55,
+      "profitUsd": 94.55,
       "profitPercent": 10.74
-    },
-    {
-      "marketHashName": "★ Huntsman Knife | Doppler (Factory New)",
-      "wear": "Factory New · Ruby",
-      "phase": "Ruby",
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 830,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 922.49,
-      "profitUsd": 92.49,
-      "profitPercent": 11.14
     },
     {
       "marketHashName": "Glock-18 | Ghost Protocol (Factory New)",
@@ -240,6 +225,34 @@
       "sellPrice": 667.35,
       "profitUsd": 77.35,
       "profitPercent": 13.11
+    },
+    {
+      "marketHashName": "★ Huntsman Knife | Doppler (Factory New)",
+      "wear": "Factory New · Ruby",
+      "phase": "Ruby",
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 830,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 905.56,
+      "profitUsd": 75.56,
+      "profitPercent": 9.1
+    },
+    {
+      "marketHashName": "★ Ursus Knife | Doppler (Factory New)",
+      "wear": "Factory New · Ruby",
+      "phase": "Ruby",
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 620,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 685.91,
+      "profitUsd": 65.91,
+      "profitPercent": 10.63
     },
     {
       "marketHashName": "★ Sport Gloves | Violet Beadwork (Minimal Wear)",
@@ -298,6 +311,34 @@
       "profitPercent": 11.71
     },
     {
+      "marketHashName": "AWP | Sovereign Flame (Factory New)",
+      "wear": "Factory New",
+      "phase": null,
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 397,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 455.22,
+      "profitUsd": 58.22,
+      "profitPercent": 14.66
+    },
+    {
+      "marketHashName": "AWP | Desert Hydra (Field-Tested)",
+      "wear": "Field-Tested",
+      "phase": null,
+      "wearTierPct": 7,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 960,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 1017.08,
+      "profitUsd": 57.08,
+      "profitPercent": 5.95
+    },
+    {
       "marketHashName": "★ Nomad Knife | Doppler (Factory New)",
       "wear": "Factory New · Sapphire",
       "phase": "Sapphire",
@@ -312,46 +353,18 @@
       "profitPercent": 8.36
     },
     {
-      "marketHashName": "★ Ursus Knife | Doppler (Factory New)",
-      "wear": "Factory New · Ruby",
-      "phase": "Ruby",
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 630,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 685.91,
-      "profitUsd": 55.91,
-      "profitPercent": 8.87
-    },
-    {
-      "marketHashName": "AWP | Sovereign Flame (Factory New)",
+      "marketHashName": "AK-47 | Consequence of the Jinn (Factory New)",
       "wear": "Factory New",
       "phase": null,
       "wearTierPct": 8,
       "buySource": "csfloat",
       "buySide": "bid",
-      "buyPrice": 397,
+      "buyPrice": 515,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 452.42,
-      "profitUsd": 55.42,
-      "profitPercent": 13.96
-    },
-    {
-      "marketHashName": "AWP | Desert Hydra (Field-Tested)",
-      "wear": "Field-Tested",
-      "phase": null,
-      "wearTierPct": 7,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 960,
-      "sellSource": "youpin",
-      "sellSide": "bid",
-      "sellPrice": 1013.22,
-      "profitUsd": 53.22,
-      "profitPercent": 5.54
+      "sellPrice": 568.34,
+      "profitUsd": 53.34,
+      "profitPercent": 10.36
     },
     {
       "marketHashName": "★ Specialist Gloves | Blackbook (Minimal Wear)",
@@ -382,20 +395,6 @@
       "profitPercent": 5.74
     },
     {
-      "marketHashName": "★ Bowie Knife | Doppler (Factory New)",
-      "wear": "Factory New · Ruby",
-      "phase": "Ruby",
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 635,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 685.46,
-      "profitUsd": 50.46,
-      "profitPercent": 7.95
-    },
-    {
       "marketHashName": "★ Paracord Knife | Doppler (Factory New)",
       "wear": "Factory New · Ruby",
       "phase": "Ruby",
@@ -411,31 +410,17 @@
     },
     {
       "marketHashName": "★ Talon Knife | Doppler (Factory New)",
-      "wear": "Factory New · Phase 2",
-      "phase": "Phase 2",
+      "wear": "Factory New · Phase 1",
+      "phase": "Phase 1",
       "wearTierPct": 8,
       "buySource": "csfloat",
       "buySide": "bid",
-      "buyPrice": 955,
+      "buyPrice": 745,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 1004.32,
-      "profitUsd": 49.32,
-      "profitPercent": 5.16
-    },
-    {
-      "marketHashName": "★ Butterfly Knife | Case Hardened (Minimal Wear)",
-      "wear": "Minimal Wear",
-      "phase": null,
-      "wearTierPct": 7,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 800,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 847.93,
-      "profitUsd": 47.93,
-      "profitPercent": 5.99
+      "sellPrice": 793.54,
+      "profitUsd": 48.54,
+      "profitPercent": 6.52
     },
     {
       "marketHashName": "AUG | Akihabara Accept (Minimal Wear)",
@@ -450,6 +435,20 @@
       "sellPrice": 926.6,
       "profitUsd": 46.6,
       "profitPercent": 5.3
+    },
+    {
+      "marketHashName": "★ Talon Knife | Doppler (Factory New)",
+      "wear": "Factory New · Phase 4",
+      "phase": "Phase 4",
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 835,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 880.73,
+      "profitUsd": 45.73,
+      "profitPercent": 5.48
     },
     {
       "marketHashName": "★ Skeleton Knife | Doppler (Factory New)",
@@ -475,9 +474,9 @@
       "buyPrice": 357,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 402.23,
-      "profitUsd": 45.23,
-      "profitPercent": 12.67
+      "sellPrice": 402.18,
+      "profitUsd": 45.18,
+      "profitPercent": 12.66
     },
     {
       "marketHashName": "★ Karambit | Safari Mesh (Well-Worn)",
@@ -489,9 +488,9 @@
       "buyPrice": 318,
       "sellSource": "youpin",
       "sellSide": "bid",
-      "sellPrice": 362.08,
-      "profitUsd": 44.08,
-      "profitPercent": 13.86
+      "sellPrice": 362.1,
+      "profitUsd": 44.1,
+      "profitPercent": 13.87
     },
     {
       "marketHashName": "★ Driver Gloves | Brocade Flowers (Minimal Wear)",
@@ -508,18 +507,46 @@
       "profitPercent": 11.12
     },
     {
-      "marketHashName": "AK-47 | Consequence of the Jinn (Factory New)",
-      "wear": "Factory New",
+      "marketHashName": "★ Butterfly Knife | Case Hardened (Minimal Wear)",
+      "wear": "Minimal Wear",
+      "phase": null,
+      "wearTierPct": 7,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 800,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 843.67,
+      "profitUsd": 43.67,
+      "profitPercent": 5.46
+    },
+    {
+      "marketHashName": "★ Bowie Knife | Doppler (Factory New)",
+      "wear": "Factory New · Ruby",
+      "phase": "Ruby",
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 635,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 677.05,
+      "profitUsd": 42.05,
+      "profitPercent": 6.62
+    },
+    {
+      "marketHashName": "★ Karambit | Autotronic (Well-Worn)",
+      "wear": "Well-Worn",
       "phase": null,
       "wearTierPct": 8,
       "buySource": "csfloat",
       "buySide": "bid",
-      "buyPrice": 515,
+      "buyPrice": 775,
       "sellSource": "skinbux",
       "sellSide": "bid",
-      "sellPrice": 558.03,
-      "profitUsd": 43.03,
-      "profitPercent": 8.36
+      "sellPrice": 816.56,
+      "profitUsd": 41.56,
+      "profitPercent": 5.36
     },
     {
       "marketHashName": "★ Karambit | Case Hardened (Minimal Wear)",
@@ -531,23 +558,9 @@
       "buyPrice": 790,
       "sellSource": "youpin",
       "sellSide": "bid",
-      "sellPrice": 829.94,
-      "profitUsd": 39.94,
+      "sellPrice": 830.01,
+      "profitUsd": 40.01,
       "profitPercent": 5.06
-    },
-    {
-      "marketHashName": "★ Talon Knife | Doppler (Factory New)",
-      "wear": "Factory New · Phase 1",
-      "phase": "Phase 1",
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 745,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 784.05,
-      "profitUsd": 39.05,
-      "profitPercent": 5.24
     },
     {
       "marketHashName": "★ Falchion Knife | Gamma Doppler (Factory New)",
@@ -590,20 +603,6 @@
       "sellPrice": 365.54,
       "profitUsd": 38.54,
       "profitPercent": 11.79
-    },
-    {
-      "marketHashName": "★ Stiletto Knife | Doppler (Factory New)",
-      "wear": "Factory New · Phase 2",
-      "phase": "Phase 2",
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 570,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 608.46,
-      "profitUsd": 38.46,
-      "profitPercent": 6.75
     }
   ]
 }

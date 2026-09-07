@@ -54,9 +54,13 @@ function updateStatus(id, status, steamOfferId) {
   if (!sale) return null;
   sale.status = status;
   if (steamOfferId) sale.offerId = steamOfferId;
-  // completedAt фіксуємо один раз, у момент першого переходу в "completed" —
-  // саме від цієї миті рахується 7-денний холд, а не від будь-якого
-  // подальшого оновлення статусу (напр. звіт про повернення заднім числом).
+  // У Skinbux успішний продаж іде created -> pending -> hold -> completed,
+  // де "hold" означає, що обмін прийнято і гроші заморожено на 7 днів, а
+  // "completed" — що вони вже розморожені. Тому дату холду фіксуємо саме на
+  // переході в "hold": від неї рахується, коли кошти стануть доступні.
+  if (status === "hold" && !sale.heldAt) {
+    sale.heldAt = new Date().toISOString();
+  }
   if (status === "completed" && !sale.completedAt) {
     sale.completedAt = new Date().toISOString();
   }
@@ -70,39 +74,34 @@ function updateStatus(id, status, steamOfferId) {
  * полями по холду, щоб фронтенду не рахувати дати самому.
  */
 function listByUser(steamId) {
-  const sales = loadAll().filter((s) => s.steamId === steamId);
-  const now = Date.now();
-  return sales
-    .map((s) => {
-      let unlockAt = null;
-      let unlocked = false;
-      if (s.completedAt) {
-        unlockAt = new Date(new Date(s.completedAt).getTime() + HOLD_DAYS * 86400000).toISOString();
-        unlocked = now >= new Date(unlockAt).getTime();
-      }
-      return { ...s, unlockAt, unlocked };
-    })
+  return loadAll()
+    .filter((s) => s.steamId === steamId)
+    .map((s) => ({ ...s, unlockAt: unlockAtOf(s) }))
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+// Коли гроші за угоду вийдуть із холду. Skinbux тримає їх 7 днів від моменту
+// прийняття обміну — його ми фіксуємо як heldAt. Якщо угода вже "completed",
+// холд позаду, і дата ні до чого.
+function unlockAtOf(sale) {
+  if (sale.status !== "hold" || !sale.heldAt) return null;
+  return new Date(new Date(sale.heldAt).getTime() + HOLD_DAYS * 86400000).toISOString();
+}
+
 /**
- * Баланс клієнта: скільки ми йому винні за завершені продажі. Рахуються
- * тільки угоди зі статусом "completed" (обмін реально відбувся) і без
- * позначки paidAt — скасовані та вже виплачені в баланс не входять.
- * available — холд минув, гроші можна забирати; hold — ще лежать.
+ * Баланс клієнта: скільки ми йому винні за продажі, які реально відбулися.
+ * Спираємось на статуси самого Skinbux — "hold" це прийнятий обмін із
+ * замороженими на 7 днів грошима, "completed" — гроші вже розморожені.
+ * Скасовані угоди й ті, за які ми вже розрахувались (paidAt), не рахуються.
  */
 function computeBalance(steamId) {
-  const now = Date.now();
   let available = 0;
   let hold = 0;
 
   for (const sale of loadAll()) {
-    if (sale.steamId !== steamId) continue;
-    if (sale.status !== "completed" || sale.paidAt || !sale.completedAt) continue;
-
-    const unlockAt = new Date(sale.completedAt).getTime() + HOLD_DAYS * 86400000;
-    if (now >= unlockAt) available += sale.totalPrice;
-    else hold += sale.totalPrice;
+    if (sale.steamId !== steamId || sale.paidAt) continue;
+    if (sale.status === "hold") hold += sale.totalPrice;
+    else if (sale.status === "completed") available += sale.totalPrice;
   }
 
   return { available: round2(available), hold: round2(hold) };

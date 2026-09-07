@@ -31,11 +31,19 @@ fetch("/api/account/me")
     // Гривні рахує сервер за курсом з config.json, щоб не тримати його копію
     // в кожній мовній версії сторінки.
     if (navBalanceEl && data.customer && data.balance) {
-      const { available, availableUah } = data.balance;
+      const { available, availableUah, hold, holdUah } = data.balance;
+      // Гроші в холді показуємо окремим рядком: без цього клієнт після
+      // успішного продажу бачив у шапці $0.00 і не розумів, чи все дійшло.
+      const holdLine = hold
+        ? `<span class="nav-balance-hold" title="${escapeHtml(NAV_T.holdTitle || "")}">+$${hold.toFixed(
+            2
+          )} · ${holdUah} ₴</span>`
+        : "";
       navBalanceEl.innerHTML = `
         <a class="nav-balance" href="${escapeHtml(NAV_T.accountUrl)}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
           <span class="nav-balance-usd">$${available.toFixed(2)}</span>
           <span class="nav-balance-uah">${availableUah} ₴</span>
+          ${holdLine}
         </a>`;
     }
   })

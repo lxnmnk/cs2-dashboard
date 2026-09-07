@@ -5,12 +5,6 @@
     "youpin": 8
   },
   {
-    "name": "★ Huntsman Knife | Doppler (Factory New)",
-    "buff": 8,
-    "youpin": 8,
-    "phase": "Ruby"
-  },
-  {
     "name": "Glock-18 | Ghost Protocol (Factory New)",
     "buff": 8,
     "youpin": 8
@@ -19,6 +13,18 @@
     "name": "MAG-7 | Cinquedea (Factory New)",
     "buff": 8,
     "youpin": 8
+  },
+  {
+    "name": "★ Huntsman Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 8,
+    "phase": "Ruby"
+  },
+  {
+    "name": "★ Ursus Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 8,
+    "phase": "Ruby"
   },
   {
     "name": "★ Sport Gloves | Violet Beadwork (Minimal Wear)",
@@ -42,18 +48,6 @@
     "youpin": 8
   },
   {
-    "name": "★ Nomad Knife | Doppler (Factory New)",
-    "buff": 8,
-    "youpin": 8,
-    "phase": "Sapphire"
-  },
-  {
-    "name": "★ Ursus Knife | Doppler (Factory New)",
-    "buff": 8,
-    "youpin": 8,
-    "phase": "Ruby"
-  },
-  {
     "name": "AWP | Sovereign Flame (Factory New)",
     "buff": 8,
     "youpin": 8
@@ -62,6 +56,17 @@
     "name": "AWP | Desert Hydra (Field-Tested)",
     "buff": 7,
     "youpin": 7
+  },
+  {
+    "name": "★ Nomad Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 8,
+    "phase": "Sapphire"
+  },
+  {
+    "name": "AK-47 | Consequence of the Jinn (Factory New)",
+    "buff": 8,
+    "youpin": 8
   },
   {
     "name": "★ Specialist Gloves | Blackbook (Minimal Wear)",
@@ -74,12 +79,6 @@
     "youpin": 7
   },
   {
-    "name": "★ Bowie Knife | Doppler (Factory New)",
-    "buff": 8,
-    "youpin": 8,
-    "phase": "Ruby"
-  },
-  {
     "name": "★ Paracord Knife | Doppler (Factory New)",
     "buff": 8,
     "youpin": 8,
@@ -89,17 +88,18 @@
     "name": "★ Talon Knife | Doppler (Factory New)",
     "buff": 8,
     "youpin": 8,
-    "phase": "Phase 2"
-  },
-  {
-    "name": "★ Butterfly Knife | Case Hardened (Minimal Wear)",
-    "buff": 7,
-    "youpin": 7
+    "phase": "Phase 1"
   },
   {
     "name": "AUG | Akihabara Accept (Minimal Wear)",
     "buff": 7,
     "youpin": 7
+  },
+  {
+    "name": "★ Talon Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 8,
+    "phase": "Phase 4"
   },
   {
     "name": "★ Skeleton Knife | Doppler (Factory New)",
@@ -123,7 +123,18 @@
     "youpin": 7
   },
   {
-    "name": "AK-47 | Consequence of the Jinn (Factory New)",
+    "name": "★ Butterfly Knife | Case Hardened (Minimal Wear)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
+    "name": "★ Bowie Knife | Doppler (Factory New)",
+    "buff": 8,
+    "youpin": 8,
+    "phase": "Ruby"
+  },
+  {
+    "name": "★ Karambit | Autotronic (Well-Worn)",
     "buff": 8,
     "youpin": 8
   },
@@ -131,12 +142,6 @@
     "name": "★ Karambit | Case Hardened (Minimal Wear)",
     "buff": 7,
     "youpin": 7
-  },
-  {
-    "name": "★ Talon Knife | Doppler (Factory New)",
-    "buff": 8,
-    "youpin": 8,
-    "phase": "Phase 1"
   },
   {
     "name": "★ Falchion Knife | Gamma Doppler (Factory New)",
@@ -154,11 +159,5 @@
     "name": "Glock-18 | Synth Leaf (Factory New)",
     "buff": 8,
     "youpin": 8
-  },
-  {
-    "name": "★ Stiletto Knife | Doppler (Factory New)",
-    "buff": 8,
-    "youpin": 8,
-    "phase": "Phase 2"
   }
 ]

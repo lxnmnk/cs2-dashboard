@@ -471,9 +471,11 @@ app.get("/api/account/sales", async (req, res) => {
   // вхідні запити — статус угоди (скасував клієнт обмін чи прийняв) сам
   // ніколи не оновиться. Підстраховуємось: при кожному відкритті "Моїх угод"
   // самі питаємо актуальний статус по ще не завершених угодах.
+  // "hold" теж опитуємо: саме з нього угода переходить у "completed", коли
+  // Skinbux розморожує гроші, і без цього баланс назавжди лишався б у холді.
   const pending = skinbuxSales
     .loadAll()
-    .filter((s) => s.steamId === steamId && ["created", "pending"].includes(s.status));
+    .filter((s) => s.steamId === steamId && ["created", "pending", "hold"].includes(s.status));
   for (const sale of pending) {
     try {
       const result = await skinbuxTx.getTransactionStatus(process.env.SKINBUX_API_KEY, sale.id);

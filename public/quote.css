@@ -786,6 +786,8 @@ a { color: var(--gold); }
 .nav-balance:hover { background: rgba(215, 168, 78, 0.22); }
 .nav-balance-usd { font-size: 14px; font-weight: 700; color: var(--gold); }
 .nav-balance-uah { font-size: 11px; color: var(--muted); }
+/* Сума в холді — приглушено, щоб не сплутати з доступною до виплати. */
+.nav-balance-hold { font-size: 11px; color: #7f8794; }
 
 .nav-profile { display: flex; align-items: center; min-height: 36px; }
 .nav-profile-user {
