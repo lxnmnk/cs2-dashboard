@@ -75,6 +75,12 @@
         <h2>Your CS2 inventory</h2>
         <p class="card-hint">Price — what we're ready to pay right now for each item, most expensive first. Pulled straight from your Steam inventory, nothing to search for.</p>
 
+        <div class="inventory-head">
+
+          <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Re-read the inventory from Steam">🔄 Refresh</button>
+
+        </div>
+
         <p id="inventoryLoading" class="card-hint">Loading inventory...</p>
         <div id="inventoryPrivate" class="unstable" style="display:none;">
           Couldn't read your inventory — looks like it's private. Steam → Settings → Privacy → "Inventory" → set to "Public", then refresh this page.
@@ -147,6 +153,7 @@
       filtersReadyLabel: "Ready to deliver",
       filtersLockedLabel: "Trade-locked",
       nothingFound: "Nothing matches these filters.",
+      tradeLockedLabel: "trade-locked",
       dateLocale: "en-US",
       saveErrorPrefix: "Error: ",
       savedLabel: "Saved ✓",

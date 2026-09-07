@@ -26,6 +26,7 @@ const {
   addedLabel,
   removeLabel,
   nothingFound,
+  tradeLockedLabel,
 } = window.ACCOUNT_CONFIG;
 
 // dateLocale і openOfferBtn беремо через конфіг, а не деструктуризацією:
@@ -168,20 +169,30 @@ function showSellResult(data) {
   sellResultModal.style.display = "flex";
 }
 
-async function loadInventory() {
+// Кнопка "Оновити": просить сервер сходити в Steam повз кеш. Потрібна, бо
+// щойно отриманий предмет інакше не з'явиться, доки кеш не протухне.
+const inventoryRefreshBtn = document.getElementById("inventoryRefreshBtn");
+inventoryRefreshBtn?.addEventListener("click", () => {
+  inventoryRetries = 0;
+  loadInventory({ refresh: true });
+});
+
+async function loadInventory({ refresh = false } = {}) {
+  if (inventoryRefreshBtn) inventoryRefreshBtn.disabled = true;
   inventoryLoadingEl.style.display = "block";
   inventoryPrivateEl.style.display = "none";
   inventoryEmptyEl.style.display = "none";
 
   let data;
   try {
-    const res = await fetch("/api/account/inventory");
+    const res = await fetch(`/api/account/inventory${refresh ? "?refresh=1" : ""}`);
     data = await res.json();
   } catch {
     data = { ok: false, error: "NETWORK" };
   }
 
   inventoryLoadingEl.style.display = "none";
+  if (inventoryRefreshBtn) inventoryRefreshBtn.disabled = false;
 
   if (!data.ok) {
     // Тимчасові причини (ціни на сервері ще не завантажились; Steam ліміт по
@@ -226,6 +237,18 @@ function renderInventoryList() {
     .map((it) => {
       const img = it.icon ? `<img class="inventory-card-img" src="${escapeHtml(it.icon)}" alt="" />` : "";
       const nameHtml = `${escapeHtml(it.name)}${it.wear ? `<br><span class="cart-item-price" style="font-size:11px;color:var(--muted);font-weight:400;">${escapeHtml(it.wear)}</span>` : ""}`;
+
+      // Предмет у трейд-бані показуємо, але продати його не можна, поки Steam
+      // його не відпустить — раніше такі просто зникали зі списку.
+      if (!it.tradable) {
+        return `
+          <div class="inventory-card">
+            ${img}
+            <div class="inventory-card-name">${nameHtml}</div>
+            <span class="lock-tag locked">🔒 ${escapeHtml(it.tradableAfter || tradeLockedLabel)}</span>
+            ${it.price != null ? `<span class="inventory-card-price">$${it.price.toFixed(2)}</span>` : ""}
+          </div>`;
+      }
 
       if (it.price == null) {
         return `

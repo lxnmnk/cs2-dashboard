@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-07T11:33:31.762Z",
+  "generatedAt": "2026-09-07T11:42:00.982Z",
   "filters": {
     "buySource": "csfloat:bid",
     "sellSource": "any",
@@ -49,11 +49,6 @@
       "youpin": 8
     },
     {
-      "name": "★ Butterfly Knife | Black Laminate (Factory New)",
-      "buff": 8,
-      "youpin": 8
-    },
-    {
       "name": "★ Stiletto Knife | Doppler (Factory New)",
       "buff": 8,
       "youpin": 8,
@@ -95,6 +90,11 @@
       "buff": 8,
       "youpin": 8,
       "phase": "Phase 2"
+    },
+    {
+      "name": "★ Butterfly Knife | Black Laminate (Factory New)",
+      "buff": 8,
+      "youpin": 8
     },
     {
       "name": "★ Butterfly Knife | Damascus Steel (Factory New)",
@@ -171,15 +171,15 @@
       "youpin": 8
     },
     {
+      "name": "AK-47 | X-Ray (Field-Tested)",
+      "buff": 7,
+      "youpin": 7
+    },
+    {
       "name": "★ Falchion Knife | Doppler (Factory New)",
       "buff": 8,
       "youpin": 8,
       "phase": "Ruby"
-    },
-    {
-      "name": "★ Talon Knife | Case Hardened (Battle-Scarred)",
-      "buff": 10,
-      "youpin": 10
     }
   ],
   "details": [
@@ -252,20 +252,6 @@
       "sellPrice": 667.35,
       "profitUsd": 77.35,
       "profitPercent": 13.11
-    },
-    {
-      "marketHashName": "★ Butterfly Knife | Black Laminate (Factory New)",
-      "wear": "Factory New",
-      "phase": null,
-      "wearTierPct": 8,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 770,
-      "sellSource": "skinbux",
-      "sellSide": "bid",
-      "sellPrice": 834.84,
-      "profitUsd": 64.84,
-      "profitPercent": 8.42
     },
     {
       "marketHashName": "★ Stiletto Knife | Doppler (Factory New)",
@@ -378,6 +364,20 @@
       "sellPrice": 770.31,
       "profitUsd": 55.31,
       "profitPercent": 7.74
+    },
+    {
+      "marketHashName": "★ Butterfly Knife | Black Laminate (Factory New)",
+      "wear": "Factory New",
+      "phase": null,
+      "wearTierPct": 8,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 780,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 834.84,
+      "profitUsd": 54.84,
+      "profitPercent": 7.03
     },
     {
       "marketHashName": "★ Butterfly Knife | Damascus Steel (Factory New)",
@@ -576,6 +576,20 @@
       "profitPercent": 12.68
     },
     {
+      "marketHashName": "AK-47 | X-Ray (Field-Tested)",
+      "wear": "Field-Tested",
+      "phase": null,
+      "wearTierPct": 7,
+      "buySource": "csfloat",
+      "buySide": "bid",
+      "buyPrice": 575,
+      "sellSource": "skinbux",
+      "sellSide": "bid",
+      "sellPrice": 614.9,
+      "profitUsd": 39.9,
+      "profitPercent": 6.94
+    },
+    {
       "marketHashName": "★ Falchion Knife | Doppler (Factory New)",
       "wear": "Factory New · Ruby",
       "phase": "Ruby",
@@ -588,20 +602,6 @@
       "sellPrice": 669.16,
       "profitUsd": 39.16,
       "profitPercent": 6.22
-    },
-    {
-      "marketHashName": "★ Talon Knife | Case Hardened (Battle-Scarred)",
-      "wear": "Battle-Scarred",
-      "phase": null,
-      "wearTierPct": 10,
-      "buySource": "csfloat",
-      "buySide": "bid",
-      "buyPrice": 332,
-      "sellSource": "youpin",
-      "sellSide": "bid",
-      "sellPrice": 370.96,
-      "profitUsd": 38.96,
-      "profitPercent": 11.73
     }
   ]
 }

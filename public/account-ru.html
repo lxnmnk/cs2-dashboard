@@ -75,6 +75,12 @@
         <h2>Твой инвентарь CS2</h2>
         <p class="card-hint">Цена — сколько мы готовы заплатить прямо сейчас за каждый предмет, от самого дорогого. Тянем прямо из твоего Steam-инвентаря, ничего искать не нужно.</p>
 
+        <div class="inventory-head">
+
+          <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Перечитать инвентарь из Steam">🔄 Обновить</button>
+
+        </div>
+
         <p id="inventoryLoading" class="card-hint">Загружаю инвентарь...</p>
         <div id="inventoryPrivate" class="unstable" style="display:none;">
           Не удалось прочитать инвентарь — похоже, он скрыт. Steam → Настройки → Приватность → "Инвентарь" → поставь "Общедоступный", и обнови эту страницу.
@@ -147,6 +153,7 @@
       filtersReadyLabel: "Готово к выдаче",
       filtersLockedLabel: "В трейд-бане",
       nothingFound: "По этим фильтрам ничего не найдено.",
+      tradeLockedLabel: "в трейд-бане",
       dateLocale: "ru-RU",
       saveErrorPrefix: "Ошибка: ",
       savedLabel: "Сохранено ✓",

@@ -75,6 +75,12 @@
         <h2>Твій інвентар CS2</h2>
         <p class="card-hint">Ціна — скільки ми готові заплатити прямо зараз за кожен предмет, від найдорожчого. Тягнемо прямо з твого Steam-інвентарю, нічого шукати не треба.</p>
 
+        <div class="inventory-head">
+
+          <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Перечитати інвентар зі Steam">🔄 Оновити</button>
+
+        </div>
+
         <p id="inventoryLoading" class="card-hint">Завантажую інвентар...</p>
         <div id="inventoryPrivate" class="unstable" style="display:none;">
           Не вдалося прочитати інвентар — здається, він прихований. Steam → Налаштування → Приватність → "Інвентар" → постав "Загальнодоступний", і онови цю сторінку.
@@ -147,6 +153,7 @@
       filtersReadyLabel: "Готово до видачі",
       filtersLockedLabel: "У трейд-бані",
       nothingFound: "За цими фільтрами нічого не знайдено.",
+      tradeLockedLabel: "у трейд-бані",
       dateLocale: "uk-UA",
       saveErrorPrefix: "Помилка: ",
       savedLabel: "Збережено ✓",

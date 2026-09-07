@@ -1062,3 +1062,10 @@ a.btn-small { display: inline-block; text-decoration: none; }
 a.sender-line { color: var(--gold); }
 
 .deal-offer-link { display: inline-block; margin-top: 8px; font-size: 13px; }
+
+/* Кнопка "Оновити інвентар" — праворуч над сіткою предметів */
+.inventory-head {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}

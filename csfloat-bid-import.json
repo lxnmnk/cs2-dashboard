@@ -27,11 +27,6 @@
     "youpin": 8
   },
   {
-    "name": "★ Butterfly Knife | Black Laminate (Factory New)",
-    "buff": 8,
-    "youpin": 8
-  },
-  {
     "name": "★ Stiletto Knife | Doppler (Factory New)",
     "buff": 8,
     "youpin": 8,
@@ -73,6 +68,11 @@
     "buff": 8,
     "youpin": 8,
     "phase": "Phase 2"
+  },
+  {
+    "name": "★ Butterfly Knife | Black Laminate (Factory New)",
+    "buff": 8,
+    "youpin": 8
   },
   {
     "name": "★ Butterfly Knife | Damascus Steel (Factory New)",
@@ -149,14 +149,14 @@
     "youpin": 8
   },
   {
+    "name": "AK-47 | X-Ray (Field-Tested)",
+    "buff": 7,
+    "youpin": 7
+  },
+  {
     "name": "★ Falchion Knife | Doppler (Factory New)",
     "buff": 8,
     "youpin": 8,
     "phase": "Ruby"
-  },
-  {
-    "name": "★ Talon Knife | Case Hardened (Battle-Scarred)",
-    "buff": 10,
-    "youpin": 10
   }
 ]

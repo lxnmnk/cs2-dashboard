@@ -336,12 +336,15 @@ app.get("/api/account/inventory", async (req, res) => {
     return res.json({ ok: false, error: "PRICES_NOT_READY" });
   }
   try {
-    const rawItems = await fetchInventory(req.session.customer.steamId);
+    const rawItems = await fetchInventory(req.session.customer.steamId, {
+      force: req.query.refresh === "1",
+    });
     // Предметы, которые в принципе никогда не торгуются (медали, монеты,
-    // значки — tradable:false у самого типа предмета, не временный трейд-бан),
-    // сразу выкидываем — их нельзя продать в любом случае.
+    // граффити), выкидываем — продать их нельзя в любом случае. А вот вещи во
+    // временном трейд-бане показываем: раньше они пропадали молча, и клиент
+    // решал, что сайт вообще не видит его инвентар.
     const items = rawItems
-      .filter((it) => it.tradable)
+      .filter((it) => it.tradable || it.tradableAfter)
       .map((it) => {
         const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
         const quote = computeSellQuote(row);
@@ -352,6 +355,8 @@ app.get("/api/account/inventory", async (req, res) => {
           name: baseName,
           wear,
           icon: it.icon,
+          tradable: it.tradable,
+          tradableAfter: it.tradableAfter,
           price: quote.ok ? quote.price : null,
         };
       })
@@ -403,8 +408,14 @@ app.post("/api/account/sell", async (req, res) => {
     const rawItems = await fetchInventory(customer.steamId);
     const items = [];
     for (const assetId of assetIds) {
-      const it = rawItems.find((r) => r.assetId === assetId && r.tradable);
-      if (!it) throw new Error(`Предмет ${assetId} більше не знайдено в інвентарі`);
+      const found = rawItems.find((r) => r.assetId === assetId);
+      if (!found) throw new Error(`Предмет ${assetId} більше не знайдено в інвентарі`);
+      // Предмети в трейд-бані тепер видно в списку, тож у продаж вони теж
+      // можуть прилетіти — відмовляємо зрозумілою причиною, а не "не знайдено".
+      if (!found.tradable) {
+        throw new Error(`"${found.marketHashName}" ще в трейд-бані, його не можна продати`);
+      }
+      const it = found;
       const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
       const quote = computeSellQuote(row);
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
