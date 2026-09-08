@@ -14,6 +14,7 @@ const users = require("./users");
 const { runCsfloatBidScan } = require("./csfloatBidScan");
 const { sendScanToTelegram } = require("./telegramNotifier");
 const { computeSellQuote } = require("./sellQuote");
+const priceOverrides = require("./priceOverrides");
 const { getSteamImages } = require("./steamImages");
 const { computeBuyQuote } = require("./buyQuote");
 const { matchesSearchQuery, parseItemName } = require("./itemName");
@@ -321,6 +322,16 @@ app.get("/api/account/me", (req, res) => {
   });
 });
 
+// Цена выкупа для клиента: сначала смотрим, не задана ли на предмет ручная
+// цена (priceOverrides.js), и только потом считаем по формуле. Через эту
+// функцию должны идти ВСЕ места, где клиент видит цену, иначе в кабинете и
+// в прайс-чекере окажутся разные числа.
+function sellQuoteFor(marketHashName, row) {
+  const manual = priceOverrides.get(marketHashName);
+  if (manual != null) return { ok: true, price: manual, manual: true };
+  return computeSellQuote(row);
+}
+
 // Инвентарь клиента: основной источник — Skinbux, запасной — публичный
 // инвентарь Steam. Steam отдаёт не все предметы (проверено: 61 из заявленных
 // им же 71, причём среди пропавших были ножи, которые Skinbux спокойно
@@ -366,7 +377,7 @@ app.get("/api/account/inventory", async (req, res) => {
       .filter((it) => it.tradable || it.tradableAfter)
       .map((it) => {
         const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
-        const quote = computeSellQuote(row);
+        const quote = sellQuoteFor(it.marketHashName, row);
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -445,7 +456,7 @@ app.post("/api/account/sell", async (req, res) => {
       }
 
       const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
-      const quote = computeSellQuote(row);
+      const quote = sellQuoteFor(it.marketHashName, row);
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
 
       // quote.price — це наша (уцінена на 5%, див. sellQuote.js) ціна викупу
@@ -454,8 +465,10 @@ app.post("/api/account/sell", async (req, res) => {
       // відхиляє з INVALID_PRICE при розбіжності — тому туди йде їхня ціна.
       // Беремо її з інвентарю: там ціна саме цього предмета, з урахуванням
       // фази, а не усереднений bid із загального прайс-листа.
-      const skinbuxCents =
-        it.skinbuxPriceCents ?? (row.prices.skinbux.bid != null ? Math.round(row.prices.skinbux.bid * 100) : null);
+      // row может отсутствовать: с ручной ценой quote.ok уже true, даже если
+      // предмета нет в снапшоте цен — тогда полагаемся только на инвентарь.
+      const skinbuxBid = row?.prices?.skinbux?.bid;
+      const skinbuxCents = it.skinbuxPriceCents ?? (skinbuxBid != null ? Math.round(skinbuxBid * 100) : null);
       if (skinbuxCents == null) throw new Error(`Skinbux не дав ціни на "${it.marketHashName}"`);
 
       // Skinbux хоче повний market_hash_name (з якістю в дужках), не "голу"
@@ -753,7 +766,7 @@ app.get("/api/public/sell-quote", async (req, res) => {
   if (!name) return res.status(400).json({ ok: false, error: "name обязателен" });
 
   const row = cache.rows.find((r) => r.marketHashName === name);
-  const quote = computeSellQuote(row);
+  const quote = sellQuoteFor(name, row);
   if (quote.ok) {
     const images = await getSteamImages(name);
     quote.image = images?.thumb || null;
@@ -788,6 +801,39 @@ app.get("/api/public/my-skins", async (req, res) => {
 // Автодополнение названия предмета при добавлении сделки — ищем по подстроке
 // среди актуального снапшота цен, чтобы название совпадало с реальным
 // market_hash_name (и подхватывало фазы Doppler/Gamma Doppler).
+// ---- Ручные цены выкупа (только владелец: роуты не в PUBLIC_PATHS) ----
+// Отдаём вместе с расчётной ценой, чтобы в панели было видно, от чего
+// отличается ручная — иначе легко поставить сумму выше той, что платит
+// Skinbux, и уйти в минус на сделке.
+app.get("/api/price-overrides", (req, res) => {
+  const items = priceOverrides.list().map((entry) => {
+    const row = cache.rows.find((r) => r.marketHashName === entry.marketHashName);
+    const auto = computeSellQuote(row);
+    return { ...entry, autoPrice: auto.ok ? auto.price : null };
+  });
+  res.json({ ok: true, items });
+});
+
+app.post("/api/price-overrides", (req, res) => {
+  try {
+    const { marketHashName, price, note } = req.body || {};
+    const entry = priceOverrides.set(marketHashName, price, note);
+    console.log(`[price-override] "${marketHashName}" -> $${entry.price}`);
+    res.json({ ok: true, entry });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Удаление ручной цены = возврат к расчётной (bid скинбакса минус 5%).
+app.delete("/api/price-overrides", (req, res) => {
+  const { marketHashName } = req.body || {};
+  const removed = priceOverrides.remove(marketHashName);
+  if (!removed) return res.status(404).json({ ok: false, error: "Ручной цены на этот предмет нет" });
+  console.log(`[price-override] "${marketHashName}" -> обратно на расчётную`);
+  res.json({ ok: true });
+});
+
 app.get("/api/item-search", (req, res) => {
   const q = (req.query.q || "").trim();
   if (q.length < 2) return res.json([]);

@@ -1153,6 +1153,122 @@ async function withdrawToCrypto(fromSource, currentActive) {
   renderAllBalanceCards();
 }
 
+// ---- Ручные цены выкупа ----
+// Цена, которую видит клиент на конкретный предмет. Пока она задана, обычная
+// формула (bid скинбакса минус 5%) для этого предмета не применяется нигде —
+// ни в кабинете, ни в прайс-чекере, ни при автопродаже.
+const overrideSearchInput = document.getElementById("overrideSearch");
+const overrideAutocompleteEl = document.getElementById("overrideAutocomplete");
+let overrideSelectedName = null;
+let overrideDebounce = null;
+
+overrideSearchInput.addEventListener("input", () => {
+  overrideSelectedName = null;
+  clearTimeout(overrideDebounce);
+  const q = overrideSearchInput.value.trim();
+  if (q.length < 2) {
+    overrideAutocompleteEl.classList.remove("open");
+    return;
+  }
+  overrideDebounce = setTimeout(async () => {
+    const res = await fetch(`/api/item-search?q=${encodeURIComponent(q)}`);
+    const items = await res.json();
+    if (!items.length) {
+      overrideAutocompleteEl.classList.remove("open");
+      return;
+    }
+    overrideAutocompleteEl.innerHTML = items
+      .map((it, i) => `<div class="autocomplete-item" data-idx="${i}">${escapeHtml(it.name)} <span class="wear">${escapeHtml(it.wear)}</span></div>`)
+      .join("");
+    overrideAutocompleteEl.classList.add("open");
+    overrideAutocompleteEl.querySelectorAll(".autocomplete-item").forEach((el, i) => {
+      el.addEventListener("click", () => {
+        overrideSelectedName = items[i].marketHashName;
+        overrideSearchInput.value = items[i].marketHashName;
+        overrideAutocompleteEl.classList.remove("open");
+      });
+    });
+  }, 200);
+});
+
+document.getElementById("overrideSaveBtn").addEventListener("click", async () => {
+  // Имя берём из выбранной подсказки, но разрешаем и введённое руками —
+  // предмета может не быть в снапшоте цен, а цену задать всё равно нужно.
+  const marketHashName = overrideSelectedName || overrideSearchInput.value.trim();
+  const price = parseFloat(document.getElementById("overridePrice").value);
+  const note = document.getElementById("overrideNote").value.trim();
+
+  if (!marketHashName) return alert("Pick an item");
+  if (!price || price <= 0) return alert("Enter a price");
+
+  const res = await fetch("/api/price-overrides", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ marketHashName, price, note }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `Could not set price: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  overrideSearchInput.value = "";
+  document.getElementById("overridePrice").value = "";
+  document.getElementById("overrideNote").value = "";
+  overrideSelectedName = null;
+  loadOverrides();
+});
+
+async function loadOverrides() {
+  const res = await fetch("/api/price-overrides");
+  const data = await res.json();
+  const body = document.getElementById("overridesBody");
+
+  if (!data.items.length) {
+    body.innerHTML = '<tr><td colspan="5" class="empty-row">No custom prices — everything uses the usual formula.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = data.items
+    .map((it) => {
+      // Показываем расчётную цену рядом: если ручная выше, мы платим клиенту
+      // больше, чем получим сами — пусть это будет видно сразу.
+      const auto = it.autoPrice != null ? fmtMoney(it.autoPrice) : '<span class="na">—</span>';
+      const overpay = it.autoPrice != null && it.price > it.autoPrice;
+      return `
+        <tr>
+          <td>${escapeHtml(it.marketHashName)}</td>
+          <td class="${overpay ? "loss" : "profit"}">${fmtMoney(it.price)}</td>
+          <td>${auto}</td>
+          <td>${it.note ? escapeHtml(it.note) : '<span class="na">—</span>'}</td>
+          <td><button class="btn-small btn-secondary" data-action="drop-override" data-name="${escapeHtml(it.marketHashName)}">Back to auto</button></td>
+        </tr>`;
+    })
+    .join("");
+
+  body.querySelectorAll('[data-action="drop-override"]').forEach((btn) => {
+    btn.addEventListener("click", () => dropOverride(btn.getAttribute("data-name")));
+  });
+}
+
+async function dropOverride(marketHashName) {
+  const res = await fetch("/api/price-overrides", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ marketHashName }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `Could not reset price: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  loadOverrides();
+}
+
 document.getElementById("buyDateInput").value = nowForDatetimeLocal();
 loadTrades();
+loadOverrides();
 setInterval(loadTrades, 60 * 1000);
