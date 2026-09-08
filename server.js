@@ -332,6 +332,16 @@ function sellQuoteFor(marketHashName, row) {
   return computeSellQuote(row);
 }
 
+// Doppler и Gamma Doppler стоят по-разному в зависимости от фазы, поэтому в
+// прайсе они лежат под синтетическим ключом "<name> - <phase>" (см.
+// sources/skinbux.js). В инвентаре же имя приходит без фазы, а фаза —
+// отдельным полем, и поиск по голому имени не находил НИЧЕГО: у всех
+// дopplerов не было цены, а ручная цена на "... - Phase 3" не привязывалась
+// к реальному предмету клиента.
+function priceKeyFor(item) {
+  return item.phase ? `${item.marketHashName} - ${item.phase}` : item.marketHashName;
+}
+
 // Инвентарь клиента: основной источник — Skinbux, запасной — публичный
 // инвентарь Steam. Steam отдаёт не все предметы (проверено: 61 из заявленных
 // им же 71, причём среди пропавших были ножи, которые Skinbux спокойно
@@ -376,8 +386,9 @@ app.get("/api/account/inventory", async (req, res) => {
     const items = rawItems
       .filter((it) => it.tradable || it.tradableAfter)
       .map((it) => {
-        const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
-        const quote = sellQuoteFor(it.marketHashName, row);
+        const priceKey = priceKeyFor(it);
+        const row = cache.rows.find((r) => r.marketHashName === priceKey);
+        const quote = sellQuoteFor(priceKey, row);
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -455,8 +466,9 @@ app.post("/api/account/sell", async (req, res) => {
         throw new Error(`Skinbux не приймає "${it.marketHashName}"`);
       }
 
-      const row = cache.rows.find((r) => r.marketHashName === it.marketHashName);
-      const quote = sellQuoteFor(it.marketHashName, row);
+      const priceKey = priceKeyFor(it);
+      const row = cache.rows.find((r) => r.marketHashName === priceKey);
+      const quote = sellQuoteFor(priceKey, row);
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
 
       // quote.price — це наша (уцінена на 5%, див. sellQuote.js) ціна викупу
