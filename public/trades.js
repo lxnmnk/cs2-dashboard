@@ -1153,6 +1153,67 @@ async function withdrawToCrypto(fromSource, currentActive) {
   renderAllBalanceCards();
 }
 
+// ---- Продажи клиентов через сайт ----
+// Отдельно от моих сделок: тут видно, кто именно продал, что, когда, сколько
+// мы ему должны и сколько за это заплатил Skinbux.
+const SALE_STATUS_LABELS = {
+  created: "waiting for the client to accept",
+  pending: "waiting for the client to accept",
+  hold: "accepted, funds on hold",
+  completed: "funds released",
+  cancelled: "cancelled",
+  reverted: "reverted",
+};
+
+async function loadClientSales() {
+  const res = await fetch("/api/client-sales");
+  const data = await res.json();
+  const body = document.getElementById("clientSalesBody");
+
+  if (!data.sales.length) {
+    body.innerHTML = '<tr><td colspan="8" class="empty-row">Nobody has sold you anything through the site yet.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = data.sales
+    .map((s) => {
+      // Выплату предлагаем отметить только по завершённым и ещё не оплаченным:
+      // пока деньги в холде у Skinbux, платить клиенту рано.
+      const canPay = s.status === "completed" && !s.paidAt;
+      const status = s.paidAt ? "paid out" : SALE_STATUS_LABELS[s.status] || s.status;
+      return `
+        <tr>
+          <td>${fmtDate(s.createdAt)}</td>
+          <td><a href="https://steamcommunity.com/profiles/${escapeHtml(s.steamId)}" target="_blank">${escapeHtml(s.customerName || s.steamId)}</a></td>
+          <td>${escapeHtml(s.items.join(", "))}</td>
+          <td>${fmtMoney(s.totalPrice)}</td>
+          <td>${s.skinbuxTotal ? fmtMoney(s.skinbuxTotal) : '<span class="na">—</span>'}</td>
+          <td class="${s.profit >= 0 ? "profit" : "loss"}">${s.skinbuxTotal ? fmtMoney(s.profit) : '<span class="na">—</span>'}</td>
+          <td>${escapeHtml(status)}</td>
+          <td>${canPay ? `<button class="btn-small btn-secondary" data-action="mark-paid" data-id="${s.id}">Mark paid</button>` : ""}</td>
+        </tr>`;
+    })
+    .join("");
+
+  body.querySelectorAll('[data-action="mark-paid"]').forEach((btn) => {
+    btn.addEventListener("click", () => markSalePaid(btn.getAttribute("data-id")));
+  });
+}
+
+// Пока выплата не отмечена, сделка продолжает висеть в балансе у клиента.
+async function markSalePaid(id) {
+  if (!confirm("Mark this payout as done? It disappears from the client's balance.")) return;
+  const res = await fetch(`/api/sales/${id}/paid`, { method: "POST" });
+  const data = await res.json();
+  if (!data.ok) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `Could not mark as paid: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  loadClientSales();
+}
+
 // ---- Ручные цены выкупа ----
 // Цена, которую видит клиент на конкретный предмет. Пока она задана, обычная
 // формула (bid скинбакса минус 5%) для этого предмета не применяется нигде —
@@ -1271,4 +1332,5 @@ async function dropOverride(marketHashName) {
 document.getElementById("buyDateInput").value = nowForDatetimeLocal();
 loadTrades();
 loadOverrides();
+loadClientSales();
 setInterval(loadTrades, 60 * 1000);

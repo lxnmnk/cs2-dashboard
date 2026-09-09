@@ -810,6 +810,40 @@ app.get("/api/public/my-skins", async (req, res) => {
   res.json(await trades.listPublicHoldings(MY_SKINS_OWNER, config));
 });
 
+// Продажи клиентов через сайт — кто, что, когда и почём. Живут отдельно от
+// trades.json (там мои собственные покупки/продажи), поэтому в панели это
+// отдельная таблица. Профит считаем как разницу между тем, что платит нам
+// Skinbux, и тем, что мы должны клиенту.
+app.get("/api/client-sales", (req, res) => {
+  const sales = skinbuxSales
+    .loadAll()
+    .map((sale) => {
+      // skinbuxCents есть у новых записей; у старых сохранялся skinbuxBid в
+      // долларах — поддерживаем оба, чтобы история не поехала.
+      const skinbuxTotal = (sale.items || []).reduce((sum, it) => {
+        if (it.skinbuxCents != null) return sum + Number(it.skinbuxCents) / 100;
+        if (it.skinbuxBid != null) return sum + Number(it.skinbuxBid);
+        return sum;
+      }, 0);
+
+      return {
+        id: sale.id,
+        steamId: sale.steamId,
+        customerName: sale.customerName,
+        items: (sale.items || []).map((it) => it.name),
+        totalPrice: sale.totalPrice,
+        skinbuxTotal: Math.round(skinbuxTotal * 100) / 100,
+        profit: Math.round((skinbuxTotal - sale.totalPrice) * 100) / 100,
+        status: sale.status,
+        paidAt: sale.paidAt || null,
+        createdAt: sale.createdAt,
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  res.json({ ok: true, sales });
+});
+
 // Автодополнение названия предмета при добавлении сделки — ищем по подстроке
 // среди актуального снапшота цен, чтобы название совпадало с реальным
 // market_hash_name (и подхватывало фазы Doppler/Gamma Doppler).
