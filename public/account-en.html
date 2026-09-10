@@ -197,6 +197,7 @@
       cancelledTitle: "Trade cancelled",
       cancelledText: "The trade didn't go through — the item is still yours. You can try selling it again.",
       myDealsBtn: "My deals",
+      priceChanged: "The Skinbux price just changed — we've updated your cart to the new prices. Check the total and press \"Sell automatically\" again.",
     };
 
     // account-inventory.js подключён ниже: если ответ придёт раньше, чем
@@ -216,7 +217,9 @@
           document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
           document.getElementById("accountPillName").textContent = data.customer.displayName;
           document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
-          whenScriptsReady(loadInventory);
+          // Саме стрілка: ім'я loadInventory має шукатись, коли скрипт уже
+          // виконано, а не в момент відповіді — інакше ReferenceError і порожній інвентар.
+          whenScriptsReady(() => loadInventory());
         } else {
           document.getElementById("loggedOutCard").style.display = "block";
         }

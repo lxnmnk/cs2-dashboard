@@ -25,6 +25,9 @@ async function call(apiKey, path, body) {
     const message = data?.error?.message || `Skinbux ответил ${res.status}`;
     const err = new Error(message);
     err.code = data?.error?.code;
+    // При INVALID_PRICE тут лежить їхня поточна ціна по кожному предмету:
+    // details.items[] = { assetId, submittedPriceCents, currentPriceCents }.
+    err.details = data?.error?.details;
     throw err;
   }
   return data.data;
@@ -55,4 +58,48 @@ async function getTransactionStatus(apiKey, id) {
   return data.data;
 }
 
-module.exports = { requestSell, getTransactionStatus };
+function priceChangedError() {
+  const err = new Error("PRICE_CHANGED");
+  err.code = "PRICE_CHANGED";
+  return err;
+}
+
+/**
+ * requestSell, який переживає зміну ціни. Skinbux звіряє price зі своєю
+ * поточною ціною, а та рухається щохвилини — між нашим читанням інвентарю й
+ * запитом вона встигає з'їхати на кілька відсотків, і продаж падав з
+ * INVALID_PRICE. У відповіді на таку помилку він сам називає актуальні ціни —
+ * повторюємо один раз рівно з ними.
+ *
+ * minCentsByAsset — скільки ми вже пообіцяли клієнту за кожен предмет. Якщо
+ * Skinbux тепер дає менше, не повторюємо (продали б у мінус), а кидаємо
+ * PRICE_CHANGED: клієнт побачить нові ціни й вирішить сам.
+ *
+ * Повертає { result, items } — items з тими цінами, за якими реально продали.
+ */
+async function requestSellRepricing(apiKey, { items, steamId, tradeUrl }, { minCentsByAsset = {} } = {}) {
+  try {
+    return { result: await requestSell(apiKey, { items, steamId, tradeUrl }), items };
+  } catch (err) {
+    const drifted = err.message === "INVALID_PRICE" ? err.details?.items : null;
+    if (!Array.isArray(drifted) || !drifted.length) throw err;
+
+    const current = new Map(drifted.map((d) => [String(d.assetId), Number(d.currentPriceCents)]));
+    const repriced = items.map((it) =>
+      current.has(String(it.assetId)) ? { ...it, price: String(current.get(String(it.assetId))) } : it
+    );
+    if (repriced.some((it) => !Number.isFinite(Number(it.price)))) throw err;
+    for (const it of repriced) {
+      const min = minCentsByAsset[it.assetId];
+      if (min != null && Number(it.price) < min) throw priceChangedError();
+    }
+
+    console.warn(
+      "[skinbux-tx] Ціна змінилась, повторюю з цінами Skinbux:",
+      drifted.map((d) => `${d.name}: ${d.submittedPriceCents} -> ${d.currentPriceCents}`).join("; ")
+    );
+    return { result: await requestSell(apiKey, { items: repriced, steamId, tradeUrl }), items: repriced };
+  }
+}
+
+module.exports = { requestSell, requestSellRepricing, priceChangedError, getTransactionStatus };

@@ -197,6 +197,7 @@
       cancelledTitle: "Обмен отменён",
       cancelledText: "Обмен не состоялся — предмет остался у тебя. Можешь попробовать продать ещё раз.",
       myDealsBtn: "Мои сделки",
+      priceChanged: "Цена на Skinbux только что изменилась — мы обновили корзину по новым ценам. Проверь сумму и нажми «Продать автоматически» ещё раз.",
     };
 
     // account-inventory.js подключён ниже: если ответ придёт раньше, чем
@@ -216,7 +217,9 @@
           document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
           document.getElementById("accountPillName").textContent = data.customer.displayName;
           document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
-          whenScriptsReady(loadInventory);
+          // Саме стрілка: ім'я loadInventory має шукатись, коли скрипт уже
+          // виконано, а не в момент відповіді — інакше ReferenceError і порожній інвентар.
+          whenScriptsReady(() => loadInventory());
         } else {
           document.getElementById("loggedOutCard").style.display = "block";
         }

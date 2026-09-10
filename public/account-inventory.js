@@ -121,12 +121,21 @@ sellAutoBtn?.addEventListener("click", async () => {
   const res = await fetch("/api/account/sell", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ assetIds: cart.map((it) => it.assetId) }),
+    // Ціни, які клієнт бачив у кошику: сервер не продасть дешевше за них.
+    body: JSON.stringify({
+      assetIds: cart.map((it) => it.assetId),
+      expectedPrices: Object.fromEntries(cart.map((it) => [it.assetId, it.price])),
+    }),
   });
   const data = await res.json();
 
   sellAutoBtn.disabled = false;
 
+  if (data.error === "PRICE_CHANGED") {
+    await repriceCart();
+    sellStatusEl.textContent = CFG.priceChanged;
+    return;
+  }
   if (!data.ok) {
     sellStatusEl.textContent = `${sellFailedPrefix}${data.error}`;
     return;
@@ -137,6 +146,22 @@ sellAutoBtn?.addEventListener("click", async () => {
   renderInventoryList();
   renderCart();
 });
+
+// Ціна на Skinbux поїхала вниз: перечитуємо інвентар і ставимо в кошик нові
+// ціни, щоб клієнт побачив суму, яку реально отримає, перш ніж тиснути знову.
+// Те, що зникло з інвентарю або лишилось без ціни, з кошика прибираємо.
+async function repriceCart() {
+  inventoryRetries = 0;
+  await loadInventory({ refresh: true });
+  cart = cart
+    .map((c) => {
+      const fresh = inventoryItems.find((it) => it.assetId === c.assetId);
+      return fresh && fresh.price != null ? { ...c, price: fresh.price } : null;
+    })
+    .filter(Boolean);
+  renderInventoryList();
+  renderCart();
+}
 
 // Вікно "обмін надіслано". Головне тут — пряме посилання саме на цей обмін і
 // дані бота, який його шле: клієнту треба бачити, від кого чекати пропозицію,

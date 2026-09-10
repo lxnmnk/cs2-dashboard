@@ -353,6 +353,21 @@ function priceKeyFor(item) {
   return item.phase ? `${item.marketHashName} - ${item.phase}` : item.marketHashName;
 }
 
+// Ціна клієнту за конкретний предмет з інвентарю. Для авто-ціни bid Skinbux
+// беремо не з загального прайс-листа, а з інвентарю — там ціна саме цього
+// предмета і свіжіша. Інакше показана клієнту ціна розходилась із тією, з якою
+// Skinbux звіряє продаж: поки прайс-лист відставав, ми пропонували більше, ніж
+// вони платять, і продаж падав (або проходив у мінус).
+function quoteForItem(it) {
+  const priceKey = priceKeyFor(it);
+  const row = cache.rows.find((r) => r.marketHashName === priceKey);
+  const liveRow =
+    row && it.skinbuxPriceCents != null
+      ? { ...row, prices: { ...row.prices, skinbux: { ...row.prices?.skinbux, bid: it.skinbuxPriceCents / 100 } } }
+      : row;
+  return { row, quote: sellQuoteFor(priceKey, liveRow) };
+}
+
 // Инвентарь клиента: основной источник — Skinbux, запасной — публичный
 // инвентарь Steam. Steam отдаёт не все предметы (проверено: 61 из заявленных
 // им же 71, причём среди пропавших были ножи, которые Skinbux спокойно
@@ -397,9 +412,7 @@ app.get("/api/account/inventory", async (req, res) => {
     const items = rawItems
       .filter((it) => it.tradable || it.tradableAfter)
       .map((it) => {
-        const priceKey = priceKeyFor(it);
-        const row = cache.rows.find((r) => r.marketHashName === priceKey);
-        const quote = sellQuoteFor(priceKey, row);
+        const { quote } = quoteForItem(it);
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -460,10 +473,13 @@ app.post("/api/account/sell", async (req, res) => {
   if (!customer.tradeUrl) return res.status(400).json({ ok: false, error: "NO_TRADE_URL" });
 
   const assetIds = Array.isArray((req.body || {}).assetIds) ? req.body.assetIds : [];
+  const expectedPrices = (req.body || {}).expectedPrices || {};
   if (!assetIds.length) return res.status(400).json({ ok: false, error: "Порожній список предметів" });
 
   try {
-    const { items: rawItems } = await loadClientInventory(customer.steamId);
+    // Для продажу — завжди свіжий інвентар, повз хвилинний кеш: у ньому
+    // ціна Skinbux, а вона встигає змінитись, і тоді INVALID_PRICE.
+    const { items: rawItems } = await loadClientInventory(customer.steamId, { force: true });
     const items = [];
     for (const assetId of assetIds) {
       const it = rawItems.find((r) => r.assetId === assetId);
@@ -477,10 +493,12 @@ app.post("/api/account/sell", async (req, res) => {
         throw new Error(`Skinbux не приймає "${it.marketHashName}"`);
       }
 
-      const priceKey = priceKeyFor(it);
-      const row = cache.rows.find((r) => r.marketHashName === priceKey);
-      const quote = sellQuoteFor(priceKey, row);
+      const { row, quote } = quoteForItem(it);
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
+      // Клієнт бачив у кошику певну ціну — дешевше за неї не продаємо, а
+      // показуємо йому нову (PRICE_CHANGED). Інакше отримав би менше мовчки.
+      const expected = Number(expectedPrices[assetId]);
+      if (Number.isFinite(expected) && quote.price < expected - 0.005) throw skinbuxTx.priceChangedError();
 
       // quote.price — це наша (уцінена на 5%, див. sellQuote.js) ціна викупу
       // у КЛІЄНТА, її ми йому і платимо. У сам запит до Skinbux вона НЕ йде:
@@ -493,6 +511,9 @@ app.post("/api/account/sell", async (req, res) => {
       const skinbuxBid = row?.prices?.skinbux?.bid;
       const skinbuxCents = it.skinbuxPriceCents ?? (skinbuxBid != null ? Math.round(skinbuxBid * 100) : null);
       if (skinbuxCents == null) throw new Error(`Skinbux не дав ціни на "${it.marketHashName}"`);
+      // Клієнту ніколи не платимо більше, ніж платить нам Skinbux: якщо їхня
+      // ціна вже впала нижче показаної клієнту, продаж не проводимо.
+      if (Math.round(quote.price * 100) > skinbuxCents) throw skinbuxTx.priceChangedError();
 
       // Skinbux хоче повний market_hash_name (з якістю в дужках), не "голу"
       // назву без wear. phase тепер приходить з їхнього ж інвентарю — раніше
@@ -514,11 +535,17 @@ app.post("/api/account/sell", async (req, res) => {
       phase: it.phase,
       price: String(it.skinbuxCents),
     }));
-    const result = await skinbuxTx.requestSell(process.env.SKINBUX_API_KEY, {
-      items: skinbuxItems,
-      steamId: customer.steamId,
-      tradeUrl: customer.tradeUrl,
-    });
+    const { result, items: soldItems } = await skinbuxTx.requestSellRepricing(
+      process.env.SKINBUX_API_KEY,
+      { items: skinbuxItems, steamId: customer.steamId, tradeUrl: customer.tradeUrl },
+      { minCentsByAsset: Object.fromEntries(items.map((it) => [it.assetId, Math.round(it.price * 100)])) }
+    );
+    // Якщо Skinbux переназвав ціну — у журнал пишемо ту, за якою реально
+    // продали, інакше профіт у /mytrades був би неправильний.
+    for (const it of items) {
+      const sold = soldItems.find((s) => s.assetId === it.assetId);
+      if (sold) it.skinbuxCents = Number(sold.price);
+    }
 
     const totalPrice = items.reduce((sum, it) => sum + Number(it.price), 0);
     skinbuxSales.record({
