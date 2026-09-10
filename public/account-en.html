@@ -24,7 +24,7 @@
   <div id="sellResultModal" class="modal-overlay" style="display:none;">
     <div class="modal-panel">
       <div class="modal-header">
-        <h3>Trade offer sent</h3>
+        <h3 id="sellResultTitle">Trade offer sent</h3>
         <button id="sellResultClose" class="modal-close" type="button">✕</button>
       </div>
       <div id="sellResultBody"></div>
@@ -189,6 +189,14 @@
       telegramWithdrawBtn: "Message Telegram to withdraw",
       telegramMessageTemplate: "Hi! I want to withdraw funds for deal #{id}, amount ${amount}.",
       dealLineTemplate: "Deal #{id} from {date}",
+      waitingForAccept: "⏳ Waiting for you to accept the trade in Steam — this window updates by itself.",
+      receivedTitle: "Item received",
+      receivedLead: "Done — we've received your item!",
+      receivedHoldText: "{amount} will land in your balance on {date} — in {days} days, once the Steam trade hold ends. Until then it shows in the header as on hold.",
+      receivedAvailableText: "{amount} is already in your balance — ready to withdraw.",
+      cancelledTitle: "Trade cancelled",
+      cancelledText: "The trade didn't go through — the item is still yours. You can try selling it again.",
+      myDealsBtn: "My deals",
     };
 
     // account-inventory.js подключён ниже: если ответ придёт раньше, чем

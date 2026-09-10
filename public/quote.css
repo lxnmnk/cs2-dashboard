@@ -1069,3 +1069,30 @@ a.sender-line { color: var(--gold); }
   justify-content: flex-end;
   margin-bottom: 10px;
 }
+
+/* ---- Вікно продажу: предмет отримано / обмін скасовано ---- */
+.sell-result-waiting { margin: 14px 0 0; font-size: 13px; color: var(--muted); }
+.sell-received { text-align: center; padding: 6px 0 4px; }
+.sell-received-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  font-weight: 700;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  color: var(--gold);
+}
+.sell-received-cancelled .sell-received-icon {
+  background: rgba(224, 96, 90, 0.10);
+  border-color: rgba(224, 96, 90, 0.35);
+  color: var(--red);
+}
+.sell-received-lead { margin: 0 0 8px; font-size: 17px; font-weight: 700; }
+.sell-received-text { margin: 0 0 18px; font-size: 14px; line-height: 1.55; color: var(--muted); }
+.sell-received-text b { color: var(--gold); }
+.sell-received .btn-gold { width: 100%; justify-content: center; }

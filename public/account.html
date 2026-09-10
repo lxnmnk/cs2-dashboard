@@ -24,7 +24,7 @@
   <div id="sellResultModal" class="modal-overlay" style="display:none;">
     <div class="modal-panel">
       <div class="modal-header">
-        <h3>Обмін надіслано</h3>
+        <h3 id="sellResultTitle">Обмін надіслано</h3>
         <button id="sellResultClose" class="modal-close" type="button">✕</button>
       </div>
       <div id="sellResultBody"></div>
@@ -189,6 +189,14 @@
       telegramWithdrawBtn: "Написати в Telegram для виводу",
       telegramMessageTemplate: "Привіт! Хочу вивести кошти за угоду #{id} на суму ${amount}.",
       dealLineTemplate: "Угода #{id} від {date}",
+      waitingForAccept: "⏳ Чекаємо, поки ти приймеш обмін у Steam — це вікно оновиться саме.",
+      receivedTitle: "Предмет отримано",
+      receivedLead: "Готово, ми отримали твій предмет!",
+      receivedHoldText: "{amount} надійдуть на баланс {date} — через {days} днів, поки триває холд Steam. До того їх видно в шапці як кошти в холді.",
+      receivedAvailableText: "{amount} вже на твоєму балансі — можна виводити.",
+      cancelledTitle: "Обмін скасовано",
+      cancelledText: "Обмін не відбувся — предмет лишився в тебе. Можеш спробувати продати ще раз.",
+      myDealsBtn: "Мої угоди",
     };
 
     // account-inventory.js подключён ниже: если ответ придёт раньше, чем

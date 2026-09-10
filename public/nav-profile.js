@@ -15,38 +15,44 @@ function escapeHtml(s) {
   );
 }
 
-fetch("/api/account/me")
-  .then((r) => r.json())
-  .then((data) => {
-    if (navProfileEl) {
-      navProfileEl.innerHTML = data.customer
-        ? `<a class="nav-profile-user" href="${escapeHtml(NAV_T.accountUrl)}">
-             <img src="${escapeHtml(data.customer.avatar || "")}" alt="" />
-             <span>${escapeHtml(data.customer.displayName)}</span>
-           </a>`
-        : `<a class="btn-small" href="${escapeHtml(NAV_T.loginUrl)}">${escapeHtml(NAV_T.signInLabel)}</a>`;
-    }
+// Викликається й ззовні (account-inventory.js), коли після продажу гроші
+// лягли в холд — щоб шапка не показувала старий баланс до перезавантаження.
+function refreshNavBalance() {
+  return fetch("/api/account/me")
+    .then((r) => r.json())
+    .then((data) => {
+      if (navProfileEl) {
+        navProfileEl.innerHTML = data.customer
+          ? `<a class="nav-profile-user" href="${escapeHtml(NAV_T.accountUrl)}">
+               <img src="${escapeHtml(data.customer.avatar || "")}" alt="" />
+               <span>${escapeHtml(data.customer.displayName)}</span>
+             </a>`
+          : `<a class="btn-small" href="${escapeHtml(NAV_T.loginUrl)}">${escapeHtml(NAV_T.signInLabel)}</a>`;
+      }
 
-    // Баланс — це гроші за вже завершені продажі, які ми ще не виплатили.
-    // Гривні рахує сервер за курсом з config.json, щоб не тримати його копію
-    // в кожній мовній версії сторінки.
-    if (navBalanceEl && data.customer && data.balance) {
-      const { available, availableUah, hold, holdUah } = data.balance;
-      // Гроші в холді показуємо окремим рядком: без цього клієнт після
-      // успішного продажу бачив у шапці $0.00 і не розумів, чи все дійшло.
-      const holdLine = hold
-        ? `<span class="nav-balance-hold" title="${escapeHtml(NAV_T.holdTitle || "")}">+$${hold.toFixed(
-            2
-          )} · ${holdUah} ₴</span>`
-        : "";
-      navBalanceEl.innerHTML = `
-        <a class="nav-balance" href="${escapeHtml(NAV_T.accountUrl)}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
-          <span class="nav-balance-usd">$${available.toFixed(2)}</span>
-          <span class="nav-balance-uah">${availableUah} ₴</span>
-          ${holdLine}
-        </a>`;
-    }
-  })
-  // Шапка не має ламатись через неможливість дізнатись профіль чи баланс —
-  // у найгіршому випадку її права частина просто лишиться порожньою.
-  .catch(() => {});
+      // Баланс — це гроші за вже завершені продажі, які ми ще не виплатили.
+      // Гривні рахує сервер за курсом з config.json, щоб не тримати його копію
+      // в кожній мовній версії сторінки.
+      if (navBalanceEl && data.customer && data.balance) {
+        const { available, availableUah, hold, holdUah } = data.balance;
+        // Гроші в холді показуємо окремим рядком: без цього клієнт після
+        // успішного продажу бачив у шапці $0.00 і не розумів, чи все дійшло.
+        const holdLine = hold
+          ? `<span class="nav-balance-hold" title="${escapeHtml(NAV_T.holdTitle || "")}">+$${hold.toFixed(
+              2
+            )} · ${holdUah} ₴</span>`
+          : "";
+        navBalanceEl.innerHTML = `
+          <a class="nav-balance" href="${escapeHtml(NAV_T.accountUrl)}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
+            <span class="nav-balance-usd">$${available.toFixed(2)}</span>
+            <span class="nav-balance-uah">${availableUah} ₴</span>
+            ${holdLine}
+          </a>`;
+      }
+    })
+    // Шапка не має ламатись через неможливість дізнатись профіль чи баланс —
+    // у найгіршому випадку її права частина просто лишиться порожньою.
+    .catch(() => {});
+}
+window.refreshNavBalance = refreshNavBalance;
+refreshNavBalance();
