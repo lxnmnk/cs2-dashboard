@@ -1331,6 +1331,15 @@ async function dropOverride(marketHashName) {
 
 document.getElementById("buyDateInput").value = nowForDatetimeLocal();
 loadTrades();
-loadOverrides();
-loadClientSales();
 setInterval(loadTrades, 60 * 1000);
+
+// Ручные цены и продажи клиентов — только у владельца сайта; у друзей эти
+// блоки не показываем и не грузим (сервер им всё равно ответит 403).
+fetch("/api/me")
+  .then((r) => r.json())
+  .then((me) => {
+    if (!me.isSiteOwner) return;
+    document.getElementById("siteOwnerSections").style.display = "block";
+    loadOverrides();
+    loadClientSales();
+  });

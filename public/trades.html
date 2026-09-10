@@ -105,57 +105,60 @@
     <div class="summary-card"><div class="label">Loading...</div></div>
   </section>
 
-  <div class="section-title">Client Sales <span class="section-hint">skins people sold you through the site — profit is what Skinbux pays us minus what we owe the client</span></div>
-  <div class="table-card">
-    <table id="clientSalesTable">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Client</th>
-          <th>Items</th>
-          <th>We owe</th>
-          <th>Skinbux pays</th>
-          <th>Profit</th>
-          <th>Status</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="clientSalesBody">
-        <tr><td colspan="8" class="empty-row">Loading...</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="section-title">Custom Buy Prices <span class="section-hint">what a client is offered for an item — overrides the usual "skinbux bid −5%" everywhere on the site</span></div>
-  <section class="add-trade-form">
-    <div class="autocomplete-wrap">
-      <label for="overrideSearch">Item</label>
-      <input id="overrideSearch" type="text" placeholder="Start typing an item name..." autocomplete="off" />
-      <div id="overrideAutocomplete" class="autocomplete-list"></div>
+  <!-- Только для владельца сайта: друзья с учётками в /mytrades это не видят (показывает trades.js по /api/me) -->
+  <div id="siteOwnerSections" style="display:none;">
+    <div class="section-title">Client Sales <span class="section-hint">skins people sold you through the site — profit is what Skinbux pays us minus what we owe the client</span></div>
+    <div class="table-card">
+      <table id="clientSalesTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Client</th>
+            <th>Items</th>
+            <th>We owe</th>
+            <th>Skinbux pays</th>
+            <th>Profit</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="clientSalesBody">
+          <tr><td colspan="8" class="empty-row">Loading...</td></tr>
+        </tbody>
+      </table>
     </div>
-    <label>Price to client $
-      <input id="overridePrice" type="number" step="0.01" min="0" placeholder="0.00" />
-    </label>
-    <label>Note (optional)
-      <input id="overrideNote" type="text" placeholder="e.g. rare pattern" />
-    </label>
-    <button id="overrideSaveBtn">Set price</button>
-  </section>
-  <div class="table-card">
-    <table id="overridesTable">
-      <thead>
-        <tr>
-          <th>Item</th>
-          <th>Price to client</th>
-          <th>Auto price</th>
-          <th>Note</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="overridesBody">
-        <tr><td colspan="5" class="empty-row">No custom prices — everything uses the usual formula.</td></tr>
-      </tbody>
-    </table>
+
+    <div class="section-title">Custom Buy Prices <span class="section-hint">what a client is offered for an item — overrides the usual "skinbux bid −5%" everywhere on the site</span></div>
+    <section class="add-trade-form">
+      <div class="autocomplete-wrap">
+        <label for="overrideSearch">Item</label>
+        <input id="overrideSearch" type="text" placeholder="Start typing an item name..." autocomplete="off" />
+        <div id="overrideAutocomplete" class="autocomplete-list"></div>
+      </div>
+      <label>Price to client $
+        <input id="overridePrice" type="number" step="0.01" min="0" placeholder="0.00" />
+      </label>
+      <label>Note (optional)
+        <input id="overrideNote" type="text" placeholder="e.g. rare pattern" />
+      </label>
+      <button id="overrideSaveBtn">Set price</button>
+    </section>
+    <div class="table-card">
+      <table id="overridesTable">
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Price to client</th>
+            <th>Auto price</th>
+            <th>Note</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="overridesBody">
+          <tr><td colspan="5" class="empty-row">No custom prices — everything uses the usual formula.</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div id="bulkDeleteBar" class="bulk-delete-bar" style="display:none;">

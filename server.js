@@ -206,6 +206,17 @@ app.use((req, res, next) => {
   return res.redirect("/login.html");
 });
 
+// В /mytrades сидит не только владелец сайта — у друзей свои учётки со своим
+// трекером сделок. Всё, что касается бизнеса целиком (цены для клиентов,
+// продажи клиентов, выплаты), доступно только владельцу — и на сервере, а не
+// только спрятанными кнопками, иначе это можно вызвать запросом напрямую.
+const SITE_OWNER = "lxnmnk";
+
+function requireSiteOwner(req, res, next) {
+  if (req.session?.username === SITE_OWNER) return next();
+  res.status(403).json({ ok: false, error: "Только для владельца сайта" });
+}
+
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body || {};
   const verified = await users.verifyUser(username, password);
@@ -221,7 +232,7 @@ app.post("/api/logout", (req, res) => {
 });
 
 app.get("/api/me", (req, res) => {
-  res.json({ username: req.session.username });
+  res.json({ username: req.session.username, isSiteOwner: req.session.username === SITE_OWNER });
 });
 
 // Корень сайта — публичная клиентская страница (выбор Купити/Продати), а не
@@ -563,10 +574,9 @@ app.get("/api/account/sales", async (req, res) => {
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
 });
 
-// Отметка "деньги клиенту выплачены" — только для владельца сайта: роут не в
-// PUBLIC_PATHS, поэтому гейт выше пропустит лишь сессию с req.session.username.
+// Отметка "деньги клиенту выплачены" — только для владельца сайта.
 // Без неё выплаченная сделка продолжала бы висеть в балансе клиента.
-app.post("/api/sales/:id/paid", (req, res) => {
+app.post("/api/sales/:id/paid", requireSiteOwner, (req, res) => {
   const sale = skinbuxSales.markPaid(req.params.id);
   if (!sale) return res.status(404).json({ ok: false, error: "Угода не знайдена" });
   console.log(`[sales] Угода ${sale.id} позначена як виплачена`);
@@ -804,7 +814,7 @@ app.get("/api/public/buy-quote", async (req, res) => {
 // Публичная витрина "Мої скіни в наявності" (my-skins.html) — реальные
 // холдинги владельца сайта, включая предметы в трейд-бане. Владелец
 // зафиксирован намеренно (это не персональный трекер, а витрина бизнеса).
-const MY_SKINS_OWNER = "lxnmnk";
+const MY_SKINS_OWNER = SITE_OWNER;
 
 app.get("/api/public/my-skins", async (req, res) => {
   res.json(await trades.listPublicHoldings(MY_SKINS_OWNER, config));
@@ -814,7 +824,7 @@ app.get("/api/public/my-skins", async (req, res) => {
 // trades.json (там мои собственные покупки/продажи), поэтому в панели это
 // отдельная таблица. Профит считаем как разницу между тем, что платит нам
 // Skinbux, и тем, что мы должны клиенту.
-app.get("/api/client-sales", (req, res) => {
+app.get("/api/client-sales", requireSiteOwner, (req, res) => {
   const sales = skinbuxSales
     .loadAll()
     .map((sale) => {
@@ -847,11 +857,11 @@ app.get("/api/client-sales", (req, res) => {
 // Автодополнение названия предмета при добавлении сделки — ищем по подстроке
 // среди актуального снапшота цен, чтобы название совпадало с реальным
 // market_hash_name (и подхватывало фазы Doppler/Gamma Doppler).
-// ---- Ручные цены выкупа (только владелец: роуты не в PUBLIC_PATHS) ----
+// ---- Ручные цены выкупа (только владелец сайта) ----
 // Отдаём вместе с расчётной ценой, чтобы в панели было видно, от чего
 // отличается ручная — иначе легко поставить сумму выше той, что платит
 // Skinbux, и уйти в минус на сделке.
-app.get("/api/price-overrides", (req, res) => {
+app.get("/api/price-overrides", requireSiteOwner, (req, res) => {
   const items = priceOverrides.list().map((entry) => {
     const row = cache.rows.find((r) => r.marketHashName === entry.marketHashName);
     const auto = computeSellQuote(row);
@@ -860,7 +870,7 @@ app.get("/api/price-overrides", (req, res) => {
   res.json({ ok: true, items });
 });
 
-app.post("/api/price-overrides", (req, res) => {
+app.post("/api/price-overrides", requireSiteOwner, (req, res) => {
   try {
     const { marketHashName, price, note } = req.body || {};
     const entry = priceOverrides.set(marketHashName, price, note);
@@ -872,7 +882,7 @@ app.post("/api/price-overrides", (req, res) => {
 });
 
 // Удаление ручной цены = возврат к расчётной (bid скинбакса минус 5%).
-app.delete("/api/price-overrides", (req, res) => {
+app.delete("/api/price-overrides", requireSiteOwner, (req, res) => {
   const { marketHashName } = req.body || {};
   const removed = priceOverrides.remove(marketHashName);
   if (!removed) return res.status(404).json({ ok: false, error: "Ручной цены на этот предмет нет" });
