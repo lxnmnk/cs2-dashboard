@@ -33,7 +33,10 @@ function findOwnedTrade(allTrades, id, owner) {
 function addTrade({ marketHashName, name, wear, buySource, buyPrice, buyDate, unlockAt, owner, rows, sourcesConfig }) {
   if (!owner) throw new Error("owner обязателен");
   if (!marketHashName) throw new Error("marketHashName обязателен");
-  if (!buySource) throw new Error("buySource обязателен");
+  // buySource — площадка з config.sources або будь-яка своя назва, вписана руками.
+  const source = typeof buySource === "string" ? buySource.trim() : "";
+  if (!source) throw new Error("buySource обязателен");
+  if (source.length > 40) throw new Error("Название площадки слишком длинное");
   const price = Number(buyPrice);
   if (!Number.isFinite(price) || price <= 0) throw new Error("buyPrice должен быть положительным числом");
 
@@ -44,7 +47,7 @@ function addTrade({ marketHashName, name, wear, buySource, buyPrice, buyDate, un
     marketHashName,
     name: name || marketHashName,
     wear: wear || "—",
-    buySource,
+    buySource: source,
     buyPrice: price,
     buyDate: buyDate ? new Date(buyDate).toISOString() : new Date().toISOString(),
     // Точное время "Tradable After" со страницы инвентаря Steam, если известно —

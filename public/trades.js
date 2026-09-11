@@ -499,8 +499,10 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleString("en-US", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+// Свої назви маркетів (купив/продав "десь ще") вписуються руками і йдуть
+// у таблиці як HTML — тому екрануємо.
 function sourceLabel(src) {
-  return src ? (SOURCE_LABELS[src] || src) : '<span class="na">—</span>';
+  return src ? (SOURCE_LABELS[src] || escapeHtml(src)) : '<span class="na">—</span>';
 }
 
 function nowForDatetimeLocal() {
@@ -562,6 +564,16 @@ function renderAutocomplete(items) {
 }
 
 // ---- Add trade ----
+// "Other (type it)…" у "Bought On": замість списку — поле, куди вписуєш
+// свій маркет. На балансі це не впливає (баланси рахуються з продажів).
+const buySourceSelect = document.getElementById("buySourceInput");
+const buySourceCustomInput = document.getElementById("buySourceCustomInput");
+buySourceSelect.addEventListener("change", () => {
+  const custom = buySourceSelect.value === "__other";
+  buySourceCustomInput.style.display = custom ? "block" : "none";
+  if (custom) buySourceCustomInput.focus();
+});
+
 document.getElementById("addTradeBtn").addEventListener("click", async () => {
   if (!selectedItem) {
     alert("Select an item from the autocomplete list first");
@@ -572,7 +584,13 @@ document.getElementById("addTradeBtn").addEventListener("click", async () => {
     alert("Enter a buy price");
     return;
   }
-  const buySource = document.getElementById("buySourceInput").value;
+  const buySource =
+    buySourceSelect.value === "__other" ? buySourceCustomInput.value.trim() : buySourceSelect.value;
+  if (!buySource) {
+    alert("Type the marketplace name");
+    buySourceCustomInput.focus();
+    return;
+  }
   const buyDateRaw = document.getElementById("buyDateInput").value;
   const buyDate = buyDateRaw ? new Date(buyDateRaw).toISOString() : new Date().toISOString();
   const unlockAtRaw = document.getElementById("unlockAtInput").value;
