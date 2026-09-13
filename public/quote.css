@@ -1189,11 +1189,13 @@ a.sender-line { color: var(--gold); }
   color: var(--gold);
 }
 
-/* Підсумок обміну */
+/* Підсумок обміну — під заголовком і липкий одразу під шапкою (вона теж
+   липка, 60px), щоб суми й різниця були перед очима, поки гортаєш предмети. */
 .swap-summary {
   position: sticky;
-  bottom: 12px;
-  margin-top: 18px;
+  top: 60px;
+  z-index: 20;
+  margin: 0 0 18px;
   background: var(--panel);
   border: 1px solid var(--gold-line);
   border-radius: 14px;
@@ -1220,7 +1222,7 @@ a.sender-line { color: var(--gold); }
    йшла за екран. */
 #swapMineFilters { grid-area: fmine; }
 #swapOursFilters { grid-area: fours; }
-.swap-filters { width: auto; }
+.swap-filters { width: auto; top: 152px; }
 @media (max-width: 760px) {
   .swap-filters { position: static; max-height: none; }
 }
