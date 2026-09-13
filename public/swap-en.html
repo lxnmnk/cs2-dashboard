@@ -32,9 +32,12 @@
     <span class="eyebrow">CS2 SKINS TRADE</span>
     <h1>Trade your <span class="accent">skins</span></h1>
     <p class="hero-sub">Pick your items on the left, ours on the right. Whoever's side is cheaper pays the difference.</p>
+    <p class="hero-note">⏱ We send the trade within 5–6 hours after we agree on it.</p>
   </section>
 
   <section class="swap-layout">
+    <aside id="swapMineFilters" class="filters-panel swap-filters"></aside>
+
     <div class="swap-panel">
       <div class="swap-panel-head">
         <h2>Your skins</h2>
@@ -45,7 +48,6 @@
         <a class="btn-gold" href="/auth/steam?lang=en">Sign in with Steam</a>
       </div>
 
-      <div id="swapMineFilters" class="filters-panel swap-filters"></div>
       <p id="swapMineLoading" class="card-hint">Loading inventory...</p>
       <div id="swapMineGrid" class="swap-grid"></div>
     </div>
@@ -57,10 +59,11 @@
       </div>
       <p class="card-hint">Click to add, right-click to remove. You can take several of the same item.</p>
 
-      <div id="swapOursFilters" class="filters-panel swap-filters"></div>
       <p id="swapOursLoading" class="card-hint">Loading the showcase...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
     </div>
+
+    <aside id="swapOursFilters" class="filters-panel swap-filters"></aside>
   </section>
 
   <section class="swap-summary">

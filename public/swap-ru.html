@@ -32,9 +32,12 @@
     <span class="eyebrow">CS2 SKINS TRADE</span>
     <h1>Обмен <span class="accent">скинов</span></h1>
     <p class="hero-sub">Выбери свои предметы слева, наши — справа. Разницу доплачивает та сторона, что дешевле.</p>
+    <p class="hero-note">⏱ Обмен отправляем в течение 5–6 часов после договорённости.</p>
   </section>
 
   <section class="swap-layout">
+    <aside id="swapMineFilters" class="filters-panel swap-filters"></aside>
+
     <div class="swap-panel">
       <div class="swap-panel-head">
         <h2>Твои скины</h2>
@@ -45,7 +48,6 @@
         <a class="btn-gold" href="/auth/steam?lang=ru">Войти через Steam</a>
       </div>
 
-      <div id="swapMineFilters" class="filters-panel swap-filters"></div>
       <p id="swapMineLoading" class="card-hint">Загружаю инвентарь...</p>
       <div id="swapMineGrid" class="swap-grid"></div>
     </div>
@@ -57,10 +59,11 @@
       </div>
       <p class="card-hint">Клик — добавить, правый клик — убрать. Одинаковых можно взять несколько.</p>
 
-      <div id="swapOursFilters" class="filters-panel swap-filters"></div>
       <p id="swapOursLoading" class="card-hint">Загружаю витрину...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
     </div>
+
+    <aside id="swapOursFilters" class="filters-panel swap-filters"></aside>
   </section>
 
   <section class="swap-summary">

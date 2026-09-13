@@ -1100,13 +1100,33 @@ a.sender-line { color: var(--gold); }
 /* ---- Розділ Trade: дві панелі "твої скіни" / "наші скіни" ---- */
 .swap-layout {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 216px minmax(0, 1fr) minmax(0, 1fr) 216px;
+  grid-template-areas: "fmine mine ours fours";
   gap: 18px;
   align-items: start;
 }
-@media (max-width: 900px) {
-  .swap-layout { grid-template-columns: 1fr; }
+/* Вузький екран: фільтри лишаються збоку, але колонки предметів стають одна
+   під одною — інакше на ноутбуці на сітку лишається смужка. */
+@media (max-width: 1280px) {
+  .swap-layout {
+    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-areas:
+      "fmine mine"
+      "fours ours";
+  }
 }
+@media (max-width: 760px) {
+  .swap-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "fmine"
+      "mine"
+      "fours"
+      "ours";
+  }
+}
+.swap-panel:nth-of-type(1) { grid-area: mine; }
+.swap-panel:nth-of-type(2) { grid-area: ours; }
 .swap-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -1195,29 +1215,21 @@ a.sender-line { color: var(--gold); }
 /* Кнопка обміну, поки нічого не вибрано. */
 .btn-gold.disabled { opacity: 0.45; pointer-events: none; }
 
-/* Фільтри всередині панелі обміну — не бічна колонка, як у кабінеті, а
-   компактний рядок над сіткою: у Trade колонок і так дві, і якщо розкладати
-   фільтри стовпчиком, самі предмети йдуть за межі екрана. */
-.swap-filters {
-  width: auto;
-  position: static;
-  max-height: none;
-  overflow: visible;
-  padding: 12px 14px;
-  margin-bottom: 12px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  align-items: flex-start;
+/* Фільтри в Trade — бічні колонки (як у кабінеті): ліва фільтрує предмети
+   клієнта, права нашу вітрину. Всередині панелі вони зїдали висоту, і сітка
+   йшла за екран. */
+#swapMineFilters { grid-area: fmine; }
+#swapOursFilters { grid-area: fours; }
+.swap-filters { width: auto; }
+@media (max-width: 760px) {
+  .swap-filters { position: static; max-height: none; }
 }
-.swap-filters .filters-head,
-.swap-filters .filters-search { width: 100%; }
-.swap-filters .filters-head { margin-bottom: 0; }
-.swap-filters .filters-group {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
+
+/* Скільки чекати обмін — окремим рядком під заголовком Trade, щоб питання
+   "а коли прийде трейд" не доходило до Telegram. */
+.hero-note {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--gold);
+  opacity: 0.85;
 }
-.swap-filters .filters-group h4 { margin-bottom: 6px; }
-.swap-filters .filters-range { margin-bottom: 6px; max-width: 190px; }
-.swap-filters .filters-check { margin-bottom: 4px; }
