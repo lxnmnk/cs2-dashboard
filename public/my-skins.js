@@ -91,7 +91,8 @@ function renderCard(s, idx) {
   const tag = s.isLocked
     ? `<span class="lock-tag locked">🔒 ${lockedLabel} ${formatUnlockDate(s.unlockAt)}</span>`
     : `<span class="lock-tag ready">✅ ${readyLabel}</span>`;
-  const img = s.image ? `<img class="inventory-card-img" src="${escapeHtml(s.image)}" alt="" />` : "";
+  const src = s.imageFull || s.image; // 96px іконки на картці помітно милять
+  const img = src ? `<img class="inventory-card-img" src="${escapeHtml(src)}" alt="" />` : "";
   const added = cart.includes(idx);
 
   return `

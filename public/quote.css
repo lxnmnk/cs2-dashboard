@@ -39,7 +39,7 @@ a { color: var(--gold); }
   height: 100%;
   object-fit: cover;
   object-position: center 35%;
-  opacity: 0.20;
+  opacity: 0.08;
   pointer-events: none;
   z-index: 0;
   -webkit-mask-image: linear-gradient(to bottom, transparent, black 18%, black 75%, transparent);
@@ -1096,3 +1096,128 @@ a.sender-line { color: var(--gold); }
 .sell-received-text { margin: 0 0 18px; font-size: 14px; line-height: 1.55; color: var(--muted); }
 .sell-received-text b { color: var(--gold); }
 .sell-received .btn-gold { width: 100%; justify-content: center; }
+
+/* ---- Розділ Trade: дві панелі "твої скіни" / "наші скіни" ---- */
+.swap-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .swap-layout { grid-template-columns: 1fr; }
+}
+.swap-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  min-width: 0;
+}
+.swap-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.swap-panel-head h2 { margin: 0; font-size: 17px; }
+.swap-panel-total { color: var(--gold); font-weight: 700; font-size: 16px; white-space: nowrap; }
+.swap-panel .card-hint { margin: 0 0 12px; }
+.swap-search {
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+}
+.swap-search:focus { border-color: var(--gold-line); outline: none; }
+.swap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  gap: 10px;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+.swap-card {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+}
+.swap-card:hover { border-color: var(--gold-line); }
+.swap-card.picked { border-color: var(--gold); background: var(--gold-soft); }
+.swap-card.unavailable { cursor: default; opacity: 0.55; }
+.swap-card.unavailable:hover { border-color: var(--border); }
+.swap-card img { width: 100%; height: 74px; object-fit: contain; }
+.swap-card-name { font-size: 12px; line-height: 1.35; margin: 6px 0 4px; min-height: 32px; }
+.swap-card-wear { display: block; font-size: 11px; color: var(--muted); }
+.swap-card-price { font-size: 13px; font-weight: 700; color: var(--gold); }
+.swap-card-na { font-size: 11px; color: var(--muted); }
+.swap-card-pick {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 12px;
+  color: var(--gold);
+}
+
+/* Підсумок обміну */
+.swap-summary {
+  position: sticky;
+  bottom: 12px;
+  margin-top: 18px;
+  background: var(--panel);
+  border: 1px solid var(--gold-line);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.swap-summary-side { font-size: 13px; color: var(--muted); }
+.swap-summary-side b { display: block; font-size: 17px; color: var(--text); }
+.swap-summary-diff { font-size: 14px; }
+.swap-summary-diff b { font-size: 19px; color: var(--gold); }
+.swap-summary-diff.even b { color: var(--text); }
+.swap-summary .btn-gold { white-space: nowrap; }
+.swap-empty { grid-column: 1 / -1; color: var(--muted); font-size: 13px; padding: 8px 2px; }
+
+/* Кнопка обміну, поки нічого не вибрано. */
+.btn-gold.disabled { opacity: 0.45; pointer-events: none; }
+
+/* Фільтри всередині панелі обміну — не бічна колонка, як у кабінеті, а
+   компактний рядок над сіткою: у Trade колонок і так дві, і якщо розкладати
+   фільтри стовпчиком, самі предмети йдуть за межі екрана. */
+.swap-filters {
+  width: auto;
+  position: static;
+  max-height: none;
+  overflow: visible;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  align-items: flex-start;
+}
+.swap-filters .filters-head,
+.swap-filters .filters-search { width: 100%; }
+.swap-filters .filters-head { margin-bottom: 0; }
+.swap-filters .filters-group {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+.swap-filters .filters-group h4 { margin-bottom: 6px; }
+.swap-filters .filters-range { margin-bottom: 6px; max-width: 190px; }
+.swap-filters .filters-check { margin-bottom: 4px; }

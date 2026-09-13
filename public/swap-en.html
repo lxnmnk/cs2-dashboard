@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CS2 Skin Trade — gaben.market</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <header class="site-header">
+    <a class="site-brand" href="/en">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/en/buy"><span class="nav-icon">🛒</span> Buy skins</a>
+      <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
+      <a href="/en/my-skins"><span class="nav-icon">📦</span> Our skins</a>
+      <a href="/en/trade" class="active"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/trade">UA</a>
+        <a href="/ru/trade">RU</a>
+        <a href="/en/trade" class="active">EN</a>
+      </div>
+      <div id="navBalance"></div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Trade your <span class="accent">skins</span></h1>
+    <p class="hero-sub">Pick your items on the left, ours on the right. Whoever's side is cheaper pays the difference.</p>
+  </section>
+
+  <section class="swap-layout">
+    <div class="swap-panel">
+      <div class="swap-panel-head">
+        <h2>Your skins</h2>
+        <span class="swap-panel-total" id="swapMineTotal">$0.00</span>
+      </div>
+      <div id="swapMineAuth" style="display:none;">
+        <p class="card-hint">Sign in with Steam so we can see your inventory.</p>
+        <a class="btn-gold" href="/auth/steam?lang=en">Sign in with Steam</a>
+      </div>
+
+      <div id="swapMineFilters" class="filters-panel swap-filters"></div>
+      <p id="swapMineLoading" class="card-hint">Loading inventory...</p>
+      <div id="swapMineGrid" class="swap-grid"></div>
+    </div>
+
+    <div class="swap-panel">
+      <div class="swap-panel-head">
+        <h2>Our skins</h2>
+        <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
+      </div>
+      <p class="card-hint">Click to add, right-click to remove. You can take several of the same item.</p>
+
+      <div id="swapOursFilters" class="filters-panel swap-filters"></div>
+      <p id="swapOursLoading" class="card-hint">Loading the showcase...</p>
+      <div id="swapOursGrid" class="swap-grid"></div>
+    </div>
+  </section>
+
+  <section class="swap-summary">
+    <span class="swap-summary-side" id="swapGive"></span>
+    <span class="swap-summary-side" id="swapGet"></span>
+    <span class="swap-summary-diff even" id="swapDiff"></span>
+    <a id="swapTelegram" class="btn-gold disabled" href="#" target="_blank">Arrange the trade on Telegram</a>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Contact</h4>
+        <p>Message me directly on Telegram — <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>. I reply personally.</p>
+        <p>Reviews and guarantors — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Sections</h4>
+        <p>
+          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> ·
+          <a href="/en/my-skins">Our skins</a> · <a href="/en/sell">Check a price</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      This site is not affiliated with Valve Corporation or Steam and is not an official partner.
+      Counter-Strike 2, item names, images and trademarks belong to their respective owners.
+      All item transfers happen directly between users.
+      <br />© 2026 gaben.market. All rights reserved.
+    </p>
+  </footer>
+
+  <script>
+    window.SWAP_CONFIG = {
+      filtersTitle: "Filters",
+      resetLabel: "Reset",
+      searchPlaceholder: "Search by name...",
+      priceTitle: "Price",
+      fromLabel: "From",
+      toLabel: "To",
+      wearTitle: "Wear",
+      specialTitle: "Special",
+      normalLabel: "Normal",
+      nothingFound: "Nothing matches that search.",
+      mineEmpty: "There's nothing in your inventory we can trade for.",
+      mineUnavailable: "Couldn't read your inventory. Refresh the page or open your account.",
+      oursUnavailable: "The showcase is temporarily unavailable — message us on Telegram and we'll pick something by hand.",
+      tradeLocked: "trade-locked",
+      notAccepted: "not accepted",
+      priceUnknown: "price unknown",
+      summaryGive: "You give",
+      summaryGet: "You get",
+      diffYouPay: "You pay ",
+      diffWePay: "We pay you ",
+      diffEven: "Even trade",
+      msgIntro: "Hi! I'd like to make a trade.",
+      msgGive: "I give:",
+      msgGet: "I get:",
+      msgTotals: "Totals: I give {give}, I get {get}.",
+      msgYouPay: "I pay {amount} on top.",
+      msgWePay: "You pay me {amount} on top.",
+      msgEven: "The trade is even.",
+    };
+    window.NAV_CONFIG = {
+      signInLabel: "Sign in",
+      accountUrl: "/en/account",
+      loginUrl: "/auth/steam?lang=en",
+      balanceTitle: "Available to withdraw",
+      holdTitle: "On hold",
+    };
+  </script>
+  <script src="/nav-profile.js"></script>
+  <script src="/item-aliases.js"></script>
+  <script src="/item-filters.js"></script>
+  <script src="/swap.js"></script>
+</body>
+</html>

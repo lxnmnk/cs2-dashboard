@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Обмін скінів CS2 — gaben.market</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <header class="site-header">
+    <a class="site-brand" href="/">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/buy"><span class="nav-icon">🛒</span> Купити скіни</a>
+      <a href="/account"><span class="nav-icon">💰</span> Продати скіни</a>
+      <a href="/my-skins"><span class="nav-icon">📦</span> Наші скіни</a>
+      <a href="/trade" class="active"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/trade" class="active">UA</a>
+        <a href="/ru/trade">RU</a>
+        <a href="/en/trade">EN</a>
+      </div>
+      <div id="navBalance"></div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Обмін <span class="accent">скінів</span></h1>
+    <p class="hero-sub">Обери свої предмети зліва, наші — справа. Різницю доплачує той, чия сторона дешевша.</p>
+  </section>
+
+  <section class="swap-layout">
+    <div class="swap-panel">
+      <div class="swap-panel-head">
+        <h2>Твої скіни</h2>
+        <span class="swap-panel-total" id="swapMineTotal">$0.00</span>
+      </div>
+      <div id="swapMineAuth" style="display:none;">
+        <p class="card-hint">Увійди через Steam, щоб ми побачили твій інвентар.</p>
+        <a class="btn-gold" href="/auth/steam">Увійти через Steam</a>
+      </div>
+
+      <div id="swapMineFilters" class="filters-panel swap-filters"></div>
+      <p id="swapMineLoading" class="card-hint">Завантажую інвентар...</p>
+      <div id="swapMineGrid" class="swap-grid"></div>
+    </div>
+
+    <div class="swap-panel">
+      <div class="swap-panel-head">
+        <h2>Наші скіни</h2>
+        <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
+      </div>
+      <p class="card-hint">Клік — додати, правий клік — прибрати. Однакових можна взяти кілька.</p>
+
+      <div id="swapOursFilters" class="filters-panel swap-filters"></div>
+      <p id="swapOursLoading" class="card-hint">Завантажую вітрину...</p>
+      <div id="swapOursGrid" class="swap-grid"></div>
+    </div>
+  </section>
+
+  <section class="swap-summary">
+    <span class="swap-summary-side" id="swapGive"></span>
+    <span class="swap-summary-side" id="swapGet"></span>
+    <span class="swap-summary-diff even" id="swapDiff"></span>
+    <a id="swapTelegram" class="btn-gold disabled" href="#" target="_blank">Оформити обмін у Telegram</a>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Зв'язок</h4>
+        <p>Пиши напряму в Telegram — <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>. Відповідаю особисто.</p>
+        <p>Відгуки та гаранти — у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Розділи</h4>
+        <p>
+          <a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> ·
+          <a href="/my-skins">Наші скіни</a> · <a href="/sell">Перевірити ціну</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      Сайт не пов'язаний з Valve Corporation, Steam і не є їхнім офіційним партнером.
+      Counter-Strike 2, назви предметів, зображення та торгові марки належать їхнім власникам.
+      Усі операції з предметами відбуваються між користувачами напряму.
+      <br />© 2026 gaben.market. Усі права захищені.
+    </p>
+  </footer>
+
+  <script>
+    window.SWAP_CONFIG = {
+      filtersTitle: "Фільтри",
+      resetLabel: "Скинути",
+      searchPlaceholder: "Пошук за назвою...",
+      priceTitle: "Ціна",
+      fromLabel: "Від",
+      toLabel: "До",
+      wearTitle: "Якість",
+      specialTitle: "Особливі",
+      normalLabel: "Звичайні",
+      nothingFound: "За цим запитом нічого не знайдено.",
+      mineEmpty: "У твоєму інвентарі немає предметів, які можна обміняти.",
+      mineUnavailable: "Не вдалося прочитати інвентар. Спробуй оновити сторінку або зайди в кабінет.",
+      oursUnavailable: "Вітрина тимчасово недоступна — напиши в Telegram, підберемо вручну.",
+      tradeLocked: "у трейд-бані",
+      notAccepted: "не приймаємо",
+      priceUnknown: "ціна невідома",
+      summaryGive: "Ти віддаєш",
+      summaryGet: "Ти отримуєш",
+      diffYouPay: "Доплачуєш ти ",
+      diffWePay: "Доплачуємо ми ",
+      diffEven: "Рівний обмін",
+      msgIntro: "Привіт! Хочу зробити обмін.",
+      msgGive: "Віддаю:",
+      msgGet: "Отримую:",
+      msgTotals: "Разом: віддаю {give}, отримую {get}.",
+      msgYouPay: "Доплачую {amount}.",
+      msgWePay: "Ви доплачуєте мені {amount}.",
+      msgEven: "Обмін рівний.",
+    };
+    window.NAV_CONFIG = {
+      signInLabel: "Увійти",
+      accountUrl: "/account",
+      loginUrl: "/auth/steam",
+      balanceTitle: "Доступно до виплати",
+      holdTitle: "У холді",
+    };
+  </script>
+  <script src="/nav-profile.js"></script>
+  <script src="/item-aliases.js"></script>
+  <script src="/item-filters.js"></script>
+  <script src="/swap.js"></script>
+</body>
+</html>

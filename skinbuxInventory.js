@@ -43,7 +43,7 @@ function normalizeItem(raw) {
     float: raw.inspect?.float != null ? Number(raw.inspect.float) : null,
     pattern: raw.inspect?.pattern ?? null,
     icon: raw.icon_url
-      ? `https://community.akamai.steamstatic.com/economy/image/${raw.icon_url}/330fx330f`
+      ? `https://community.akamai.steamstatic.com/economy/image/${raw.icon_url}/512fx512f`
       : null,
   };
 }

@@ -15,7 +15,9 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-function computeSellQuote(row) {
+// discount можна перевизначити: в обміні (розділ Trade) предмет клієнта
+// беремо дорожче — за 97% ціни Skinbux, а не за 95%, як при звичайному викупі.
+function computeSellQuote(row, { discount = SKINBUX_DISCOUNT } = {}) {
   if (!row) return { ok: false };
 
   const skinbuxBid = row.prices?.skinbux?.bid;
@@ -26,7 +28,7 @@ function computeSellQuote(row) {
     return { ok: false };
   }
 
-  const base = skinbuxBid * (1 - SKINBUX_DISCOUNT);
+  const base = skinbuxBid * (1 - discount);
   const cap = Math.min(buffAsk, youpinAsk);
 
   return { ok: true, price: round2(Math.min(base, cap)) };

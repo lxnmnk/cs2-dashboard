@@ -17,6 +17,7 @@ const { computeSellQuote } = require("./sellQuote");
 const priceOverrides = require("./priceOverrides");
 const { getSteamImages } = require("./steamImages");
 const { computeBuyQuote } = require("./buyQuote");
+const tradeCatalog = require("./tradeCatalog");
 const { matchesSearchQuery, parseItemName } = require("./itemName");
 const { startTelegramArbBot } = require("./telegramArbBot");
 const steamAuth = require("./steamAuth");
@@ -174,6 +175,7 @@ const PUBLIC_PATHS = new Set([
   "/en/trade",
   "/my-skins.js",
   "/item-filters.js",
+  "/item-aliases.js",
   "/nav-profile.js",
   "/account-inventory.js",
   "/account-deals.js",
@@ -184,6 +186,8 @@ const PUBLIC_PATHS = new Set([
   "/api/public/sell-quote",
   "/api/public/buy-quote",
   "/api/public/my-skins",
+  "/api/public/trade-catalog",
+  "/swap.js",
   "/account",
   "/ru/account",
   "/en/account",
@@ -272,11 +276,9 @@ const CLEAN_PUBLIC_ROUTES = {
   "/en/sell": "sell-quote-en.html",
   "/en/buy": "buy-quote-en.html",
   "/en/my-skins": "my-skins-en.html",
-  // Розділ Trade поки порожній — сторінка-заглушка, щоб пункт меню вів
-  // хоч кудись, а не в 404.
-  "/trade": "trade-soon.html",
-  "/ru/trade": "trade-soon-ru.html",
-  "/en/trade": "trade-soon-en.html",
+  "/trade": "swap.html",
+  "/ru/trade": "swap-ru.html",
+  "/en/trade": "swap-en.html",
 };
 for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
   app.get(route, (req, res) => res.sendFile(path.join(__dirname, "public", file)));
@@ -337,10 +339,10 @@ app.get("/api/account/me", (req, res) => {
 // цена (priceOverrides.js), и только потом считаем по формуле. Через эту
 // функцию должны идти ВСЕ места, где клиент видит цену, иначе в кабинете и
 // в прайс-чекере окажутся разные числа.
-function sellQuoteFor(marketHashName, row) {
+function sellQuoteFor(marketHashName, row, opts) {
   const manual = priceOverrides.get(marketHashName);
   if (manual != null) return { ok: true, price: manual, manual: true };
-  return computeSellQuote(row);
+  return computeSellQuote(row, opts);
 }
 
 // Doppler и Gamma Doppler стоят по-разному в зависимости от фазы, поэтому в
@@ -358,14 +360,14 @@ function priceKeyFor(item) {
 // предмета і свіжіша. Інакше показана клієнту ціна розходилась із тією, з якою
 // Skinbux звіряє продаж: поки прайс-лист відставав, ми пропонували більше, ніж
 // вони платять, і продаж падав (або проходив у мінус).
-function quoteForItem(it) {
+function quoteForItem(it, opts) {
   const priceKey = priceKeyFor(it);
   const row = cache.rows.find((r) => r.marketHashName === priceKey);
   const liveRow =
     row && it.skinbuxPriceCents != null
       ? { ...row, prices: { ...row.prices, skinbux: { ...row.prices?.skinbux, bid: it.skinbuxPriceCents / 100 } } }
       : row;
-  return { row, quote: sellQuoteFor(priceKey, liveRow) };
+  return { row, quote: sellQuoteFor(priceKey, liveRow, opts) };
 }
 
 // Инвентарь клиента: основной источник — Skinbux, запасной — публичный
@@ -401,6 +403,7 @@ app.get("/api/account/inventory", async (req, res) => {
   if (!cache.rows.length) {
     return res.json({ ok: false, error: "PRICES_NOT_READY" });
   }
+  const tradeMode = req.query.mode === "trade";
   try {
     const { items: rawItems } = await loadClientInventory(req.session.customer.steamId, {
       force: req.query.refresh === "1",
@@ -412,7 +415,10 @@ app.get("/api/account/inventory", async (req, res) => {
     const items = rawItems
       .filter((it) => it.tradable || it.tradableAfter)
       .map((it) => {
-        const { quote } = quoteForItem(it);
+        // У розділі Trade предмет клієнта беремо за 97% ціни Skinbux, а не
+        // за 95%, як при звичайному викупі: там ми заробляємо ще й на своєму
+        // боці обміну.
+        const { quote } = quoteForItem(it, tradeMode ? { discount: 0.03 } : undefined);
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -836,6 +842,30 @@ app.get("/api/public/buy-quote", async (req, res) => {
     quote.imageFull = images?.full || null;
   }
   res.json(quote);
+});
+
+// Вітрина розділу Trade — те, що клієнт може взяти в обмін. Список фіксований
+// (tradeCatalog.js), ціна рахується з актуального прайсу, позиції без ціни на
+// Youpin просто не показуємо, щоб не було карток без суми.
+app.get("/api/public/trade-catalog", async (req, res) => {
+  const items = [];
+  for (const marketHashName of tradeCatalog.ITEMS) {
+    const row = cache.rows.find((r) => r.marketHashName === marketHashName);
+    const quote = computeBuyQuote(row, { markup: tradeCatalog.TRADE_MARKUP });
+    if (!quote.ok) continue;
+    const { baseName, wear } = parseItemName(marketHashName);
+    items.push({ marketHashName, name: baseName, wear, price: quote.price });
+  }
+
+  // Картинки Steam кешуються на диск назавжди (steamImages.js), тож довгим цей
+  // запит буде лише перший раз.
+  const images = await Promise.all(items.map((it) => getSteamImages(it.marketHashName)));
+  items.forEach((it, i) => {
+    it.icon = images[i]?.full || null;
+  });
+
+  items.sort((a, b) => b.price - a.price);
+  res.json({ ok: true, items });
 });
 
 // Публичная витрина "Мої скіни в наявності" (my-skins.html) — реальные

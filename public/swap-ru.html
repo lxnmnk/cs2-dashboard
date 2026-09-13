@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Обмен скинов CS2 — gaben.market</title>
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <header class="site-header">
+    <a class="site-brand" href="/ru">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/ru/buy"><span class="nav-icon">🛒</span> Купить скины</a>
+      <a href="/ru/account"><span class="nav-icon">💰</span> Продать скины</a>
+      <a href="/ru/my-skins"><span class="nav-icon">📦</span> Наши скины</a>
+      <a href="/ru/trade" class="active"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/trade">UA</a>
+        <a href="/ru/trade" class="active">RU</a>
+        <a href="/en/trade">EN</a>
+      </div>
+      <div id="navBalance"></div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Обмен <span class="accent">скинов</span></h1>
+    <p class="hero-sub">Выбери свои предметы слева, наши — справа. Разницу доплачивает та сторона, что дешевле.</p>
+  </section>
+
+  <section class="swap-layout">
+    <div class="swap-panel">
+      <div class="swap-panel-head">
+        <h2>Твои скины</h2>
+        <span class="swap-panel-total" id="swapMineTotal">$0.00</span>
+      </div>
+      <div id="swapMineAuth" style="display:none;">
+        <p class="card-hint">Войди через Steam, чтобы мы увидели твой инвентарь.</p>
+        <a class="btn-gold" href="/auth/steam?lang=ru">Войти через Steam</a>
+      </div>
+
+      <div id="swapMineFilters" class="filters-panel swap-filters"></div>
+      <p id="swapMineLoading" class="card-hint">Загружаю инвентарь...</p>
+      <div id="swapMineGrid" class="swap-grid"></div>
+    </div>
+
+    <div class="swap-panel">
+      <div class="swap-panel-head">
+        <h2>Наши скины</h2>
+        <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
+      </div>
+      <p class="card-hint">Клик — добавить, правый клик — убрать. Одинаковых можно взять несколько.</p>
+
+      <div id="swapOursFilters" class="filters-panel swap-filters"></div>
+      <p id="swapOursLoading" class="card-hint">Загружаю витрину...</p>
+      <div id="swapOursGrid" class="swap-grid"></div>
+    </div>
+  </section>
+
+  <section class="swap-summary">
+    <span class="swap-summary-side" id="swapGive"></span>
+    <span class="swap-summary-side" id="swapGet"></span>
+    <span class="swap-summary-diff even" id="swapDiff"></span>
+    <a id="swapTelegram" class="btn-gold disabled" href="#" target="_blank">Оформить обмен в Telegram</a>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Связь</h4>
+        <p>Пиши напрямую в Telegram — <a href="https://t.me/lxnmnk" target="_blank">@lxnmnk</a>. Отвечаю лично.</p>
+        <p>Отзывы и гаранты — в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Разделы</h4>
+        <p>
+          <a href="/ru/buy">Купить скины</a> · <a href="/ru/account">Продать скины</a> ·
+          <a href="/ru/my-skins">Наши скины</a> · <a href="/ru/sell">Проверить цену</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      Сайт не связан с Valve Corporation, Steam и не является их официальным партнёром.
+      Counter-Strike 2, названия предметов, изображения и товарные знаки принадлежат их владельцам.
+      Все операции с предметами происходят между пользователями напрямую.
+      <br />© 2026 gaben.market. Все права защищены.
+    </p>
+  </footer>
+
+  <script>
+    window.SWAP_CONFIG = {
+      filtersTitle: "Фильтры",
+      resetLabel: "Сбросить",
+      searchPlaceholder: "Поиск по названию...",
+      priceTitle: "Цена",
+      fromLabel: "От",
+      toLabel: "До",
+      wearTitle: "Качество",
+      specialTitle: "Особые",
+      normalLabel: "Обычные",
+      nothingFound: "По этому запросу ничего не найдено.",
+      mineEmpty: "В твоём инвентаре нет предметов, которые можно обменять.",
+      mineUnavailable: "Не удалось прочитать инвентарь. Обнови страницу или зайди в кабинет.",
+      oursUnavailable: "Витрина временно недоступна — напиши в Telegram, подберём вручную.",
+      tradeLocked: "в трейд-бане",
+      notAccepted: "не принимаем",
+      priceUnknown: "цена неизвестна",
+      summaryGive: "Ты отдаёшь",
+      summaryGet: "Ты получаешь",
+      diffYouPay: "Доплачиваешь ты ",
+      diffWePay: "Доплачиваем мы ",
+      diffEven: "Равный обмен",
+      msgIntro: "Привет! Хочу сделать обмен.",
+      msgGive: "Отдаю:",
+      msgGet: "Получаю:",
+      msgTotals: "Итого: отдаю {give}, получаю {get}.",
+      msgYouPay: "Доплачиваю {amount}.",
+      msgWePay: "Вы доплачиваете мне {amount}.",
+      msgEven: "Обмен равный.",
+    };
+    window.NAV_CONFIG = {
+      signInLabel: "Войти",
+      accountUrl: "/ru/account",
+      loginUrl: "/auth/steam?lang=ru",
+      balanceTitle: "Доступно к выплате",
+      holdTitle: "В холде",
+    };
+  </script>
+  <script src="/nav-profile.js"></script>
+  <script src="/item-aliases.js"></script>
+  <script src="/item-filters.js"></script>
+  <script src="/swap.js"></script>
+</body>
+</html>

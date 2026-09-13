@@ -6,6 +6,8 @@
 //   "Sticker | Team EnVyUs (Holo)"          -> { baseName: "Sticker | Team EnVyUs", wear: "Holo" }
 //   "★ Karambit | Doppler (Factory New) - Phase 2" -> { baseName: "★ Karambit | Doppler", wear: "Factory New · Phase 2", phase: "Phase 2" }
 
+const { translateSearchTokens } = require("./public/item-aliases");
+
 const KNOWN_WEARS = new Set([
   "Factory New",
   "Minimal Wear",
@@ -80,7 +82,9 @@ function normalizeForSearch(s) {
  * одинаково находят "★ AWP | Gungnir (Field-Tested)".
  */
 function matchesSearchQuery(marketHashName, query) {
-  const tokens = normalizeForSearch(query).split(" ").filter(Boolean);
+  // Запит може бути російською/українською ("скелетний ніж") — назви ж
+  // завжди англійські, тому спершу перекладаємо слова, які знаємо.
+  const tokens = translateSearchTokens(normalizeForSearch(query).split(" ").filter(Boolean));
   if (!tokens.length) return false;
 
   const normalizedName = normalizeForSearch(marketHashName);

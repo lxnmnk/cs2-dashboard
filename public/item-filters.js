@@ -88,6 +88,7 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       state.query = searchEl.value.trim().toLowerCase();
+      state.queryTokens = window.searchTokens ? window.searchTokens(state.query) : [];
       onChange();
     }, 200);
   });
@@ -144,6 +145,7 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
 
   mount.querySelector(".filters-reset").addEventListener("click", () => {
     state.query = "";
+    state.queryTokens = [];
     state.min = state.max = null;
     state.wears.clear();
     state.special.clear();
@@ -157,7 +159,14 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
   function matches(item) {
     const name = item.marketHashName || "";
 
-    if (state.query && !name.toLowerCase().includes(state.query)) return false;
+    // Пошук розуміє російську/українську: "скелетний ніж" знаходить
+    // Skeleton Knife (словник — item-aliases.js).
+    if (state.query) {
+      const ok = window.matchesTokens
+        ? window.matchesTokens(name, state.queryTokens)
+        : name.toLowerCase().includes(state.query);
+      if (!ok) return false;
+    }
 
     // Предмет без ціни ховаємо лише тоді, коли фільтр по ціні реально заданий.
     if (state.min != null || state.max != null) {
