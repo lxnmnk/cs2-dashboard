@@ -50,9 +50,10 @@
         <h2>Your skins</h2>
         <span class="swap-panel-total" id="swapMineTotal">$0.00</span>
       </div>
-      <div id="swapMineAuth" style="display:none;">
+      <div id="swapMineAuth" class="swap-auth" style="display:none;">
+        <div class="swap-auth-icon">🎮</div>
         <p class="card-hint">Sign in with Steam so we can see your inventory.</p>
-        <a class="btn-gold" href="/auth/steam?lang=en">Sign in with Steam</a>
+        <a class="btn-gold" href="/auth/steam?lang=en&amp;next=/en/trade">Sign in with Steam</a>
       </div>
 
       <p id="swapMineLoading" class="card-hint">Loading inventory...</p>
@@ -64,10 +65,11 @@
         <h2>Our skins</h2>
         <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
       </div>
-      <p class="card-hint">Click to add, right-click to remove. You can take several of the same item.</p>
+      <p class="card-hint">These are the popular ones, but we can get any skin — just type its name in the search. Click to add, right-click to remove.</p>
 
       <p id="swapOursLoading" class="card-hint">Loading the showcase...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
+      <p id="swapAnyHint" class="swap-any-hint"></p>
     </div>
 
     <aside id="swapOursFilters" class="filters-panel swap-filters"></aside>
@@ -107,6 +109,10 @@
       wearTitle: "Wear",
       specialTitle: "Special",
       normalLabel: "Normal",
+      searchingLabel: "Searching...",
+      searchEmpty: "Nothing found for that name. Message us on Telegram and we will look by hand.",
+      catalogLoading: "Loading the showcase...",
+      anySkinHint: "Not seeing what you want? Type its name in the search — we can get any skin.",
       nothingFound: "Nothing matches that search.",
       mineEmpty: "There's nothing in your inventory we can trade for.",
       mineUnavailable: "Couldn't read your inventory. Refresh the page or open your account.",
@@ -130,7 +136,7 @@
     window.NAV_CONFIG = {
       signInLabel: "Sign in",
       accountUrl: "/en/account",
-      loginUrl: "/auth/steam?lang=en",
+      loginUrl: "/auth/steam?lang=en&amp;next=/en/trade",
       balanceTitle: "Available to withdraw",
       holdTitle: "On hold",
     };

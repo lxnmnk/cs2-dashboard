@@ -2,9 +2,9 @@
 //
 // Ліва сторона — інвентар клієнта з /api/account/inventory?mode=trade: в
 // обміні ми беремо його предмети за 97% ціни Skinbux (при звичайному викупі —
-// 95%). Права — фіксований список популярних позицій (tradeCatalog.js), який
-// ми під конкретний обмін докуповуємо на Youpin, тому він і не залежить від
-// того, що зараз реально лежить у нас на руках (для наявності є "Наші скіни").
+// 95%). Права — популярні позиції (tradeCatalog.js), які ми під конкретний
+// обмін докуповуємо на Youpin; якщо клієнт шукає щось своє, шукаємо по всьому
+// каталогу цін (/api/public/trade-search), бо дістати можемо будь-який скін.
 //
 // Сам обмін завершується в Telegram: бота, який сам відправляє трейди, у нас
 // немає (у продажу обміни шле Skinbux, а не ми), тому кнопка збирає готове
@@ -23,11 +23,33 @@ const swapGiveEl = document.getElementById("swapGive");
 const swapGetEl = document.getElementById("swapGet");
 const swapDiffEl = document.getElementById("swapDiff");
 const swapTelegramBtn = document.getElementById("swapTelegram");
+const swapAnyHintEl = document.getElementById("swapAnyHint");
 
 let swapMine = []; // предмети клієнта
-let swapOurs = []; // наша вітрина
+let swapOurs = []; // що зараз показано праворуч: вітрина або результат пошуку
+let swapOursCatalog = []; // сама вітрина, щоб повертатись до неї після пошуку
 const swapPickedMine = new Set(); // assetId — кожен предмет рівно один раз
 const swapPickedOurs = new Map(); // marketHashName -> кількість
+// Вибране не має губитись, коли предмет зник з поточного списку (змінили
+// пошук), тому все, що колись бачили, тримаємо окремо.
+const swapOursKnown = new Map(); // marketHashName -> предмет
+
+if (swapAnyHintEl) swapAnyHintEl.textContent = SWAP_T.anySkinHint;
+
+// Фільтри — та сама панель, що в кабінеті й на вітрині (item-filters.js):
+// пошук (розуміє російську/українську), ціна, якість, StatTrak/Souvenir.
+// Свої панелі фільтрів у кожної сторони, бо предмети там різні.
+const swapMineFilters = createItemFilters({
+  mount: document.getElementById("swapMineFilters"),
+  labels: SWAP_T,
+  onChange: () => renderMine(),
+});
+const swapOursFilters = createItemFilters({
+  mount: document.getElementById("swapOursFilters"),
+  labels: SWAP_T,
+  onChange: () => onOursFiltersChange(),
+});
+const swapOursSearchInput = document.querySelector("#swapOursFilters .filters-search");
 
 function swapEscape(s) {
   return (s || "").replace(
@@ -44,19 +66,9 @@ function swapFill(template, vars) {
   return (template || "").replace(/\{(\w+)\}/g, (m, key) => (key in vars ? vars[key] : m));
 }
 
-// Фільтри — та сама панель, що в кабінеті й на вітрині (item-filters.js):
-// пошук (розуміє російську/українську), ціна, якість, StatTrak/Souvenir.
-// Свої панелі фільтрів у кожної сторони, бо предмети там різні.
-const swapMineFilters = createItemFilters({
-  mount: document.getElementById("swapMineFilters"),
-  labels: SWAP_T,
-  onChange: () => renderMine(),
-});
-const swapOursFilters = createItemFilters({
-  mount: document.getElementById("swapOursFilters"),
-  labels: SWAP_T,
-  onChange: () => renderOurs(),
-});
+function rememberOurs(items) {
+  for (const it of items) swapOursKnown.set(it.marketHashName, it);
+}
 
 // ---- Ліва панель: предмети клієнта ----
 async function loadMine() {
@@ -126,24 +138,83 @@ function renderMine() {
   });
 }
 
-// ---- Права панель: наша вітрина ----
-async function loadOurs() {
+// ---- Права панель: вітрина і пошук по всьому каталогу ----
+// Ціни на сервері з'являються не миттєво (після рестарту снапшот збирається
+// хвилину-другу), і в цей момент вітрина порожня — тому не пишемо одразу
+// "недоступна", а мовчки пробуємо ще кілька разів.
+const CATALOG_RETRIES = 5;
+const CATALOG_RETRY_MS = 8000;
+
+async function loadOurs(attempt = 0) {
   const data = await fetch("/api/public/trade-catalog")
     .then((r) => r.json())
     .catch(() => ({ ok: false }));
+
   if (!data.ok || !data.items.length) {
+    if (attempt < CATALOG_RETRIES) {
+      swapOursLoading.textContent = SWAP_T.catalogLoading;
+      setTimeout(() => loadOurs(attempt + 1), CATALOG_RETRY_MS);
+      return;
+    }
     swapOursLoading.textContent = SWAP_T.oursUnavailable;
     return;
   }
+
   swapOursLoading.style.display = "none";
-  swapOurs = data.items;
-  renderOurs();
+  swapOursCatalog = data.items;
+  rememberOurs(data.items);
+  if (!isSearching()) {
+    swapOurs = swapOursCatalog;
+    renderOurs();
+  }
 }
 
-function renderOurs() {
+function isSearching() {
+  return (swapOursSearchInput?.value || "").trim().length >= 2;
+}
+
+let oursSearchTimer = null;
+let oursSearchSeq = 0;
+
+function onOursFiltersChange() {
+  if (!isSearching()) {
+    clearTimeout(oursSearchTimer);
+    swapOurs = swapOursCatalog;
+    renderOurs();
+    return;
+  }
+
+  // Пошук іде на сервер, тому чекаємо, поки людина допише назву.
+  clearTimeout(oursSearchTimer);
+  oursSearchTimer = setTimeout(runOursSearch, 350);
+}
+
+async function runOursSearch() {
+  const query = swapOursSearchInput.value.trim();
+  const seq = ++oursSearchSeq;
+
+  swapOursGrid.innerHTML = `<p class="swap-empty">${swapEscape(SWAP_T.searchingLabel)}</p>`;
+  const data = await fetch(`/api/public/trade-search?q=${encodeURIComponent(query)}`)
+    .then((r) => r.json())
+    .catch(() => ({ ok: false, items: [] }));
+
+  // Поки відповідь ішла, людина могла дописати назву — тоді цей результат уже
+  // не актуальний.
+  if (seq !== oursSearchSeq) return;
+
+  const items = data.items || [];
+  rememberOurs(items);
+  swapOurs = items;
+  renderOurs({ searched: true });
+}
+
+function renderOurs({ searched = false } = {}) {
+  // Рядок пошуку для правої сторони вже відпрацював на сервері, але решта
+  // фільтрів (ціна, якість) звужує і вітрину, і результат пошуку.
   const visible = swapOursFilters.apply(swapOurs);
   if (!visible.length) {
-    swapOursGrid.innerHTML = `<p class="swap-empty">${swapEscape(SWAP_T.nothingFound)}</p>`;
+    const message = searched || isSearching() ? SWAP_T.searchEmpty : SWAP_T.nothingFound;
+    swapOursGrid.innerHTML = `<p class="swap-empty">${swapEscape(message)}</p>`;
     return;
   }
 
@@ -167,7 +238,7 @@ function renderOurs() {
     const name = card.getAttribute("data-name");
     card.addEventListener("click", () => {
       swapPickedOurs.set(name, (swapPickedOurs.get(name) || 0) + 1);
-      renderOurs();
+      renderOurs({ searched });
       renderSummary();
     });
     card.addEventListener("contextmenu", (e) => {
@@ -175,7 +246,7 @@ function renderOurs() {
       const qty = (swapPickedOurs.get(name) || 0) - 1;
       if (qty > 0) swapPickedOurs.set(name, qty);
       else swapPickedOurs.delete(name);
-      renderOurs();
+      renderOurs({ searched });
       renderSummary();
     });
   });
@@ -188,7 +259,7 @@ function pickedMineItems() {
 
 function pickedOursItems() {
   return [...swapPickedOurs]
-    .map(([name, qty]) => ({ item: swapOurs.find((it) => it.marketHashName === name), qty }))
+    .map(([name, qty]) => ({ item: swapOursKnown.get(name), qty }))
     .filter((e) => e.item);
 }
 

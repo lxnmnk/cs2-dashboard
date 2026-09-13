@@ -19,6 +19,11 @@ const CACHE_FILE = path.join(__dirname, "phaseImageCache.json");
 const REFRESH_COOLDOWN_MS = 60 * 60 * 1000;
 
 let cache = loadCache();
+// Довідник цілком (усі скіни, не тільки фази) — тримаємо лише в пам'яті:
+// на диск пишемо тільки фази, щоб файл лишався маленьким. Потрібен, бо Steam
+// ріже часті запити за іконками, і на вітрині частина карток лишалась без
+// картинки взагалі.
+let allSkins = null;
 let lastRefresh = 0;
 let refreshing = null;
 
@@ -47,15 +52,20 @@ async function refresh() {
     const skins = await res.json();
 
     const next = {};
+    const everything = {};
     for (const skin of skins) {
-      if (!skin?.phase || !skin?.name || !skin?.image) continue;
-      next[`${skin.name} - ${skin.phase}`] = skin.image;
+      if (!skin?.name || !skin?.image) continue;
+      everything[skin.name] = skin.image;
+      if (skin.phase) next[`${skin.name} - ${skin.phase}`] = skin.image;
     }
     if (!Object.keys(next).length) throw new Error("у довіднику немає жодної фази");
 
     cache = next;
+    allSkins = everything;
     saveCache();
-    console.log(`[phase-images] Оновлено картинки фаз: ${Object.keys(cache).length}`);
+    console.log(
+      `[phase-images] Оновлено довідник: ${Object.keys(everything).length} скінів, з них фаз ${Object.keys(cache).length}`
+    );
   })()
     .catch((err) => {
       console.warn(`[phase-images] Не вдалося оновити довідник: ${err.message}`);
@@ -81,4 +91,14 @@ async function getPhaseImageBase(marketHashName) {
   return cache[marketHashName] || null;
 }
 
-module.exports = { getPhaseImageBase, refresh, CACHE_FILE };
+/**
+ * Базова адреса іконки для звичайного market_hash_name (без фази) або null.
+ * Довідник знає тільки скіни — наклейки, агентів, кейси там не шукати, для них
+ * лишається сторінка Steam (steamImages.js).
+ */
+async function getSkinImageBase(marketHashName) {
+  if (!allSkins && Date.now() - lastRefresh > REFRESH_COOLDOWN_MS) await refresh();
+  return allSkins?.[marketHashName] || null;
+}
+
+module.exports = { getPhaseImageBase, getSkinImageBase, refresh, CACHE_FILE };

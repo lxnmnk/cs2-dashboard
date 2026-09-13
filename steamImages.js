@@ -54,6 +54,17 @@ async function getSteamImages(marketHashName) {
 
   if (cache[queryName]) return cache[queryName];
 
+  // Спершу довідник скінів: сторінку Steam доводиться качати по одній на
+  // предмет, і на вітрині з півсотнею ножів він починає різати запити —
+  // частина карток лишалась зовсім без картинки.
+  const referenceBase = await phaseImages.getSkinImageBase(queryName);
+  if (referenceBase) {
+    const images = { thumb: `${referenceBase}/96fx96f`, full: `${referenceBase}/512fx512f` };
+    cache[queryName] = images;
+    saveCache();
+    return images;
+  }
+
   try {
     const url = `https://steamcommunity.com/market/listings/730/${encodeURIComponent(queryName)}`;
     const res = await fetch(url, { redirect: "follow" });

@@ -187,6 +187,7 @@ const PUBLIC_PATHS = new Set([
   "/api/public/buy-quote",
   "/api/public/my-skins",
   "/api/public/trade-catalog",
+  "/api/public/trade-search",
   "/swap.js",
   "/account",
   "/ru/account",
@@ -655,7 +656,11 @@ app.get("/auth/steam", (req, res) => {
 });
 
 app.get("/auth/steam/return", async (req, res) => {
-  const accountUrl = accountUrlForLang(req.query.lang);
+  // next — сторінка, з якої почали вхід (наприклад /trade). Приймаємо лише
+  // свої відносні адреси, щоб через нього не можна було відправити людину
+  // на чужий сайт.
+  const next = typeof req.query.next === "string" && req.query.next.startsWith("/") && !req.query.next.startsWith("//") ? req.query.next : null;
+  const accountUrl = next || accountUrlForLang(req.query.lang);
   try {
     const steamId = await steamAuth.verifyReturn(req);
     const profile = await steamAuth.fetchSteamProfile(steamId);
@@ -865,6 +870,35 @@ app.get("/api/public/trade-catalog", async (req, res) => {
   });
 
   items.sort((a, b) => b.price - a.price);
+  res.json({ ok: true, items });
+});
+
+// Пошук по ВСЬОМУ каталогу цін для розділу Trade: вітрина показує популярне,
+// але дістати ми можемо будь-який скін, тому за назвою шукаємо серед усіх
+// предметів зі знайомою ціною, а не лише серед списку вітрини.
+app.get("/api/public/trade-search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  if (q.length < 2) return res.json({ ok: true, items: [] });
+
+  const matches = [];
+  for (const row of cache.rows) {
+    if (!matchesSearchQuery(row.marketHashName, q)) continue;
+    const quote = computeBuyQuote(row, { markup: tradeCatalog.TRADE_MARKUP });
+    if (!quote.ok) continue;
+    const { baseName, wear } = parseItemName(row.marketHashName);
+    matches.push({ marketHashName: row.marketHashName, name: baseName, wear, price: quote.price });
+  }
+
+  // Дорожче — вище: за запитом "керамбит" людині потрібен ніж, а не однойменні
+  // графіті за два центи, які інакше опинялись першими.
+  matches.sort((x, y) => y.price - x.price);
+  const items = matches.slice(0, 24);
+
+  const images = await Promise.all(items.map((it) => getSteamImages(it.marketHashName)));
+  items.forEach((it, i) => {
+    it.icon = images[i]?.full || null;
+  });
+
   res.json({ ok: true, items });
 });
 

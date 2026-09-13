@@ -50,9 +50,10 @@
         <h2>Твої скіни</h2>
         <span class="swap-panel-total" id="swapMineTotal">$0.00</span>
       </div>
-      <div id="swapMineAuth" style="display:none;">
+      <div id="swapMineAuth" class="swap-auth" style="display:none;">
+        <div class="swap-auth-icon">🎮</div>
         <p class="card-hint">Увійди через Steam, щоб ми побачили твій інвентар.</p>
-        <a class="btn-gold" href="/auth/steam">Увійти через Steam</a>
+        <a class="btn-gold" href="/auth/steam?next=/trade">Увійти через Steam</a>
       </div>
 
       <p id="swapMineLoading" class="card-hint">Завантажую інвентар...</p>
@@ -64,10 +65,11 @@
         <h2>Наші скіни</h2>
         <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
       </div>
-      <p class="card-hint">Клік — додати, правий клік — прибрати. Однакових можна взяти кілька.</p>
+      <p class="card-hint">Тут популярне, але дістати можемо будь-який скін — просто введи назву в пошук. Клік — додати, правий клік — прибрати.</p>
 
       <p id="swapOursLoading" class="card-hint">Завантажую вітрину...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
+      <p id="swapAnyHint" class="swap-any-hint"></p>
     </div>
 
     <aside id="swapOursFilters" class="filters-panel swap-filters"></aside>
@@ -107,6 +109,10 @@
       wearTitle: "Якість",
       specialTitle: "Особливі",
       normalLabel: "Звичайні",
+      searchingLabel: "Шукаю...",
+      searchEmpty: "За цією назвою нічого не знайшли. Напиши в Telegram — пошукаємо вручну.",
+      catalogLoading: "Завантажую вітрину...",
+      anySkinHint: "Не бачиш потрібного? Введи назву в пошук — знайдемо будь-який скін.",
       nothingFound: "За цим запитом нічого не знайдено.",
       mineEmpty: "У твоєму інвентарі немає предметів, які можна обміняти.",
       mineUnavailable: "Не вдалося прочитати інвентар. Спробуй оновити сторінку або зайди в кабінет.",
@@ -130,7 +136,7 @@
     window.NAV_CONFIG = {
       signInLabel: "Увійти",
       accountUrl: "/account",
-      loginUrl: "/auth/steam",
+      loginUrl: "/auth/steam?next=/trade",
       balanceTitle: "Доступно до виплати",
       holdTitle: "У холді",
     };

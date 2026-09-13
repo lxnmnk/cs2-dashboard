@@ -17,8 +17,13 @@ function baseUrl(req) {
 // query рядку колбека без змін — так /auth/steam/return дізнається, якою
 // мовою був /account, з якого клієнт почав логін.
 function buildRelyingParty(req) {
-  const lang = ["ru", "en"].includes(req.query.lang) ? `?lang=${req.query.lang}` : "";
-  const returnUrl = `${baseUrl(req)}/auth/steam/return${lang}`;
+  const params = new URLSearchParams();
+  if (["ru", "en"].includes(req.query.lang)) params.set("lang", req.query.lang);
+  // next — куди повернути після входу (наприклад /trade). Тільки свої
+  // відносні адреси: "//evil.com" чи повний URL не пропускаємо.
+  if (typeof req.query.next === "string" && req.query.next.startsWith("/") && !req.query.next.startsWith("//")) params.set("next", req.query.next);
+  const query = params.toString() ? `?${params}` : "";
+  const returnUrl = `${baseUrl(req)}/auth/steam/return${query}`;
   const realm = baseUrl(req);
   return new RelyingParty(returnUrl, realm, true, false, []);
 }
