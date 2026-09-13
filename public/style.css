@@ -564,3 +564,17 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
   font-size: 13px;
   color: var(--text);
 }
+
+/* Смуги прокрутки — темні, як і вся панель (див. quote.css). */
+:root { color-scheme: dark; }
+* { scrollbar-width: thin; scrollbar-color: #2b313d transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #2b313d;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background: #3a4250; background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }

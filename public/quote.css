@@ -1256,3 +1256,19 @@ a.sender-line { color: var(--gold); }
   color: var(--muted);
   line-height: 1.45;
 }
+
+/* Смуги прокрутки. Без цього браузер малює світлу системну смугу, і на
+   темній сторінці вона світиться білою полосою збоку. color-scheme одразу
+   робить темними й системні елементи (поля вводу, календарі). */
+:root { color-scheme: dark; }
+* { scrollbar-width: thin; scrollbar-color: #2b313d transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #2b313d;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover { background: #3a4250; background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
