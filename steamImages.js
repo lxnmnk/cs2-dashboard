@@ -15,6 +15,7 @@
 const fs = require("fs");
 const path = require("path");
 const { stripPhaseSuffix } = require("./itemName");
+const phaseImages = require("./phaseImages");
 
 const CACHE_FILE = path.join(__dirname, "steamImageCache.json");
 const ICON_RE = /href="(https:\/\/community\.[^"]*\/economy\/image\/[^"/]+)"/;
@@ -41,7 +42,15 @@ function saveCache() {
 async function getSteamImages(marketHashName) {
   // Синтетичний суфікс " - Phase N" (див. itemName.js) Steam не знає —
   // шукаємо по справжньому market_hash_name без нього.
-  const { base: queryName } = stripPhaseSuffix(marketHashName);
+  const { base: queryName, phase } = stripPhaseSuffix(marketHashName);
+
+  // У Doppler кожна фаза виглядає інакше, а сторінка на площадці Steam у них
+  // одна на всі фази — тому для них беремо іконку з довідника фаз
+  // (phaseImages.js). Без цього Phase 2 показувався картинкою Phase 1.
+  if (phase) {
+    const iconBase = await phaseImages.getPhaseImageBase(marketHashName);
+    if (iconBase) return { thumb: `${iconBase}/96fx96f`, full: `${iconBase}/512fx512f` };
+  }
 
   if (cache[queryName]) return cache[queryName];
 
