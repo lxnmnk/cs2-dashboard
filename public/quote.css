@@ -1272,3 +1272,11 @@ a.sender-line { color: var(--gold); }
 }
 ::-webkit-scrollbar-thumb:hover { background: #3a4250; background-clip: padding-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
+
+/* Підписи під заголовками панелей тримаємо однакової висоти: інакше сітка
+   ліворуч починалась вище, ніж праворуч, і сторінка виглядала кривою. */
+.swap-panel > .card-hint { min-height: 92px; margin-bottom: 10px; }
+.swap-benefit { color: var(--gold); font-weight: 600; }
+@media (max-width: 760px) {
+  .swap-panel > .card-hint { min-height: 0; }
+}
