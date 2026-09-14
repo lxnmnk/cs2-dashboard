@@ -41,14 +41,38 @@ function normalizePhaseName(rawName) {
 
 let browserPromise = null;
 
+// Браузер живёт между обновлениями цен, чтобы не поднимать Chrome каждую
+// минуту. Но если он падает (на VPS — обычно от нехватки памяти), сохранённый
+// объект остаётся мёртвым, и КАЖДЫЙ следующий запрос валится с "Protocol
+// error: Connection closed" — до перезапуска процесса. Поэтому слушаем
+// disconnected и поднимаем браузер заново.
 function getBrowser() {
   if (!browserPromise) {
-    browserPromise = puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    browserPromise = puppeteer
+      .launch({
+        headless: true,
+        // --disable-dev-shm-usage: на VPS /dev/shm обычно 64 МБ, а ответы
+        // cs.money — десятки мегабайт, и Chrome в этой памяти не помещается.
+        args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+      })
+      .then((browser) => {
+        browser.on("disconnected", () => {
+          browserPromise = null;
+        });
+        return browser;
+      })
+      .catch((err) => {
+        browserPromise = null;
+        throw err;
+      });
   }
   return browserPromise;
+}
+
+// connected — в новых версиях puppeteer, isConnected() — в старых.
+function isBrowserAlive(browser) {
+  if (typeof browser.connected === "boolean") return browser.connected;
+  return typeof browser.isConnected === "function" ? browser.isConnected() : true;
 }
 
 // instantsell/price/all: { items: [{ name, price }, ...] }
@@ -94,11 +118,19 @@ async function fetchViaHttp(url) {
   return res.json();
 }
 
-async function fetchViaBrowser(url) {
-  const browser = await getBrowser();
+async function openAndRead(url) {
+  let browser = await getBrowser();
+  if (!isBrowserAlive(browser)) {
+    browserPromise = null;
+    browser = await getBrowser();
+  }
+
   const page = await browser.newPage();
   try {
     await page.setUserAgent(USER_AGENT);
+    // Без этого Chrome отдаёт 304 из своего кеша, а тела ответа в 304 нет —
+    // и обновление цен падало на пустой странице.
+    await page.setCacheEnabled(false);
     const response = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
 
     if (!response || !response.ok()) {
@@ -109,7 +141,29 @@ async function fetchViaBrowser(url) {
     const text = await page.evaluate(() => document.body.innerText);
     return JSON.parse(text);
   } finally {
-    await page.close();
+    await page.close().catch(() => {});
+  }
+}
+
+const BROWSER_DIED_RE = /Protocol error|Connection closed|Target closed|Session closed|browser has disconnected/i;
+
+async function fetchViaBrowser(url) {
+  try {
+    return await openAndRead(url);
+  } catch (err) {
+    if (!BROWSER_DIED_RE.test(err.message)) throw err;
+
+    // Упал сам браузер — поднимаем новый и пробуем ещё раз. Без этого цены
+    // cs.money пропадали до перезапуска процесса.
+    console.warn(`[csmoney] браузер отвалился (${err.message}) — поднимаю новый`);
+    try {
+      const dead = await browserPromise;
+      await dead?.close?.();
+    } catch {
+      // Мёртвый браузер закрыться не может — это нормально, просто идём дальше.
+    }
+    browserPromise = null;
+    return await openAndRead(url);
   }
 }
 
