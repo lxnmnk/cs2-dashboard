@@ -130,6 +130,18 @@
       </table>
     </div>
 
+    <div class="section-title">Pricing <span class="section-hint">how much we add to the Youpin price — changes what clients pay right away</span></div>
+    <section class="add-trade-form">
+      <label>Buy tab markup, %
+        <input id="buyMarkupInput" type="number" step="0.5" min="0" max="100" placeholder="0" />
+      </label>
+      <label>Trade showcase markup, %
+        <input id="tradeMarkupInput" type="number" step="0.5" min="0" max="100" placeholder="3" />
+      </label>
+      <button id="pricingSaveBtn">Save</button>
+      <span id="pricingStatus" class="section-hint"></span>
+    </section>
+
     <div class="section-title">Custom Buy Prices <span class="section-hint">what a client is offered for an item — overrides the usual "skinbux bid −5%" everywhere on the site</span></div>
     <section class="add-trade-form">
       <div class="autocomplete-wrap">

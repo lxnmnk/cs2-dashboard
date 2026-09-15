@@ -1360,4 +1360,34 @@ fetch("/api/me")
     document.getElementById("siteOwnerSections").style.display = "block";
     loadOverrides();
     loadClientSales();
+    loadPricingSettings();
   });
+
+// ---- Наценки (только владелец) ----
+// Цена в "Купить скины" = youpin ask + наценка; в витрине Trade — своя.
+async function loadPricingSettings() {
+  const res = await fetch("/api/pricing-settings");
+  const data = await res.json();
+  if (!data.ok) return;
+  document.getElementById("buyMarkupInput").value = data.buyMarkupPercent;
+  document.getElementById("tradeMarkupInput").value = data.tradeMarkupPercent;
+}
+
+document.getElementById("pricingSaveBtn").addEventListener("click", async () => {
+  const status = document.getElementById("pricingStatus");
+  const res = await fetch("/api/pricing-settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      buyMarkupPercent: document.getElementById("buyMarkupInput").value,
+      tradeMarkupPercent: document.getElementById("tradeMarkupInput").value,
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    status.textContent = data.error;
+    return;
+  }
+  status.textContent = `Saved: buy +${data.buyMarkupPercent}%, trade +${data.tradeMarkupPercent}%`;
+  setTimeout(() => (status.textContent = ""), 4000);
+});

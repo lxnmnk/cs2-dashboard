@@ -18,6 +18,7 @@ const priceOverrides = require("./priceOverrides");
 const { getSteamImages } = require("./steamImages");
 const { computeBuyQuote } = require("./buyQuote");
 const tradeCatalog = require("./tradeCatalog");
+const pricingSettings = require("./pricingSettings");
 const { matchesSearchQuery, parseItemName } = require("./itemName");
 const { startTelegramArbBot } = require("./telegramArbBot");
 const steamAuth = require("./steamAuth");
@@ -221,16 +222,6 @@ function requireSiteOwner(req, res, next) {
   if (req.session?.username === SITE_OWNER) return next();
   res.status(403).json({ ok: false, error: "Только для владельца сайта" });
 }
-
-app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body || {};
-  const verified = await users.verifyUser(username, password);
-  if (!verified) {
-    return res.status(401).json({ ok: false, error: "Неверный логин или пароль" });
-  }
-  req.session.username = verified;
-  res.json({ ok: true, username: verified });
-});
 
 app.post("/api/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
@@ -840,7 +831,7 @@ app.get("/api/public/buy-quote", async (req, res) => {
   if (!name) return res.status(400).json({ ok: false, error: "name обязателен" });
 
   const row = cache.rows.find((r) => r.marketHashName === name);
-  const quote = computeBuyQuote(row);
+  const quote = computeBuyQuote(row, { markup: pricingSettings.get().buyMarkup });
   if (quote.ok) {
     const images = await getSteamImages(name);
     quote.image = images?.thumb || null;
@@ -856,7 +847,7 @@ app.get("/api/public/trade-catalog", async (req, res) => {
   const items = [];
   for (const marketHashName of tradeCatalog.ITEMS) {
     const row = cache.rows.find((r) => r.marketHashName === marketHashName);
-    const quote = computeBuyQuote(row, { markup: tradeCatalog.TRADE_MARKUP });
+    const quote = computeBuyQuote(row, { markup: pricingSettings.get().tradeMarkup });
     if (!quote.ok) continue;
     const { baseName, wear } = parseItemName(marketHashName);
     items.push({ marketHashName, name: baseName, wear, price: quote.price });
@@ -883,7 +874,7 @@ app.get("/api/public/trade-search", async (req, res) => {
   const matches = [];
   for (const row of cache.rows) {
     if (!matchesSearchQuery(row.marketHashName, q)) continue;
-    const quote = computeBuyQuote(row, { markup: tradeCatalog.TRADE_MARKUP });
+    const quote = computeBuyQuote(row, { markup: pricingSettings.get().tradeMarkup });
     if (!quote.ok) continue;
     const { baseName, wear } = parseItemName(row.marketHashName);
     matches.push({ marketHashName: row.marketHashName, name: baseName, wear, price: quote.price });
@@ -948,6 +939,33 @@ app.get("/api/client-sales", requireSiteOwner, (req, res) => {
 // Автодополнение названия предмета при добавлении сделки — ищем по подстроке
 // среди актуального снапшота цен, чтобы название совпадало с реальным
 // market_hash_name (и подхватывало фазы Doppler/Gamma Doppler).
+// ---- Наценки (только владелец сайта) ----
+// Меняются из панели, чтобы не лезть в код ради процента.
+app.get("/api/pricing-settings", requireSiteOwner, (req, res) => {
+  const s = pricingSettings.get();
+  res.json({
+    ok: true,
+    buyMarkupPercent: Math.round(s.buyMarkup * 10000) / 100,
+    tradeMarkupPercent: Math.round(s.tradeMarkup * 10000) / 100,
+  });
+});
+
+app.post("/api/pricing-settings", requireSiteOwner, (req, res) => {
+  try {
+    const next = pricingSettings.setFromPercents(req.body || {});
+    console.log(
+      `[pricing] Купівля youpin +${(next.buyMarkup * 100).toFixed(2)}%, вітрина Trade youpin +${(next.tradeMarkup * 100).toFixed(2)}%`
+    );
+    res.json({
+      ok: true,
+      buyMarkupPercent: Math.round(next.buyMarkup * 10000) / 100,
+      tradeMarkupPercent: Math.round(next.tradeMarkup * 10000) / 100,
+    });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 // ---- Ручные цены выкупа (только владелец сайта) ----
 // Отдаём вместе с расчётной ценой, чтобы в панели было видно, от чего
 // отличается ручная — иначе легко поставить сумму выше той, что платит
