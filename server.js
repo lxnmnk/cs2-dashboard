@@ -223,6 +223,16 @@ function requireSiteOwner(req, res, next) {
   res.status(403).json({ ok: false, error: "Только для владельца сайта" });
 }
 
+app.post("/api/login", async (req, res) => {
+  const { username, password } = req.body || {};
+  const verified = await users.verifyUser(username, password);
+  if (!verified) {
+    return res.status(401).json({ ok: false, error: "Неверный логин или пароль" });
+  }
+  req.session.username = verified;
+  res.json({ ok: true, username: verified });
+});
+
 app.post("/api/logout", (req, res) => {
   req.session.destroy(() => res.json({ ok: true }));
 });
@@ -569,20 +579,13 @@ app.post("/api/account/sell", async (req, res) => {
 
 // Список угод клієнта для розділу "Мої угоди" в кабінеті — статус обміну і
 // коли розблокуються гроші (unlockAt/unlocked рахує skinbuxSales.listByUser).
-app.get("/api/account/sales", async (req, res) => {
-  if (!req.session.customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
-  const steamId = req.session.customer.steamId;
-
-  // Поки SKINBUX_WEBHOOK_SECRET не налаштований, вебхук (нижче) відхиляє всі
-  // вхідні запити — статус угоди (скасував клієнт обмін чи прийняв) сам
-  // ніколи не оновиться. Підстраховуємось: при кожному відкритті "Моїх угод"
-  // самі питаємо актуальний статус по ще не завершених угодах.
-  // "hold" теж опитуємо: саме з нього угода переходить у "completed", коли
-  // Skinbux розморожує гроші, і без цього баланс назавжди лишався б у холді.
-  const pending = skinbuxSales
-    .loadAll()
-    .filter((s) => s.steamId === steamId && ["created", "pending", "hold"].includes(s.status));
-  for (const sale of pending) {
+// Поки SKINBUX_WEBHOOK_SECRET не налаштований, вебхук (нижче) відхиляє всі
+// вхідні запити — статус угоди сам ніколи не оновиться. Тому питаємо його
+// самі, коли угоди хтось відкриває: клієнт у "Моїх угодах" або власник у
+// панелі. "hold" теж опитуємо: саме з нього угода переходить у "completed".
+async function refreshOpenSaleStatuses(sales) {
+  for (const sale of sales) {
+    if (!["created", "pending", "hold"].includes(sale.status)) continue;
     try {
       const result = await skinbuxTx.getTransactionStatus(process.env.SKINBUX_API_KEY, sale.id);
       // steamTradeId — так поле зветься саме у відповіді /transaction/status
@@ -591,9 +594,16 @@ app.get("/api/account/sales", async (req, res) => {
         skinbuxSales.updateStatus(sale.id, result.status, result.steamTradeId);
       }
     } catch (err) {
-      console.error(`[account-sales] Не вдалося перевірити статус угоди ${sale.id}:`, err.message);
+      console.error(`[sales] Не вдалося перевірити статус угоди ${sale.id}:`, err.message);
     }
   }
+}
+
+app.get("/api/account/sales", async (req, res) => {
+  if (!req.session.customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const steamId = req.session.customer.steamId;
+
+  await refreshOpenSaleStatuses(skinbuxSales.loadAll().filter((s) => s.steamId === steamId));
 
   const sales = skinbuxSales.listByUser(steamId);
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
@@ -601,10 +611,25 @@ app.get("/api/account/sales", async (req, res) => {
 
 // Отметка "деньги клиенту выплачены" — только для владельца сайта.
 // Без неё выплаченная сделка продолжала бы висеть в балансе клиента.
+// Можна й поки гроші ще в холді у Skinbux: власник інколи платить клієнту
+// раніше, і без цього сума так і світилась у клієнта, хоча її вже виплатили.
+// Не прийняті й скасовані угоди платити нема за що.
 app.post("/api/sales/:id/paid", requireSiteOwner, (req, res) => {
+  const existing = skinbuxSales.loadAll().find((s) => String(s.id) === String(req.params.id));
+  if (!existing) return res.status(404).json({ ok: false, error: "Угода не знайдена" });
+  if (!["hold", "completed"].includes(existing.status)) {
+    return res.status(400).json({ ok: false, error: `Угода ще не прийнята або скасована (статус: ${existing.status})` });
+  }
   const sale = skinbuxSales.markPaid(req.params.id);
+  console.log(`[sales] Угода ${sale.id} позначена як виплачена (статус Skinbux: ${sale.status})`);
+  res.json({ ok: true, sale });
+});
+
+// Скасувати "виплачено" — якщо натиснув не на тій угоді.
+app.post("/api/sales/:id/unpaid", requireSiteOwner, (req, res) => {
+  const sale = skinbuxSales.unmarkPaid(req.params.id);
   if (!sale) return res.status(404).json({ ok: false, error: "Угода не знайдена" });
-  console.log(`[sales] Угода ${sale.id} позначена як виплачена`);
+  console.log(`[sales] З угоди ${sale.id} знято позначку "виплачено"`);
   res.json({ ok: true, sale });
 });
 
@@ -906,7 +931,11 @@ app.get("/api/public/my-skins", async (req, res) => {
 // trades.json (там мои собственные покупки/продажи), поэтому в панели это
 // отдельная таблица. Профит считаем как разницу между тем, что платит нам
 // Skinbux, и тем, что мы должны клиенту.
-app.get("/api/client-sales", requireSiteOwner, (req, res) => {
+app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
+  // Невиплачені угоди перепитуємо в Skinbux — інакше в панелі висів старий
+  // статус, поки клієнт сам не відкрив "Мої угоди".
+  await refreshOpenSaleStatuses(skinbuxSales.loadAll().filter((s) => !s.paidAt));
+
   const sales = skinbuxSales
     .loadAll()
     .map((sale) => {
@@ -928,6 +957,7 @@ app.get("/api/client-sales", requireSiteOwner, (req, res) => {
         profit: Math.round((skinbuxTotal - sale.totalPrice) * 100) / 100,
         status: sale.status,
         paidAt: sale.paidAt || null,
+        unlockAt: skinbuxSales.unlockAtOf(sale),
         createdAt: sale.createdAt,
       };
     })

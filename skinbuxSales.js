@@ -119,8 +119,19 @@ function markPaid(id) {
   return sale;
 }
 
+// Скасувати позначку "виплачено" — на випадок, якщо натиснув не на тій угоді.
+function unmarkPaid(id) {
+  const sales = loadAll();
+  const sale = sales.find((s) => String(s.id) === String(id));
+  if (!sale) return null;
+  delete sale.paidAt;
+  sale.updatedAt = new Date().toISOString();
+  saveAll(sales);
+  return sale;
+}
+
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-module.exports = { record, updateStatus, loadAll, listByUser, computeBalance, markPaid, HOLD_DAYS };
+module.exports = { record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, HOLD_DAYS };

@@ -1189,43 +1189,79 @@ async function loadClientSales() {
   const body = document.getElementById("clientSalesBody");
 
   if (!data.sales.length) {
-    body.innerHTML = '<tr><td colspan="8" class="empty-row">Nobody has sold you anything through the site yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="9" class="empty-row">Nobody has sold you anything through the site yet.</td></tr>';
     return;
   }
 
   body.innerHTML = data.sales
     .map((s) => {
-      // Выплату предлагаем отметить только по завершённым и ещё не оплаченным:
-      // пока деньги в холде у Skinbux, платить клиенту рано.
-      const canPay = s.status === "completed" && !s.paidAt;
-      const status = s.paidAt ? "paid out" : SALE_STATUS_LABELS[s.status] || s.status;
+      // Отметить выплату можно и пока деньги ещё в холде у Skinbux: бывает,
+      // что клиенту платишь раньше, и без этого сумма так и висела у него.
+      const canPay = !s.paidAt && (s.status === "hold" || s.status === "completed");
+      let status;
+      if (s.paidAt) status = `paid ${fmtDate(s.paidAt)}`;
+      else if (s.status === "hold" && s.unlockAt) status = `on hold until ${fmtDate(s.unlockAt)}`;
+      else if (s.status === "completed") status = "released — client can withdraw";
+      else status = SALE_STATUS_LABELS[s.status] || s.status;
+
+      let action = "";
+      if (canPay) {
+        action = `<button class="btn-small btn-secondary" data-action="mark-paid" data-id="${s.id}" data-status="${escapeHtml(s.status)}">Mark paid</button>`;
+      } else if (s.paidAt) {
+        action = `<button class="btn-small btn-secondary" data-action="unmark-paid" data-id="${s.id}">Undo</button>`;
+      }
+
+      // Номер сделки — тот же, что клиент пишет в Telegram ("Угода #..."),
+      // по нему строку и находишь.
       return `
         <tr>
           <td>${fmtDate(s.createdAt)}</td>
+          <td>#${escapeHtml(String(s.id))}</td>
           <td><a href="https://steamcommunity.com/profiles/${escapeHtml(s.steamId)}" target="_blank">${escapeHtml(s.customerName || s.steamId)}</a></td>
           <td>${escapeHtml(s.items.join(", "))}</td>
           <td>${fmtMoney(s.totalPrice)}</td>
           <td>${s.skinbuxTotal ? fmtMoney(s.skinbuxTotal) : '<span class="na">—</span>'}</td>
           <td class="${s.profit >= 0 ? "profit" : "loss"}">${s.skinbuxTotal ? fmtMoney(s.profit) : '<span class="na">—</span>'}</td>
           <td>${escapeHtml(status)}</td>
-          <td>${canPay ? `<button class="btn-small btn-secondary" data-action="mark-paid" data-id="${s.id}">Mark paid</button>` : ""}</td>
+          <td>${action}</td>
         </tr>`;
     })
     .join("");
 
   body.querySelectorAll('[data-action="mark-paid"]').forEach((btn) => {
-    btn.addEventListener("click", () => markSalePaid(btn.getAttribute("data-id")));
+    btn.addEventListener("click", () => markSalePaid(btn.getAttribute("data-id"), btn.getAttribute("data-status")));
+  });
+  body.querySelectorAll('[data-action="unmark-paid"]').forEach((btn) => {
+    btn.addEventListener("click", () => unmarkSalePaid(btn.getAttribute("data-id")));
   });
 }
 
 // Пока выплата не отмечена, сделка продолжает висеть в балансе у клиента.
-async function markSalePaid(id) {
-  if (!confirm("Mark this payout as done? It disappears from the client's balance.")) return;
+async function markSalePaid(id, status) {
+  const question =
+    status === "hold"
+      ? "Skinbux hasn't released these funds yet. Mark as paid anyway? It disappears from the client's balance."
+      : "Mark this payout as done? It disappears from the client's balance.";
+  if (!confirm(question)) return;
   const res = await fetch(`/api/sales/${id}/paid`, { method: "POST" });
   const data = await res.json();
   if (!data.ok) {
     errorBox.style.display = "block";
     errorBox.textContent = `Could not mark as paid: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  loadClientSales();
+}
+
+// Отмена отметки — если нажал "Mark paid" не на той сделке.
+async function unmarkSalePaid(id) {
+  if (!confirm("Undo the payout mark? The amount shows up in the client's balance again.")) return;
+  const res = await fetch(`/api/sales/${id}/unpaid`, { method: "POST" });
+  const data = await res.json();
+  if (!data.ok) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `Could not undo: ${data.error}`;
     return;
   }
   errorBox.style.display = "none";
