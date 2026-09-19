@@ -56,3 +56,31 @@ function refreshNavBalance() {
 }
 window.refreshNavBalance = refreshNavBalance;
 refreshNavBalance();
+
+// Если вход через Steam не удался (Steam не ответил или вход отменили), сервер
+// возвращает с ?login=failed. Раньше человек просто снова видел кнопку "Войти"
+// и думал, что сайт завис, — теперь говорим прямо.
+(function showLoginFailed() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("login") !== "failed") return;
+
+  const texts = {
+    uk: "Не вдалося увійти через Steam — Steam не відповів або вхід скасовано. Спробуй ще раз.",
+    ru: "Не удалось войти через Steam — Steam не ответил или вход отменён. Попробуй ещё раз.",
+    en: "Couldn't sign in with Steam — Steam didn't respond or the sign-in was cancelled. Please try again.",
+  };
+  const lang = (document.documentElement.lang || "uk").slice(0, 2);
+
+  const bar = document.createElement("div");
+  bar.className = "login-failed-bar";
+  bar.textContent = texts[lang] || texts.uk;
+  bar.addEventListener("click", () => bar.remove());
+  document.body.prepend(bar);
+  setTimeout(() => bar.remove(), 12000);
+
+  // Убираем пометку из адреса, чтобы при обновлении страницы сообщение не
+  // появлялось снова.
+  params.delete("login");
+  const query = params.toString();
+  history.replaceState(null, "", location.pathname + (query ? "?" + query : "") + location.hash);
+})();

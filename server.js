@@ -4,6 +4,7 @@ const path = require("path");
 const express = require("express");
 const session = require("express-session");
 const multer = require("multer");
+const compression = require("compression");
 
 const { fetchCs2ShLatest } = require("./sources/cs2sh");
 const { fetchCsMoneyLatest, closeBrowser } = require("./sources/csmoney");
@@ -33,6 +34,10 @@ const crypto = require("crypto");
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
 
 const app = express();
+
+// gzip для всего текстового: стили, скрипты и JSON (инвентарь, витрина) раньше
+// уходили несжатыми — nginx по умолчанию сжимает только HTML.
+app.use(compression());
 const PORT = process.env.PORT || 3000;
 
 // ---- Загрузка скриншотов предметов (public/uploads/skins/) ----
@@ -667,25 +672,43 @@ function accountUrlForLang(lang) {
   return lang === "ru" ? "/ru/account" : lang === "en" ? "/en/account" : "/account";
 }
 
-app.get("/auth/steam", (req, res) => {
-  steamAuth.startLogin(req, res);
+// Куда вернуть человека после входа (или неудачной попытки): туда, откуда
+// начинал (next — только свои относительные адреса), иначе в кабинет.
+function loginReturnUrl(req) {
+  const next = typeof req.query.next === "string" && req.query.next.startsWith("/") && !req.query.next.startsWith("//") ? req.query.next : null;
+  return next || accountUrlForLang(req.query.lang);
+}
+
+function withLoginFailed(url) {
+  return url + (url.includes("?") ? "&" : "?") + "login=failed";
+}
+
+app.get("/auth/steam", async (req, res) => {
+  try {
+    res.redirect(await steamAuth.getLoginUrl(req));
+  } catch (err) {
+    console.error(`[steam-auth] Не удалось отправить на Steam: ${err.message}`);
+    res.redirect(withLoginFailed(loginReturnUrl(req)));
+  }
 });
 
 app.get("/auth/steam/return", async (req, res) => {
-  // next — сторінка, з якої почали вхід (наприклад /trade). Приймаємо лише
-  // свої відносні адреси, щоб через нього не можна було відправити людину
-  // на чужий сайт.
-  const next = typeof req.query.next === "string" && req.query.next.startsWith("/") && !req.query.next.startsWith("//") ? req.query.next : null;
-  const accountUrl = next || accountUrlForLang(req.query.lang);
+  const backUrl = loginReturnUrl(req);
+  const started = Date.now();
+  const took = () => ((Date.now() - started) / 1000).toFixed(1) + "с";
   try {
     const steamId = await steamAuth.verifyReturn(req);
     const profile = await steamAuth.fetchSteamProfile(steamId);
     const customer = customers.upsertBySteamId(steamId, profile);
     req.session.customer = customer;
-    res.redirect(accountUrl);
+    console.log(`[steam-auth] Вход ${steamId} за ${took()}`);
+    res.redirect(backUrl);
   } catch (err) {
-    console.error("[steam-auth] Ошибка входа:", err.message);
-    res.redirect(accountUrl);
+    // Раньше тут молча возвращали на страницу — человек снова видел кнопку
+    // "Войти" и думал, что сайт завис. Теперь страница покажет, что вход не
+    // удался (см. nav-profile.js), а в логах видно причину и сколько ждали.
+    console.error(`[steam-auth] Ошибка входа за ${took()}: ${err.message}`);
+    res.redirect(withLoginFailed(backUrl));
   }
 });
 
@@ -694,7 +717,19 @@ app.get("/auth/logout", (req, res) => {
   res.redirect(accountUrlForLang(req.query.lang));
 });
 
-app.use(express.static(path.join(__dirname, "public")));
+// Картинки не меняются — браузер держит их неделю и не перекачивает фон и
+// скриншоты на каждом переходе. Стили и скрипты кешем не держим, чтобы
+// обновления сайта доходили сразу (там браузер проверяет изменения по ETag).
+const LONG_CACHE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".ico"]);
+app.use(
+  express.static(path.join(__dirname, "public"), {
+    setHeaders(res, filePath) {
+      if (LONG_CACHE_EXT.has(path.extname(filePath).toLowerCase())) {
+        res.setHeader("Cache-Control", "public, max-age=604800");
+      }
+    },
+  })
+);
 
 // Текущий конфиг (для отображения/редактирования параметров в UI)
 app.get("/api/config", (req, res) => {

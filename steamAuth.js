@@ -28,21 +28,34 @@ function buildRelyingParty(req) {
   return new RelyingParty(returnUrl, realm, true, false, []);
 }
 
-function startLogin(req, res) {
-  const party = buildRelyingParty(req);
-  party.authenticate(STEAM_OPENID_ENDPOINT, false, (err, authUrl) => {
-    if (err || !authUrl) {
-      res.status(500).send("Steam login is temporarily unavailable, try again later.");
-      return;
-    }
-    res.redirect(authUrl);
+// Steam иногда отвечает очень долго. Без таймаута человек видел пустую
+// страницу, пока запрос не отвалится сам (а это могли быть минуты), —
+// "после логина ничего не происходит".
+function withTimeout(promise, ms, what) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${what}: Steam не ответил за ${ms / 1000} с`)), ms);
   });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+// Адрес страницы входа Steam. Промис — чтобы сервер сам решил, куда вернуть
+// человека, если Steam не ответил.
+function getLoginUrl(req) {
+  const party = buildRelyingParty(req);
+  const request = new Promise((resolve, reject) => {
+    party.authenticate(STEAM_OPENID_ENDPOINT, false, (err, authUrl) => {
+      if (err || !authUrl) return reject(err || new Error("Steam не вернул адрес входа"));
+      resolve(authUrl);
+    });
+  });
+  return withTimeout(request, 15000, "Переход на Steam");
 }
 
 // Возвращает Promise<string steamId64> либо кидает Error, если Steam не
 // подтвердил подлинность ответа.
 function verifyReturn(req) {
-  return new Promise((resolve, reject) => {
+  return withTimeout(new Promise((resolve, reject) => {
     const party = buildRelyingParty(req);
     party.verifyAssertion(req, (err, result) => {
       if (err) return reject(err);
@@ -51,7 +64,7 @@ function verifyReturn(req) {
       if (!match) return reject(new Error("Could not extract SteamID from Steam's response."));
       resolve(match[1]);
     });
-  });
+  }), 15000, "Проверка входа");
 }
 
 async function fetchSteamProfile(steamId) {
@@ -61,7 +74,7 @@ async function fetchSteamProfile(steamId) {
 
   try {
     const url = `https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key=${apiKey}&steamids=${steamId}`;
-    const resp = await fetch(url);
+    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) return fallback;
     const data = await resp.json();
     const player = data?.response?.players?.[0];
@@ -76,4 +89,4 @@ async function fetchSteamProfile(steamId) {
   }
 }
 
-module.exports = { startLogin, verifyReturn, fetchSteamProfile };
+module.exports = { getLoginUrl, verifyReturn, fetchSteamProfile };
