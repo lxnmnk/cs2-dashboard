@@ -73,7 +73,7 @@ function addTrade({ marketHashName, name, wear, buySource, buyPrice, buyDate, un
 // sellSource может быть как площадкой из config.sources, так и любым своим
 // названием (продал где-то ещё) — во втором случае правил холда мы не знаем,
 // поэтому их можно задать вручную через sellHoldDays, см. computeBalances.
-function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide, sellHoldDays }) {
+function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide, sellHoldDays }, sourcesConfig) {
   const source = typeof sellSource === "string" ? sellSource.trim() : "";
   if (!source) throw new Error("sellSource обязателен");
   if (source.length > 40) throw new Error("Название площадки слишком длинное");
@@ -99,7 +99,14 @@ function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide, sellH
   // правила холда денег, см. computeBalances.
   trade.sellSide = sellSide || null;
   trade.sellHoldDays = holdDays;
-  trade.sellPrice = price;
+  // sellPrice приходит как цена продажи на площадке; комиссию вычитаем здесь,
+  // чтобы прибыль и баланс считались по деньгам, которые реально пришли.
+  // Цену до комиссии и сам процент храним рядом — для сверки.
+  const feeRate = sellFeeRate(sourcesConfig?.[source], trade.sellSide, price);
+  trade.sellGrossPrice = price;
+  trade.sellFeeRate = feeRate;
+  trade.sellFeeApplied = true;
+  trade.sellPrice = round2(price * (1 - feeRate));
   trade.sellDate = sellDate ? new Date(sellDate).toISOString() : new Date().toISOString();
 
   saveTrades(trades);
@@ -171,6 +178,19 @@ function round2(n) {
  * (может быть как bid, так и ask). Клиент сам решает в интерфейсе, какие
  * площадки и какие варианты ему интересны (см. модалку в public/trades.js).
  */
+// Какими сторонами площадку предлагаем для продажи. CS.Money — только instant:
+// продажа лотом идёт с комиссией 5% (3% от $1000) и не гарантирована.
+const SELL_SIDES = { csmoney: ["bid"] };
+
+// Комиссия площадки при продаже: CSFloat 2% и Buff 1.5% — с любой стороны
+// (sellFee), лот на CS.Money — ступенчато (askSellFeeTiers), остальные 0%.
+// Своя площадка, вписанная руками, — 0%: её правил мы не знаем.
+function sellFeeRate(cfg, side, price) {
+  if (!cfg) return 0;
+  if (side === "ask" && cfg.askSellFeeTiers) return tieredFee(price, cfg.askSellFeeTiers);
+  return cfg.sellFee || 0;
+}
+
 function findAllSellOptions(row, sourcesConfig) {
   if (!row) return [];
   const options = [];
@@ -179,11 +199,13 @@ function findAllSellOptions(row, sourcesConfig) {
     const cfg = sourcesConfig[source];
     if (!cfg?.enabled) continue;
 
-    if (price.bid != null) {
-      options.push({ source, side: "bid", price: round2(price.bid * (1 - (cfg.sellFee || 0))) });
-    }
-    if (price.ask != null) {
-      options.push({ source, side: "ask", price: round2(price.ask) });
+    for (const side of ["bid", "ask"]) {
+      const gross = price[side];
+      if (gross == null) continue;
+      if (SELL_SIDES[source] && !SELL_SIDES[source].includes(side)) continue;
+      // price — сколько реально придёт после комиссии, gross — цена на площадке.
+      const feeRate = sellFeeRate(cfg, side, gross);
+      options.push({ source, side, gross: round2(gross), feeRate, price: round2(gross * (1 - feeRate)) });
     }
   }
 
@@ -237,6 +259,8 @@ function enrichTrade(trade, { rows, config }) {
   const options = findAllSellOptions(row, config.sources).map((o) => ({
     source: o.source,
     side: o.side,
+    gross: o.gross,
+    feeRate: o.feeRate,
     price: o.price,
     profitUsd: round2(o.price - trade.buyPrice),
     profitPercent: trade.buyPrice > 0 ? round2(((o.price - trade.buyPrice) / trade.buyPrice) * 100) : null,
@@ -320,7 +344,9 @@ function computeBalances(owner, sourcesConfig) {
     if (!rule || rule.instantPercent == null) continue;
 
     let sellPrice = t.sellPrice;
-    if (cfg?.askSellFeeTiers && (t.sellSide === "ask" || (cfg.balanceBySide && !t.sellSide))) {
+    // Новые записи хранят сумму уже после комиссии (sellFeeApplied) — второй
+    // раз не вычитаем. Старые — как раньше.
+    if (!t.sellFeeApplied && cfg?.askSellFeeTiers && (t.sellSide === "ask" || (cfg.balanceBySide && !t.sellSide))) {
       sellPrice = round2(sellPrice * (1 - tieredFee(sellPrice, cfg.askSellFeeTiers)));
     }
 

@@ -120,16 +120,18 @@ function renderModalOptions() {
         .map((o) => {
           const isBest = o === bestSelected;
           const profitClass = o.profitUsd >= 0 ? "profit-positive" : "profit-negative";
+          // Цена в строке — уже после комиссии площадки (CSFloat 2%, Buff 1.5%),
+          // то есть сколько реально придёт.
           const sideTag =
             o.side === "bid"
               ? '<span class="side-tag instant" title="Instant sell payout — guaranteed, fee already deducted">Instant</span>'
-              : '<span class="side-tag list" title="Current market ask — what you\'d list it for, not guaranteed to sell, no fee deducted">List</span>';
+              : '<span class="side-tag list" title="Current market ask — what you\'d list it for, not guaranteed to sell, fee already deducted">List</span>';
           return `
             <div class="modal-option ${isBest ? "best" : ""}">
               <span>${isBest ? "⭐ " : ""}${sourceLabel(o.source)} ${sideTag}</span>
               <span>${fmtMoney(o.price)}</span>
               <span class="${profitClass}">${fmtMoney(o.profitUsd)} (${o.profitPercent != null ? o.profitPercent.toFixed(1) + "%" : "—"})</span>
-              <button class="btn-small" data-action="sell-here" data-source="${o.source}" data-side="${o.side}" data-price="${o.price}" ${trade.isLocked ? "disabled title='Still locked by trade-hold'" : ""}>Sell here</button>
+              <button class="btn-small" data-action="sell-here" data-source="${o.source}" data-side="${o.side}" data-price="${o.gross ?? o.price}" data-fee="${o.feeRate || 0}" ${trade.isLocked ? "disabled title='Still locked by trade-hold'" : ""}>Sell here</button>
             </div>`;
         })
         .join("")
@@ -145,7 +147,9 @@ function renderModalOptions() {
   }
 
   optionsEl.querySelectorAll("[data-action='sell-here']").forEach((btn) => {
-    btn.addEventListener("click", () => showModalSellForm(btn.dataset.source, btn.dataset.price, btn.dataset.side));
+    btn.addEventListener("click", () =>
+      showModalSellForm(btn.dataset.source, btn.dataset.price, btn.dataset.side, Number(btn.dataset.fee) || 0)
+    );
   });
 }
 
@@ -211,7 +215,22 @@ function showModalOptionsView() {
   renderModalOptions(); // пересчитать callout и т.п. на случай, если он был скрыт
 }
 
-function showModalSellForm(source, price, side) {
+// Под ценой продажи — сколько реально придёт после комиссии площадки. Сервер
+// вычитает ту же комиссию сам, здесь только показываем.
+function updateModalSellNet() {
+  const el = document.getElementById("modalSellNet");
+  const feeRate = Number(document.getElementById("modalSellForm").dataset.feeRate) || 0;
+  const price = parseFloat(document.getElementById("modalSellPrice").value);
+  if (!feeRate || !(price > 0)) {
+    el.textContent = "";
+    return;
+  }
+  const net = Math.round(price * (1 - feeRate) * 100) / 100;
+  el.textContent = `−${(feeRate * 100).toFixed(1).replace(/\.0$/, "")}% fee → you get ${fmtMoney(net)}`;
+}
+document.getElementById("modalSellPrice").addEventListener("input", updateModalSellNet);
+
+function showModalSellForm(source, price, side, feeRate = 0) {
   document.getElementById("modalOptions").style.display = "none";
   document.getElementById("modalCallout").style.display = "none";
   document.getElementById("modalManualTradeBtn").style.display = "none";
@@ -229,6 +248,8 @@ function showModalSellForm(source, price, side) {
   // Продаёшь на Youpin — рядом поле в юанях с курсом.
   modalSellPriceCny.value = "";
   toggleCnyFields(form, source === "youpin");
+  form.dataset.feeRate = String(feeRate || 0);
+  updateModalSellNet();
   form.style.display = "flex";
 }
 
@@ -600,7 +621,11 @@ function getUsdPer10000Cny() {
 
 function fillUsdFromCny(cnyInput, usdInput) {
   const cny = parseFloat(cnyInput.value);
-  if (cny > 0) usdInput.value = Math.round(((cny * getUsdPer10000Cny()) / 10000) * 100) / 100;
+  if (cny > 0) {
+    usdInput.value = Math.round(((cny * getUsdPer10000Cny()) / 10000) * 100) / 100;
+    // Чтобы подсказка "получишь $X" под ценой продажи тоже обновилась.
+    usdInput.dispatchEvent(new Event("input"));
+  }
 }
 
 function toggleCnyFields(container, show) {

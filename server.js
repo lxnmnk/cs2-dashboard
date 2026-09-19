@@ -1131,7 +1131,7 @@ app.post("/api/trades", (req, res) => {
 
 app.post("/api/trades/:id/sell", (req, res) => {
   try {
-    const trade = trades.sellTrade(req.params.id, req.session.username, req.body || {});
+    const trade = trades.sellTrade(req.params.id, req.session.username, req.body || {}, config.sources);
     res.json({ ok: true, trade });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
