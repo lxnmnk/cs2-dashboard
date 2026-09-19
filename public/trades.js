@@ -226,6 +226,9 @@ function showModalSellForm(source, price, side) {
   document.getElementById("modalSellDate").value = nowForDatetimeLocal();
   document.getElementById("modalSellSourceInput").style.display = "none";
   document.getElementById("modalSellHoldDays").style.display = "none";
+  // Продаёшь на Youpin — рядом поле в юанях с курсом.
+  modalSellPriceCny.value = "";
+  toggleCnyFields(form, source === "youpin");
   form.style.display = "flex";
 }
 
@@ -572,7 +575,68 @@ buySourceSelect.addEventListener("change", () => {
   const custom = buySourceSelect.value === "__other";
   buySourceCustomInput.style.display = custom ? "block" : "none";
   if (custom) buySourceCustomInput.focus();
+  toggleCnyFields(buyTradeForm, buySourceSelect.value === "youpin");
 });
+
+// ---- Юани для Youpin ----
+// На Youpin цены в юанях: вписываешь сумму в ¥, а поле $ пересчитывается по
+// твоему курсу (сколько долларов за 10 000 ¥). Курс запоминается в этом
+// браузере; в сделку всё равно сохраняется цена в долларах.
+const CNY_RATE_KEY = "cnyUsdPer10000";
+const DEFAULT_USD_PER_10000_CNY = 1480;
+const buyTradeForm = document.querySelector("section.trade-form");
+const buyPriceCnyInput = document.getElementById("buyPriceCnyInput");
+const modalSellPriceCny = document.getElementById("modalSellPriceCny");
+const cnyRateInputs = document.querySelectorAll(".cny-rate-input");
+
+function getUsdPer10000Cny() {
+  try {
+    const v = Number(localStorage.getItem(CNY_RATE_KEY));
+    return v > 0 ? v : DEFAULT_USD_PER_10000_CNY;
+  } catch {
+    return DEFAULT_USD_PER_10000_CNY;
+  }
+}
+
+function fillUsdFromCny(cnyInput, usdInput) {
+  const cny = parseFloat(cnyInput.value);
+  if (cny > 0) usdInput.value = Math.round(((cny * getUsdPer10000Cny()) / 10000) * 100) / 100;
+}
+
+function toggleCnyFields(container, show) {
+  container.querySelectorAll(".cny-field").forEach((el) => {
+    el.style.display = show ? "" : "none";
+  });
+}
+
+buyPriceCnyInput.addEventListener("input", () =>
+  fillUsdFromCny(buyPriceCnyInput, document.getElementById("buyPriceInput"))
+);
+modalSellPriceCny.addEventListener("input", () =>
+  fillUsdFromCny(modalSellPriceCny, document.getElementById("modalSellPrice"))
+);
+
+// Поле курса есть и в покупке, и в продаже — держим их одинаковыми, и при
+// смене курса пересчитываем уже вписанные юани.
+cnyRateInputs.forEach((input) => {
+  input.value = getUsdPer10000Cny();
+  input.addEventListener("input", () => {
+    const v = parseFloat(input.value);
+    if (!(v > 0)) return;
+    try {
+      localStorage.setItem(CNY_RATE_KEY, String(v));
+    } catch {
+      // приватный режим браузера — курс просто не запомнится
+    }
+    cnyRateInputs.forEach((other) => {
+      if (other !== input) other.value = v;
+    });
+    fillUsdFromCny(buyPriceCnyInput, document.getElementById("buyPriceInput"));
+    fillUsdFromCny(modalSellPriceCny, document.getElementById("modalSellPrice"));
+  });
+});
+
+toggleCnyFields(buyTradeForm, buySourceSelect.value === "youpin");
 
 document.getElementById("addTradeBtn").addEventListener("click", async () => {
   if (!selectedItem) {
@@ -635,6 +699,7 @@ document.getElementById("addTradeBtn").addEventListener("click", async () => {
     errorBox.style.display = "none";
     itemSearchInput.value = "";
     document.getElementById("buyPriceInput").value = "";
+    buyPriceCnyInput.value = "";
     document.getElementById("buyQuantityInput").value = "1";
     document.getElementById("unlockAtInput").value = "";
     selectedItem = null;
