@@ -1517,3 +1517,87 @@ document.getElementById("pricingSaveBtn").addEventListener("click", async () => 
   status.textContent = `Saved: buy +${data.buyMarkupPercent}%, trade +${data.tradeMarkupPercent}%`;
   setTimeout(() => (status.textContent = ""), 4000);
 });
+
+// ---- Сворачивание разделов ----
+// Страница длинная, поэтому любой раздел сворачивается кликом по заголовку.
+// Прячем всё, что идёт после заголовка до следующего раздела; какие разделы
+// свёрнуты — запоминаем в этом браузере.
+const COLLAPSED_KEY = "mytradesCollapsedSections";
+
+function loadCollapsed() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]"));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveCollapsed(set) {
+  try {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...set]));
+  } catch {
+    // приватный режим — просто не запомним
+  }
+}
+
+function sectionBody(title) {
+  // У "Profit" заголовок лежит в строке вместе с переключателем периода —
+  // тогда раздел начинается после всей строки.
+  const header = title.parentElement.classList.contains("section-title-row") ? title.parentElement : title;
+  const body = [];
+  for (let el = header.nextElementSibling; el; el = el.nextElementSibling) {
+    const isNextSection =
+      el.classList.contains("section-title") ||
+      el.classList.contains("section-title-row") ||
+      el.querySelector(".section-title");
+    if (isNextSection || el.tagName === "SCRIPT" || el.classList.contains("modal-overlay")) break;
+    body.push(el);
+  }
+  return body;
+}
+
+function setupCollapsibleSections() {
+  const collapsed = loadCollapsed();
+  document.querySelectorAll(".section-title").forEach((title) => {
+    if (title.closest(".modal-overlay")) return;
+    const key = title.firstChild?.textContent.trim();
+    if (!key) return;
+
+    const body = sectionBody(title);
+    if (!body.length) return;
+
+    const chevron = document.createElement("span");
+    chevron.className = "collapse-chevron";
+    chevron.textContent = "▾";
+    title.prepend(chevron);
+    title.classList.add("collapsible");
+    title.title = "Click to collapse / expand";
+
+    // Запоминаем исходный display, чтобы при разворачивании вернуть как было
+    // (часть блоков изначально скрыта и показывается скриптом по условию).
+    const apply = (isCollapsed) => {
+      title.classList.toggle("collapsed", isCollapsed);
+      body.forEach((el) => {
+        if (isCollapsed) {
+          el.dataset.collapsedDisplay = el.style.display;
+          el.style.display = "none";
+        } else if ("collapsedDisplay" in el.dataset) {
+          el.style.display = el.dataset.collapsedDisplay;
+          delete el.dataset.collapsedDisplay;
+        }
+      });
+    };
+
+    apply(collapsed.has(key));
+    title.addEventListener("click", (e) => {
+      if (e.target.closest("a, button, input, select")) return;
+      const isCollapsed = !title.classList.contains("collapsed");
+      apply(isCollapsed);
+      if (isCollapsed) collapsed.add(key);
+      else collapsed.delete(key);
+      saveCollapsed(collapsed);
+    });
+  });
+}
+
+setupCollapsibleSections();

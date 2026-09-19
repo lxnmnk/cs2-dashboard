@@ -578,3 +578,14 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 }
 ::-webkit-scrollbar-thumb:hover { background: #3a4250; background-clip: padding-box; }
 ::-webkit-scrollbar-corner { background: transparent; }
+
+/* Сворачиваемые разделы в /mytrades — клик по заголовку. */
+.section-title.collapsible { cursor: pointer; user-select: none; }
+.section-title.collapsible:hover { opacity: 0.85; }
+.section-title .collapse-chevron {
+  display: inline-block;
+  width: 1.1em;
+  color: #8b909c;
+  transition: transform 0.15s ease;
+}
+.section-title.collapsed .collapse-chevron { transform: rotate(-90deg); }
