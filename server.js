@@ -966,13 +966,22 @@ app.get("/api/public/my-skins", async (req, res) => {
 // trades.json (там мои собственные покупки/продажи), поэтому в панели это
 // отдельная таблица. Профит считаем как разницу между тем, что платит нам
 // Skinbux, и тем, что мы должны клиенту.
+// Свои аккаунты в "Продажах клиентов" не показываем: продажи с них — это не
+// клиенты, а наши собственные сделки, и они только путают прибыль по клиентам.
+// Сами записи не трогаем — у владельца аккаунта они видны в его кабинете.
+const CLIENT_SALES_HIDDEN_STEAM_IDS = new Set([
+  "76561199060089261", // lxnmnk
+  "76561198158130074", // TARHUN
+]);
+
 app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
+  const clientSales = () => skinbuxSales.loadAll().filter((s) => !CLIENT_SALES_HIDDEN_STEAM_IDS.has(String(s.steamId)));
+
   // Невиплачені угоди перепитуємо в Skinbux — інакше в панелі висів старий
   // статус, поки клієнт сам не відкрив "Мої угоди".
-  await refreshOpenSaleStatuses(skinbuxSales.loadAll().filter((s) => !s.paidAt));
+  await refreshOpenSaleStatuses(clientSales().filter((s) => !s.paidAt));
 
-  const sales = skinbuxSales
-    .loadAll()
+  const sales = clientSales()
     .map((sale) => {
       // skinbuxCents есть у новых записей; у старых сохранялся skinbuxBid в
       // долларах — поддерживаем оба, чтобы история не поехала.
