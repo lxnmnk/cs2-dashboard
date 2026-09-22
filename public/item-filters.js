@@ -162,9 +162,10 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
     // Пошук розуміє російську/українську: "скелетний ніж" знаходить
     // Skeleton Knife (словник — item-aliases.js).
     if (state.query) {
-      const ok = window.matchesTokens
-        ? window.matchesTokens(name, state.queryTokens)
-        : name.toLowerCase().includes(state.query);
+      // item.searchAlt — официальные русские/украинские названия (их кладёт
+      // сервер), поэтому находится и "Красная линия", и "калаш".
+      const text = `${name} ${item.searchAlt || ""}`;
+      const ok = window.matchesQuery ? window.matchesQuery(text, state.query) : text.toLowerCase().includes(state.query);
       if (!ok) return false;
     }
 

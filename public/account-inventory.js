@@ -73,6 +73,38 @@ let inventoryItems = [];
 let inventoryRetries = 0;
 let cart = []; // [{ assetId, marketHashName, price }] — по одному на кожен фізичний предмет
 
+// Кошик переживає перемикання мови (UA/RU/EN — різні сторінки). Зберігаємо
+// лише assetId, а ціни при відновленні беремо свіжі з інвентарю.
+const CART_KEY = "sellCart";
+let cartRestored = false;
+
+function saveCart() {
+  if (!cartRestored) return; // інвентар ще не завантажився — не затираємо збережене
+  try {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart.map((it) => it.assetId)));
+  } catch {
+    // приватний режим — просто не запам'ятаємо
+  }
+}
+
+function restoreCart() {
+  let saved = [];
+  try {
+    saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+  } catch {
+    saved = [];
+  }
+  cart = [];
+  for (const assetId of Array.isArray(saved) ? saved : []) {
+    const item = inventoryItems.find((it) => it.assetId === assetId);
+    // Продане, у трейд-бані чи без ціни — у кошик не повертаємо.
+    if (item && item.tradable && item.sellAccept !== false && item.price != null) {
+      cart.push({ assetId, marketHashName: item.marketHashName, price: item.price });
+    }
+  }
+  cartRestored = true;
+}
+
 cartClearBtn?.addEventListener("click", () => {
   cart = [];
   renderInventoryList();
@@ -350,6 +382,10 @@ async function loadInventory({ refresh = false } = {}) {
 
   inventoryRetries = 0;
   inventoryItems = data.items;
+  if (!cartRestored) {
+    restoreCart();
+    renderCart();
+  }
   renderInventoryList();
 }
 
@@ -439,6 +475,7 @@ function removeItem(assetId) {
 }
 
 function renderCart() {
+  saveCart();
   if (!cart.length) {
     cartSection.style.display = "none";
     cartList.innerHTML = "";

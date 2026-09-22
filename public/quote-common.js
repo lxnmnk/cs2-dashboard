@@ -26,6 +26,42 @@ const cartClearBtn = document.getElementById("cartClearBtn");
 // предмет, обраний повторно, збільшує qty замість дублювання рядка.
 let cart = [];
 
+// Кошик переживає перемикання мови: UA/RU/EN — різні сторінки, і раніше
+// вибране просто зникало. Ключ — за типом сторінки (купівля чи продаж), а не
+// за мовою, тож усі три мовні версії бачать той самий кошик.
+const CART_KEY = "quoteCart:" + quoteEndpoint;
+
+function saveCart() {
+  try {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+  } catch {
+    // приватний режим — просто не запам'ятаємо
+  }
+}
+
+function restoreCart() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+    if (Array.isArray(saved)) cart = saved.filter((it) => it && it.marketHashName && it.price > 0 && it.qty > 0);
+  } catch {
+    cart = [];
+  }
+}
+
+// Ціни в збереженому кошику могли застаріти — тихо оновлюємо.
+async function refreshCartPrices() {
+  for (const it of cart) {
+    try {
+      const res = await fetch(quoteEndpoint + "?name=" + encodeURIComponent(it.marketHashName));
+      const data = await res.json();
+      if (data.ok) it.price = data.price;
+    } catch {
+      // мережа — лишаємо стару ціну
+    }
+  }
+  renderCart();
+}
+
 let debounceTimer = null;
 
 searchInput.addEventListener("input", () => {
@@ -120,6 +156,7 @@ function formatPrice(usd) {
 }
 
 function renderCart() {
+  saveCart();
   if (!cart.length) {
     cartSection.style.display = "none";
     cartList.innerHTML = "";
@@ -166,3 +203,7 @@ function escapeHtml(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
 }
+
+restoreCart();
+renderCart();
+if (cart.length) refreshCartPrices();

@@ -6,7 +6,8 @@
 //   "Sticker | Team EnVyUs (Holo)"          -> { baseName: "Sticker | Team EnVyUs", wear: "Holo" }
 //   "★ Karambit | Doppler (Factory New) - Phase 2" -> { baseName: "★ Karambit | Doppler", wear: "Factory New · Phase 2", phase: "Phase 2" }
 
-const { translateSearchTokens } = require("./public/item-aliases");
+const { translateSearchTokens, matchesQuery } = require("./public/item-aliases");
+const { localizedAlt } = require("./skinNamesI18n");
 
 const KNOWN_WEARS = new Set([
   "Factory New",
@@ -82,14 +83,12 @@ function normalizeForSearch(s) {
  * одинаково находят "★ AWP | Gungnir (Field-Tested)".
  */
 function matchesSearchQuery(marketHashName, query) {
-  // Запит може бути російською/українською ("скелетний ніж") — назви ж
-  // завжди англійські, тому спершу перекладаємо слова, які знаємо.
-  const tokens = translateSearchTokens(normalizeForSearch(query).split(" ").filter(Boolean));
-  if (!tokens.length) return false;
-
-  const normalizedName = normalizeForSearch(marketHashName);
-  return tokens.every((t) => normalizedName.includes(t));
+  // Ищем и по английскому названию, и по официальным русским/украинским из
+  // файлов игры (skinNamesI18n.js): "красная линия" находит AK-47 | Redline.
+  if (!normalizeForSearch(query)) return false;
+  return matchesQuery(`${marketHashName} ${localizedAlt(marketHashName)}`, query);
 }
+
 
 module.exports = {
   parseItemName,

@@ -36,6 +36,52 @@ const swapOursKnown = new Map(); // marketHashName -> предмет
 
 if (swapAnyHintEl) swapAnyHintEl.textContent = SWAP_T.anySkinHint;
 
+// Вибране в обміні переживає перемикання мови (UA/RU/EN — різні сторінки).
+// Наша сторона — предмети з ціною (могли бути знайдені пошуком, а не з
+// вітрини), сторона клієнта — лише assetId: відновлюємо, коли прийде
+// інвентар, і лише те, що в ньому ще є.
+const SWAP_KEY = "swapSelection";
+let swapMineRestored = false;
+
+function loadSwapSaved() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SWAP_KEY) || "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveSwap() {
+  const prev = loadSwapSaved();
+  const data = {
+    // Поки інвентар не відновили, не затираємо збережений вибір клієнта.
+    mine: swapMineRestored ? [...swapPickedMine] : prev.mine || [],
+    ours: [...swapPickedOurs].map(([name, qty]) => ({ item: swapOursKnown.get(name), qty })).filter((e) => e.item),
+  };
+  try {
+    localStorage.setItem(SWAP_KEY, JSON.stringify(data));
+  } catch {
+    // приватний режим — просто не запам'ятаємо
+  }
+}
+
+function restoreSwapOurs() {
+  for (const { item, qty } of loadSwapSaved().ours || []) {
+    if (!item?.marketHashName || !(qty > 0)) continue;
+    swapOursKnown.set(item.marketHashName, item);
+    swapPickedOurs.set(item.marketHashName, qty);
+  }
+}
+
+function restoreSwapMine() {
+  for (const assetId of loadSwapSaved().mine || []) {
+    const it = swapMine.find((x) => x.assetId === assetId);
+    if (it && it.tradable && it.sellAccept !== false && it.price != null) swapPickedMine.add(assetId);
+  }
+  swapMineRestored = true;
+}
+
 // Фільтри — та сама панель, що в кабінеті й на вітрині (item-filters.js):
 // пошук (розуміє російську/українську), ціна, якість, StatTrak/Souvenir.
 // Свої панелі фільтрів у кожної сторони, бо предмети там різні.
@@ -90,7 +136,9 @@ async function loadMine() {
   }
   swapMineLoading.style.display = "none";
   swapMine = data.items;
+  restoreSwapMine();
   renderMine();
+  renderSummary();
 }
 
 function renderMine() {
@@ -163,6 +211,8 @@ async function loadOurs(attempt = 0) {
   swapOursLoading.style.display = "none";
   swapOursCatalog = data.items;
   rememberOurs(data.items);
+  // Сохранённый выбор мог прийти со старыми ценами — пересчитываем итог.
+  renderSummary();
   if (!isSearching()) {
     swapOurs = swapOursCatalog;
     renderOurs();
@@ -264,6 +314,7 @@ function pickedOursItems() {
 }
 
 function renderSummary() {
+  saveSwap();
   const mine = pickedMineItems();
   const ours = pickedOursItems();
   const mineSum = mine.reduce((sum, it) => sum + it.price, 0);
@@ -318,6 +369,7 @@ function telegramLink(mine, ours, mineSum, oursSum, diff) {
   return `https://t.me/${TELEGRAM_USER}?text=${encodeURIComponent(lines.join("\n"))}`;
 }
 
+restoreSwapOurs();
 loadMine();
 loadOurs();
 renderSummary();

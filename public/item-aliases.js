@@ -235,8 +235,26 @@ function translateSearchTokens(tokens) {
 function normalizeForSearch(s) {
   return (s || "")
     .toLowerCase()
+    .replace(/ё/g, "е")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
+}
+
+/**
+ * true, если каждое слово запроса нашлось в тексте — либо как есть (так
+ * находятся официальные русские/украинские названия, которые сервер кладёт
+ * рядом с английским — searchAlt), либо через словарь выше ("калаш" -> ak 47).
+ * Поэтому работают и смешанные запросы: "калаш красная линия".
+ */
+function matchesQuery(text, query) {
+  const raw = normalizeForSearch(query).split(" ").filter(Boolean);
+  if (!raw.length) return true;
+  const hay = normalizeForSearch(text);
+  return raw.every((token) => {
+    if (hay.includes(token)) return true;
+    const alias = ITEM_ALIASES[token];
+    return !!alias && alias.split(/[- _]+/).filter(Boolean).every((w) => hay.includes(w));
+  });
 }
 
 /** Слова запиту, вже перекладені англійською. */
@@ -256,7 +274,8 @@ if (typeof window !== "undefined") {
   window.translateSearchTokens = translateSearchTokens;
   window.searchTokens = searchTokens;
   window.matchesTokens = matchesTokens;
+  window.matchesQuery = matchesQuery;
 }
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { ITEM_ALIASES, translateSearchTokens };
+  module.exports = { ITEM_ALIASES, translateSearchTokens, matchesQuery, normalizeForSearch };
 }

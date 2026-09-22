@@ -20,6 +20,7 @@ const { getSteamImages } = require("./steamImages");
 const { computeBuyQuote } = require("./buyQuote");
 const tradeCatalog = require("./tradeCatalog");
 const pricingSettings = require("./pricingSettings");
+const { localizedAlt } = require("./skinNamesI18n");
 const { matchesSearchQuery, parseItemName } = require("./itemName");
 const { startTelegramArbBot } = require("./telegramArbBot");
 const steamAuth = require("./steamAuth");
@@ -443,6 +444,9 @@ app.get("/api/account/inventory", async (req, res) => {
           phase: it.phase ?? null,
           float: it.float ?? null,
           price: quote.ok ? quote.price : null,
+          // Официальные русские/украинские названия — чтобы фильтр в браузере
+          // находил предмет по "Красная линия" и т.п.
+          searchAlt: localizedAlt(it.marketHashName),
         };
       })
       // Дороже — выше; без цены — в самый низ.
@@ -911,7 +915,7 @@ app.get("/api/public/trade-catalog", async (req, res) => {
     const quote = computeBuyQuote(row, { markup: pricingSettings.get().tradeMarkup });
     if (!quote.ok) continue;
     const { baseName, wear } = parseItemName(marketHashName);
-    items.push({ marketHashName, name: baseName, wear, price: quote.price });
+    items.push({ marketHashName, name: baseName, wear, price: quote.price, searchAlt: localizedAlt(marketHashName) });
   }
 
   // Картинки Steam кешуються на диск назавжди (steamImages.js), тож довгим цей
@@ -938,7 +942,7 @@ app.get("/api/public/trade-search", async (req, res) => {
     const quote = computeBuyQuote(row, { markup: pricingSettings.get().tradeMarkup });
     if (!quote.ok) continue;
     const { baseName, wear } = parseItemName(row.marketHashName);
-    matches.push({ marketHashName: row.marketHashName, name: baseName, wear, price: quote.price });
+    matches.push({ marketHashName: row.marketHashName, name: baseName, wear, price: quote.price, searchAlt: localizedAlt(row.marketHashName) });
   }
 
   // Дорожче — вище: за запитом "керамбит" людині потрібен ніж, а не однойменні
@@ -960,7 +964,8 @@ app.get("/api/public/trade-search", async (req, res) => {
 const MY_SKINS_OWNER = SITE_OWNER;
 
 app.get("/api/public/my-skins", async (req, res) => {
-  res.json(await trades.listPublicHoldings(MY_SKINS_OWNER, config));
+  const holdings = await trades.listPublicHoldings(MY_SKINS_OWNER, config);
+  res.json(holdings.map((h) => ({ ...h, searchAlt: localizedAlt(h.marketHashName) })));
 });
 
 // Продажи клиентов через сайт — кто, что, когда и почём. Живут отдельно от

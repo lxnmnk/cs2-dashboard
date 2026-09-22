@@ -29,6 +29,44 @@ const cartClearBtn = document.getElementById("cartClearBtn");
 let skins = [];
 let cart = []; // індекси предметів у skins — по одному запису на кожен предмет
 
+// Кошик переживає перемикання мови (UA/RU/EN — різні сторінки). Індекси між
+// завантаженнями не стабільні, тож зберігаємо сам предмет: назва + дата
+// розблокування (однакові ножі з різним трейд-баном — різні предмети).
+const CART_KEY = "mySkinsCart";
+let cartRestored = false;
+
+function holdingKey(s) {
+  return s.marketHashName + "|" + s.unlockAt;
+}
+
+function saveCart() {
+  if (!cartRestored) return; // ще не відновили — не затираємо збережене
+  try {
+    localStorage.setItem(CART_KEY, JSON.stringify(cart.map((idx) => holdingKey(skins[idx]))));
+  } catch {
+    // приватний режим — просто не запам'ятаємо
+  }
+}
+
+function restoreCart() {
+  let saved = [];
+  try {
+    saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+  } catch {
+    saved = [];
+  }
+  const used = new Set();
+  cart = [];
+  for (const key of Array.isArray(saved) ? saved : []) {
+    const idx = skins.findIndex((s, i) => !used.has(i) && holdingKey(s) === key);
+    if (idx >= 0) {
+      used.add(idx);
+      cart.push(idx);
+    }
+  }
+  cartRestored = true;
+}
+
 // Фільтри звужують те, що показано, але не чіпають кошик: якщо предмет уже
 // доданий, він лишається в кошику, навіть коли випав з поточного фільтра.
 const filters = createItemFilters({
@@ -51,7 +89,9 @@ cartClearBtn.addEventListener("click", () => {
 async function loadSkins() {
   const res = await fetch("/api/public/my-skins");
   skins = await res.json();
+  restoreCart();
   renderSkinsList();
+  renderCart();
 }
 
 function formatUnlockDate(iso) {
@@ -121,6 +161,7 @@ function removeItem(idx) {
 }
 
 function renderCart() {
+  saveCart();
   if (!cart.length) {
     cartSection.style.display = "none";
     cartList.innerHTML = "";
