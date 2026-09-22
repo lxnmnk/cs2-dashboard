@@ -1288,15 +1288,20 @@ async function loadClientSales() {
       // Отметить выплату можно и пока деньги ещё в холде у Skinbux: бывает,
       // что клиенту платишь раньше, и без этого сумма так и висела у него.
       const canPay = !s.paidAt && (s.status === "hold" || s.status === "completed");
+      // Сделки из вкладки Trade: клиент сдал свою сторону на Skinbux, деньги
+      // висят у него trade-балансом, и "оплатить" тут значит отдать ему наши
+      // скины, а не перевести деньги. Холд на этих деньгах ждём мы.
+      const isTrade = s.kind === "trade";
       let status;
-      if (s.paidAt) status = `paid ${fmtDate(s.paidAt)}`;
+      if (s.paidAt) status = isTrade ? `skins given ${fmtDate(s.paidAt)}` : `paid ${fmtDate(s.paidAt)}`;
+      else if (isTrade && (s.status === "hold" || s.status === "completed")) status = "trade balance — owes him skins";
       else if (s.status === "hold" && s.unlockAt) status = `on hold until ${fmtDate(s.unlockAt)}`;
       else if (s.status === "completed") status = "released — client can withdraw";
       else status = SALE_STATUS_LABELS[s.status] || s.status;
 
       let action = "";
       if (canPay) {
-        action = `<button class="btn-small btn-secondary" data-action="mark-paid" data-id="${s.id}" data-status="${escapeHtml(s.status)}">Mark paid</button>`;
+        action = `<button class="btn-small btn-secondary" data-action="mark-paid" data-id="${s.id}" data-status="${escapeHtml(s.status)}" data-kind="${escapeHtml(s.kind || "sell")}">${isTrade ? "Skins given" : "Mark paid"}</button>`;
       } else if (s.paidAt) {
         action = `<button class="btn-small btn-secondary" data-action="unmark-paid" data-id="${s.id}">Undo</button>`;
       }
@@ -1306,7 +1311,7 @@ async function loadClientSales() {
       return `
         <tr>
           <td>${fmtDate(s.createdAt)}</td>
-          <td>#${escapeHtml(String(s.id))}</td>
+          <td>#${escapeHtml(String(s.id))}${isTrade ? ' <span class="na">trade</span>' : ""}</td>
           <td><a href="https://steamcommunity.com/profiles/${escapeHtml(s.steamId)}" target="_blank">${escapeHtml(s.customerName || s.steamId)}</a></td>
           <td>${escapeHtml(s.items.join(", "))}</td>
           <td>${fmtMoney(s.totalPrice)}</td>
@@ -1319,7 +1324,9 @@ async function loadClientSales() {
     .join("");
 
   body.querySelectorAll('[data-action="mark-paid"]').forEach((btn) => {
-    btn.addEventListener("click", () => markSalePaid(btn.getAttribute("data-id"), btn.getAttribute("data-status")));
+    btn.addEventListener("click", () =>
+      markSalePaid(btn.getAttribute("data-id"), btn.getAttribute("data-status"), btn.getAttribute("data-kind"))
+    );
   });
   body.querySelectorAll('[data-action="unmark-paid"]').forEach((btn) => {
     btn.addEventListener("click", () => unmarkSalePaid(btn.getAttribute("data-id")));
@@ -1327,11 +1334,16 @@ async function loadClientSales() {
 }
 
 // Пока выплата не отмечена, сделка продолжает висеть в балансе у клиента.
-async function markSalePaid(id, status) {
-  const question =
-    status === "hold"
-      ? "Skinbux hasn't released these funds yet. Mark as paid anyway? It disappears from the client's balance."
-      : "Mark this payout as done? It disappears from the client's balance.";
+async function markSalePaid(id, status, kind) {
+  let question;
+  if (kind === "trade") {
+    // В обмене мы платим скинами, поэтому и спрашиваем про них.
+    question = "Confirm you have sent him the skins for this trade? The amount leaves his trade balance.";
+  } else if (status === "hold") {
+    question = "Skinbux hasn't released these funds yet. Mark as paid anyway? It disappears from the client's balance.";
+  } else {
+    question = "Mark this payout as done? It disappears from the client's balance.";
+  }
   if (!confirm(question)) return;
   const res = await fetch(`/api/sales/${id}/paid`, { method: "POST" });
   const data = await res.json();

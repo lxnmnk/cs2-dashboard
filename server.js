@@ -186,6 +186,7 @@ const PUBLIC_PATHS = new Set([
   "/nav-profile.js",
   "/account-inventory.js",
   "/account-deals.js",
+  "/sell-offer-modal.js",
   "/quote.css",
   "/quote-common.js",
   "/bg-map.jpg",
@@ -206,6 +207,7 @@ const PUBLIC_PATHS = new Set([
   "/api/account/inventory",
   "/api/account/trade-url",
   "/api/account/sell",
+  "/api/account/trade-sell",
   "/api/account/sales",
   "/api/webhooks/skinbux",
 ]);
@@ -338,6 +340,7 @@ app.get("/api/account/me", (req, res) => {
       ...balance,
       availableUah: Math.round(balance.available * config.uahRate),
       holdUah: Math.round(balance.hold * config.uahRate),
+      tradeUah: Math.round(balance.trade * config.uahRate),
       uahRate: config.uahRate,
     },
   });
@@ -485,7 +488,13 @@ app.post("/api/account/trade-url", (req, res) => {
 // баланс Skinbux власника сайту (див. skinbuxTransactions.js). Ціну НЕ
 // довіряємо клієнту — перераховуємо сервером по кожному assetId заново, щоб
 // підмінений price з фронта не міг пройти.
-app.post("/api/account/sell", async (req, res) => {
+// Автопродаж предметів клієнта на Skinbux. Один код на два випадки, щоб
+// перевірки цін не розʼїхались:
+//   tradeMode = false — кабінет, "Продати скіни": платимо Skinbux − 5%,
+//                       гроші лягають у холд і потім виводяться;
+//   tradeMode = true  — розділ Trade, сторона клієнта: беремо за Skinbux − 3%,
+//                       гроші лягають у trade-баланс (skinbuxSales kind).
+async function sellCustomerItems(req, res, { tradeMode }) {
   const customer = req.session.customer;
   if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
   if (!customer.tradeUrl) return res.status(400).json({ ok: false, error: "NO_TRADE_URL" });
@@ -511,7 +520,7 @@ app.post("/api/account/sell", async (req, res) => {
         throw new Error(`Skinbux не приймає "${it.marketHashName}"`);
       }
 
-      const { row, quote } = quoteForItem(it);
+      const { row, quote } = quoteForItem(it, tradeMode ? { discount: pricingSettings.get().tradeDiscount } : undefined);
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
       // Клієнт бачив у кошику певну ціну — дешевше за неї не продаємо, а
       // показуємо йому нову (PRICE_CHANGED). Інакше отримав би менше мовчки.
@@ -578,14 +587,18 @@ app.post("/api/account/sell", async (req, res) => {
       // передаємо клієнтський, у прикладах документації вони різні).
       botSteamId: result.steamId,
       botProfile: result.profileDetails,
+      kind: tradeMode ? "trade" : "sell",
     });
 
     res.json({ ok: true, totalPrice, ...result });
   } catch (err) {
-    console.error("[account-sell] Ошибка:", err.message);
+    console.error(`[${tradeMode ? "trade-sell" : "account-sell"}] Ошибка:`, err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
-});
+}
+
+app.post("/api/account/sell", (req, res) => sellCustomerItems(req, res, { tradeMode: false }));
+app.post("/api/account/trade-sell", (req, res) => sellCustomerItems(req, res, { tradeMode: true }));
 
 // Список угод клієнта для розділу "Мої угоди" в кабінеті — статус обміну і
 // коли розблокуються гроші (unlockAt/unlocked рахує skinbuxSales.listByUser).
@@ -1001,6 +1014,8 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
         id: sale.id,
         steamId: sale.steamId,
         customerName: sale.customerName,
+        // Записи до появи обміну — це завжди звичайний викуп.
+        kind: sale.kind || "sell",
         items: (sale.items || []).map((it) => it.name),
         totalPrice: sale.totalPrice,
         skinbuxTotal: Math.round(skinbuxTotal * 100) / 100,

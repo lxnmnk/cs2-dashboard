@@ -80,8 +80,19 @@ function renderDeal(sale) {
 
   // Статуси беремо як є від Skinbux: "hold" — обмін прийнято, гроші
   // заморожені на 7 днів; "completed" — вже розморожені й доступні до виплати.
+  // Сторона клієнта в обміні (kind "trade") живе за іншими правилами: гроші
+  // не виводяться, а лежать trade-балансом і витрачаються на наші скіни. Холд
+  // на них чекаємо ми, тому клієнту тут ні дат холду, ні кнопки виводу —
+  // тільки "можна забирати скіни". "Виплачено" в обміні означає, що скіни
+  // віддані.
+  const T = window.ACCOUNT_CONFIG;
   let statusHtml;
-  if (sale.paidAt) {
+  if (sale.kind === "trade" && (sale.status === "hold" || sale.status === "completed")) {
+    statusHtml = sale.paidAt
+      ? `<p class="deal-status">${escapeHtml(T.tradeDealDone)}</p>`
+      : `<p class="deal-status deal-status-unlocked">${escapeHtml(T.tradeDealStatus)}</p>
+         <a class="btn-small" href="${escapeHtml(T.tradeUrl || "/trade")}">${escapeHtml(T.tradeDealBtn)}</a>`;
+  } else if (sale.paidAt) {
     // Гроші за угоду вже переказані — кнопку виводу не показуємо, інакше
     // клієнт попросить виплату вдруге за те саме.
     statusHtml = `<p class="deal-status">${escapeHtml(paidLabel)}</p>`;

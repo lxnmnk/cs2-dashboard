@@ -52,12 +52,6 @@ const sellResultModal = document.getElementById("sellResultModal");
 const sellResultBody = document.getElementById("sellResultBody");
 
 const sellResultTitle = document.getElementById("sellResultTitle");
-const sellResultTitleText = sellResultTitle?.textContent;
-
-document.getElementById("sellResultClose")?.addEventListener("click", () => {
-  sellResultModal.style.display = "none";
-  stopSaleWatch();
-});
 
 const MAX_RETRIES = 3;
 
@@ -173,7 +167,7 @@ sellAutoBtn?.addEventListener("click", async () => {
     return;
   }
 
-  showSellResult(data);
+  sellOfferModal.show(data);
   cart = [];
   renderInventoryList();
   renderCart();
@@ -195,137 +189,48 @@ async function repriceCart() {
   renderCart();
 }
 
-// Вікно "обмін надіслано". Головне тут — пряме посилання саме на цей обмін і
-// дані бота, який його шле: клієнту треба бачити, від кого чекати пропозицію,
-// щоб не прийняти підроблену від шахрая з таким самим предметом.
-function showSellResult(data) {
-  if (sellResultTitle) sellResultTitle.textContent = sellResultTitleText;
-  renderSellOffer(data);
-  sellResultModal.style.display = "flex";
-  watchSale(data);
-}
-
-function renderSellOffer(data) {
-  const bot = data.profileDetails || {};
-  const offerUrl = data.offerId ? `https://steamcommunity.com/tradeoffer/${data.offerId}/` : null;
-  const profileUrl = data.steamId ? `https://steamcommunity.com/profiles/${data.steamId}` : null;
-  const registered = bot.registrationDate
-    ? new Date(bot.registrationDate).toLocaleDateString(CFG.dateLocale)
-    : null;
-
-  sellResultBody.innerHTML = `
-    <p class="sell-result-lead">${escapeHtml(acceptOnlyVia)}</p>
-    ${
-      offerUrl
-        ? `<a class="btn-gold sell-result-open" href="${escapeHtml(offerUrl)}" target="_blank">${escapeHtml(CFG.openOfferBtn)}</a>
-           <p class="sell-result-url">${escapeHtml(offerUrl)}</p>`
-        : `<p class="card-hint">${escapeHtml(offerLinkPending)}</p>`
-    }
-    <p class="sell-result-waiting">${escapeHtml(CFG.waitingForAccept)}</p>
-    <div class="unstable sell-result-warning">${escapeHtml(scamWarning)}</div>
-
-    <h4 class="sell-result-subtitle">${escapeHtml(senderTitle)}</h4>
-    <div class="sender-card">
-      ${bot.profileImageUrl ? `<img class="sender-avatar" src="${escapeHtml(bot.profileImageUrl)}" alt="" />` : ""}
-      <div class="sender-info">
-        <div class="sender-name">${escapeHtml(bot.displayName || "—")}</div>
-        <div class="sender-line">${escapeHtml(steamIdLabel)}: ${escapeHtml(data.steamId || "—")}</div>
-        ${bot.level != null ? `<div class="sender-line">${escapeHtml(levelLabel)}: ${bot.level}</div>` : ""}
-        ${registered ? `<div class="sender-line">${escapeHtml(registeredLabel)}: ${escapeHtml(registered)}</div>` : ""}
-        ${profileUrl ? `<a class="sender-line" href="${escapeHtml(profileUrl)}" target="_blank">${escapeHtml(openProfile)} →</a>` : ""}
-      </div>
-    </div>`;
-}
-
-// Поки вікно відкрите, самі стежимо за угодою: щойно клієнт прийме обмін,
-// вікно змінюється на "предмет отримано". Без цього воно так і висіло з
-// "бот надішле обмін", хоча все вже відбулося (скарга клієнта).
-// Кожен запит смикає статус у Skinbux, тож не частіше ніж раз на 8 с і не
-// довше пів години — далі обмін однаково протухає, а угода є в "Моїх угодах".
-const SALE_WATCH_INTERVAL_MS = 8000;
-const SALE_WATCH_MAX_MS = 30 * 60 * 1000;
-let saleWatchTimer = null;
-let saleWatchGen = 0;
-
-function stopSaleWatch() {
-  clearTimeout(saleWatchTimer);
-  saleWatchGen++;
-}
-
-function watchSale(data) {
-  stopSaleWatch();
-  const gen = saleWatchGen;
-  const startedAt = Date.now();
-
-  const tick = async () => {
-    let sale = null;
-    let holdDays = null;
-    try {
-      const res = await fetch("/api/account/sales");
-      const body = await res.json();
-      sale = (body.sales || []).find((s) => String(s.id) === String(data.id)) || null;
-      holdDays = body.holdDays;
-    } catch {
-      // мережа моргнула — спробуємо на наступному колі
-    }
-    // Вікно закрили або вже почався інший продаж — цей стеж більше не потрібен.
-    if (gen !== saleWatchGen) return;
-
-    if (sale && (sale.status === "hold" || sale.status === "completed")) return showSaleReceived(sale, holdDays);
-    if (sale && (sale.status === "cancelled" || sale.status === "reverted")) return showSaleCancelled();
-    if (sale?.offerId && !data.offerId) {
-      data.offerId = sale.offerId;
-      renderSellOffer(data);
-    }
-    if (Date.now() - startedAt < SALE_WATCH_MAX_MS) saleWatchTimer = setTimeout(tick, SALE_WATCH_INTERVAL_MS);
-  };
-
-  saleWatchTimer = setTimeout(tick, SALE_WATCH_INTERVAL_MS);
-}
-
-function showSaleReceived(sale, holdDays) {
-  stopSaleWatch();
-  const amount = `$${Number(sale.totalPrice).toFixed(2)}`;
-  let text;
-  if (sale.status === "hold") {
+// Вікно "обмін надіслано" й стеж за угодою — спільний код із розділом Trade
+// (sell-offer-modal.js). Тут лишається тільки те, що для кабінету своє: гроші
+// лягають у холд на 7 днів, а після прийняття обміну є куди відправити —
+// у "Мої угоди".
+const sellOfferModal = createSellOfferModal({
+  modal: sellResultModal,
+  body: sellResultBody,
+  title: sellResultTitle,
+  closeBtn: document.getElementById("sellResultClose"),
+  texts: {
+    acceptOnlyVia,
+    openOfferBtn: CFG.openOfferBtn,
+    offerLinkPending,
+    waitingForAccept: CFG.waitingForAccept,
+    scamWarning,
+    senderTitle,
+    steamIdLabel,
+    levelLabel,
+    registeredLabel,
+    openProfile,
+    dateLocale: CFG.dateLocale,
+    receivedTitle: CFG.receivedTitle,
+    receivedLead: CFG.receivedLead,
+    cancelledTitle: CFG.cancelledTitle,
+    cancelledText: CFG.cancelledText,
+  },
+  receivedText: (sale, holdDays) => {
+    const amount = `$${Number(sale.totalPrice).toFixed(2)}`;
+    if (sale.status !== "hold") return fillSaleText(CFG.receivedAvailableText, { amount });
     const days = holdDays || 7;
     const unlockAt = sale.unlockAt ? new Date(sale.unlockAt) : new Date(Date.now() + days * 86400000);
     const date = unlockAt.toLocaleDateString(CFG.dateLocale, { day: "numeric", month: "long" });
-    text = fillSaleText(CFG.receivedHoldText, { amount, date, days });
-  } else {
-    text = fillSaleText(CFG.receivedAvailableText, { amount });
-  }
-
-  if (sellResultTitle) sellResultTitle.textContent = CFG.receivedTitle;
-  sellResultBody.innerHTML = `
-    <div class="sell-received">
-      <div class="sell-received-icon">✓</div>
-      <p class="sell-received-lead">${escapeHtml(CFG.receivedLead)}</p>
-      <p class="sell-received-text">${text}</p>
-      <button id="sellResultDealsBtn" class="btn-gold" type="button">${escapeHtml(CFG.myDealsBtn)}</button>
-    </div>`;
-  document.getElementById("sellResultDealsBtn").addEventListener("click", () => {
-    sellResultModal.style.display = "none";
-    document.getElementById("accountPillBtn")?.click();
-  });
-
-  // Шапка й інвентар теж уже застаріли: предмет пішов, гроші лягли в холд.
-  window.refreshNavBalance?.();
-  inventoryRetries = 0;
-  loadInventory({ refresh: true });
-}
-
-function showSaleCancelled() {
-  stopSaleWatch();
-  if (sellResultTitle) sellResultTitle.textContent = CFG.cancelledTitle;
-  sellResultBody.innerHTML = `
-    <div class="sell-received sell-received-cancelled">
-      <div class="sell-received-icon">✕</div>
-      <p class="sell-received-text">${escapeHtml(CFG.cancelledText)}</p>
-    </div>`;
-  inventoryRetries = 0;
-  loadInventory({ refresh: true });
-}
+    return fillSaleText(CFG.receivedHoldText, { amount, date, days });
+  },
+  receivedButton: { label: CFG.myDealsBtn, onClick: () => document.getElementById("accountPillBtn")?.click() },
+  // Предмет пішов, гроші лягли в холд — шапка й інвентар уже застаріли.
+  onFinished: () => {
+    window.refreshNavBalance?.();
+    inventoryRetries = 0;
+    loadInventory({ refresh: true });
+  },
+});
 
 // Шаблон з {amount}/{date}/{days}: сам текст екрануємо, підставлені значення
 // виділяємо жирним.

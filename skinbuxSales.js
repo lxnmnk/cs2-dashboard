@@ -29,12 +29,16 @@ function saveAll(sales) {
 // відповіді на requestSell). Зберігаємо, щоб клієнт міг знайти пряме
 // посилання на обмін і дані відправника пізніше, а не лише у вікні одразу
 // після продажу.
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile }) {
+// kind — звичайний викуп ("sell") чи сторона клієнта в обміні ("trade").
+// Від нього залежить, у який баланс ляжуть гроші (див. computeBalance) і що
+// означає "виплачено": у викупі — переказали гроші, в обміні — віддали скіни.
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind }) {
   const sales = loadAll();
   sales.push({
     id,
     steamId,
     customerName,
+    kind: kind === "trade" ? "trade" : "sell",
     items,
     totalPrice,
     offerId,
@@ -93,18 +97,31 @@ function unlockAtOf(sale) {
  * Спираємось на статуси самого Skinbux — "hold" це прийнятий обмін із
  * замороженими на 7 днів грошима, "completed" — гроші вже розморожені.
  * Скасовані угоди й ті, за які ми вже розрахувались (paidAt), не рахуються.
+ *
+ * Три баланси, і холд тут тільки один:
+ *   available — гроші за викуп, які вже можна вивести;
+ *   hold      — гроші за викуп, які Skinbux тримає 7 днів;
+ *   trade     — сторона клієнта в обміні. Ці гроші НЕ в холді, хоч у Skinbux
+ *               вони так само заморожені: обмін ми віддаємо день у день зі
+ *               своїх скінів, тобто 7 днів чекаємо ми, а не клієнт. Тому
+ *               trade-баланс можна витратити на наші скіни одразу — але лише
+ *               на них, а не вивести грошима.
  */
 function computeBalance(steamId) {
   let available = 0;
   let hold = 0;
+  let trade = 0;
 
   for (const sale of loadAll()) {
     if (sale.steamId !== steamId || sale.paidAt) continue;
-    if (sale.status === "hold") hold += sale.totalPrice;
-    else if (sale.status === "completed") available += sale.totalPrice;
+    const accepted = sale.status === "hold" || sale.status === "completed";
+    if (!accepted) continue;
+    if (sale.kind === "trade") trade += sale.totalPrice;
+    else if (sale.status === "hold") hold += sale.totalPrice;
+    else available += sale.totalPrice;
   }
 
-  return { available: round2(available), hold: round2(hold) };
+  return { available: round2(available), hold: round2(hold), trade: round2(trade) };
 }
 
 // Позначка "виплачено" — після неї угода перестає враховуватись у балансі.

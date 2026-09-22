@@ -9,6 +9,16 @@
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
 
+  <div id="swapSaleModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="swapSaleTitle">Skinbux trade sent</h3>
+        <button id="swapSaleClose" class="modal-close" type="button">✕</button>
+      </div>
+      <div id="swapSaleBody"></div>
+    </div>
+  </div>
+
   <header class="site-header">
     <a class="site-brand" href="/en">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
@@ -38,6 +48,7 @@
   <section class="swap-summary">
     <span class="swap-summary-side" id="swapGive"></span>
     <span class="swap-summary-side" id="swapGet"></span>
+    <span class="swap-summary-balance" id="swapBalance" style="display:none;"></span>
     <span class="swap-summary-diff even" id="swapDiff"></span>
     <a id="swapTelegram" class="btn-gold disabled" href="#" target="_blank">Arrange the trade on Telegram</a>
   </section>
@@ -59,6 +70,12 @@
 
       <p id="swapMineLoading" class="card-hint">Loading inventory...</p>
       <div id="swapMineGrid" class="swap-grid"></div>
+
+      <div class="swap-sell">
+        <p class="card-hint">You hand your items over right away: Skinbux sends the trade, and the amount becomes your trade balance — spend it on our skins the same day.</p>
+        <button id="swapSellBtn" class="btn-gold" type="button" style="display:none;" disabled>Pick the items you give</button>
+        <p id="swapSellStatus" class="swap-sell-status"></p>
+      </div>
     </div>
 
     <div class="swap-panel">
@@ -101,6 +118,35 @@
 
   <script>
     window.SWAP_CONFIG = {
+      accountUrl: "/en/account",
+      balanceLine: "🔄 Trade balance: {amount} — spends on our skins",
+      sellBtn: "Hand over {amount} → trade balance",
+      sellBtnEmpty: "Pick the items you give",
+      sellNeedTradeUrl: "First save your Steam trade link —",
+      sellNeedTradeUrlLink: "in your account",
+      sellSending: "Preparing the Skinbux trade...",
+      sellWaitAccept: "Accept the trade in Steam — the amount then becomes your trade balance.",
+      sellPriceChanged: "The Skinbux price changed — check the new amounts and press again.",
+      sellFailedPrefix: "Didn't work: ",
+      sellNetwork: "the network didn't respond",
+      msgBalance: "My trade balance: {amount} — I've already handed my skins over.",
+      dateLocale: "en-US",
+      acceptOnlyVia: "Accept the offer only through this link:",
+      openOfferBtn: "Open the trade in Steam",
+      offerLinkPending: "The trade link appears in a few seconds — refresh the page and check \"My deals\".",
+      waitingForAccept: "⏳ Waiting for you to accept the trade in Steam — this window updates by itself.",
+      scamWarning: "Any other trade with these items is a scam. Don't accept offers that didn't come through this link, even if the items and the amount match.",
+      senderTitle: "Who sends the trade",
+      steamIdLabel: "SteamID",
+      levelLabel: "Level",
+      registeredLabel: "Account created",
+      openProfile: "Steam profile",
+      receivedTitle: "Items received",
+      receivedLead: "Done, we've got your items!",
+      receivedText: "{amount} is already on your trade balance — take our skins right now, no 7-day wait.",
+      receivedBtn: "Arrange the trade on Telegram",
+      cancelledTitle: "Trade cancelled",
+      cancelledText: "The trade didn't happen — your items stayed with you. You can try again.",
       filtersTitle: "Filters",
       resetLabel: "Reset",
       searchPlaceholder: "Search by name...",
@@ -125,6 +171,7 @@
       summaryGet: "You get",
       diffYouPay: "You pay ",
       diffWePay: "We pay you ",
+      diffLeftover: "Trade balance left: {amount} — pick more of our skins",
       diffEven: "Even trade",
       msgIntro: "Hi! I'd like to make a trade.",
       msgGive: "I give:",
@@ -145,6 +192,7 @@
   <script src="/nav-profile.js"></script>
   <script src="/item-aliases.js"></script>
   <script src="/item-filters.js"></script>
+  <script src="/sell-offer-modal.js"></script>
   <script src="/swap.js"></script>
 </body>
 </html>

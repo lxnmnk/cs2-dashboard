@@ -6,9 +6,15 @@
 // обмін докуповуємо на Youpin; якщо клієнт шукає щось своє, шукаємо по всьому
 // каталогу цін (/api/public/trade-search), бо дістати можемо будь-який скін.
 //
-// Сам обмін завершується в Telegram: бота, який сам відправляє трейди, у нас
-// немає (у продажу обміни шле Skinbux, а не ми), тому кнопка збирає готове
-// повідомлення з обома сторонами й різницею.
+// Свою сторону клієнт здає сам, не чекаючи на нас: кнопка під лівою панеллю
+// продає вибрані предмети на Skinbux (той самий автопродаж, що в кабінеті,
+// /api/account/trade-sell), і їхня сума стає trade-балансом — грошима, які
+// можна витратити тільки на наші скіни, зате одразу, без 7 днів холду. Холд
+// на цих грошах чекаємо ми, і саме тому обмін іде день у день.
+//
+// Наші скіни досі віддаємо руками: бота, який шле трейди від нас, немає
+// (у продажу обміни шле Skinbux), тому кнопка Telegram збирає готове
+// повідомлення з обома сторонами, trade-балансом і різницею.
 const SWAP_T = window.SWAP_CONFIG;
 const TELEGRAM_USER = "lxnmnk";
 
@@ -24,6 +30,12 @@ const swapGetEl = document.getElementById("swapGet");
 const swapDiffEl = document.getElementById("swapDiff");
 const swapTelegramBtn = document.getElementById("swapTelegram");
 const swapAnyHintEl = document.getElementById("swapAnyHint");
+const swapBalanceEl = document.getElementById("swapBalance");
+const swapSellBtn = document.getElementById("swapSellBtn");
+const swapSellStatusEl = document.getElementById("swapSellStatus");
+
+let swapCustomer = null;
+let swapTradeBalance = 0; // уже зданий у Skinbux бік клієнта, у доларах
 
 let swapMine = []; // предмети клієнта
 let swapOurs = []; // що зараз показано праворуч: вітрина або результат пошуку
@@ -117,15 +129,19 @@ function rememberOurs(items) {
 }
 
 // ---- Ліва панель: предмети клієнта ----
-async function loadMine() {
+async function loadMine({ refresh = false } = {}) {
   const me = await fetch("/api/account/me").then((r) => r.json()).catch(() => ({}));
   if (!me.customer) {
     swapMineLoading.style.display = "none";
     swapMineAuth.style.display = "block";
     return;
   }
+  swapCustomer = me.customer;
+  swapTradeBalance = Number(me.balance?.trade) || 0;
 
-  const data = await fetch("/api/account/inventory?mode=trade")
+  // Після зданого обміну інвентар питаємо повз кеш — інакше продані предмети
+  // ще хвилину висіли б у списку, і їх можна було б спробувати здати вдруге.
+  const data = await fetch(`/api/account/inventory?mode=trade${refresh ? "&refresh=1" : ""}`)
     .then((r) => r.json())
     .catch(() => ({ ok: false }));
   if (!data.ok) {
@@ -320,34 +336,57 @@ function renderSummary() {
   const mineSum = mine.reduce((sum, it) => sum + it.price, 0);
   const oursSum = ours.reduce((sum, e) => sum + e.item.price * e.qty, 0);
   const oursCount = ours.reduce((sum, e) => sum + e.qty, 0);
+  // Бік клієнта — це і вибрані зараз предмети, і те, що він уже здав раніше
+  // (trade-баланс). Інакше здані предмети зникали з інвентарю, і різниця
+  // рахувалась так, ніби він не дав нічого.
+  const giveSum = Math.round((mineSum + swapTradeBalance) * 100) / 100;
 
   swapMineTotalEl.textContent = swapMoney(mineSum);
   swapOursTotalEl.textContent = swapMoney(oursSum);
-  swapGiveEl.innerHTML = `${swapEscape(SWAP_T.summaryGive)}<b>${swapMoney(mineSum)} · ${mine.length}</b>`;
+  swapGiveEl.innerHTML = `${swapEscape(SWAP_T.summaryGive)}<b>${swapMoney(giveSum)} · ${mine.length}</b>`;
   swapGetEl.innerHTML = `${swapEscape(SWAP_T.summaryGet)}<b>${swapMoney(oursSum)} · ${oursCount}</b>`;
 
-  const diff = Math.round((oursSum - mineSum) * 100) / 100;
+  if (swapBalanceEl) {
+    swapBalanceEl.style.display = swapTradeBalance ? "" : "none";
+    swapBalanceEl.innerHTML = swapFill(swapEscape(SWAP_T.balanceLine), {
+      amount: `<b>${swapMoney(swapTradeBalance)}</b>`,
+    });
+  }
+  renderSellButton(mine);
+
+  const diff = Math.round((oursSum - giveSum) * 100) / 100;
   if (diff > 0) {
     swapDiffEl.className = "swap-summary-diff";
     swapDiffEl.innerHTML = `${swapEscape(SWAP_T.diffYouPay)}<b>${swapMoney(diff)}</b>`;
   } else if (diff < 0) {
     swapDiffEl.className = "swap-summary-diff";
-    swapDiffEl.innerHTML = `${swapEscape(SWAP_T.diffWePay)}<b>${swapMoney(-diff)}</b>`;
+    // Trade-баланс ми віддаємо скінами, а не грошима, тому "доплачуємо ми"
+    // тут писати не можна — це залишок, який клієнту треба добрати нашими
+    // скінами. "Доплачуємо ми" лишається для випадку, коли баланс нульовий,
+    // а його бік просто дорожчий за наш.
+    swapDiffEl.innerHTML = swapTradeBalance
+      ? swapFill(swapEscape(SWAP_T.diffLeftover), { amount: `<b>${swapMoney(-diff)}</b>` })
+      : `${swapEscape(SWAP_T.diffWePay)}<b>${swapMoney(-diff)}</b>`;
   } else {
     swapDiffEl.className = "swap-summary-diff even";
     swapDiffEl.innerHTML = `<b>${swapEscape(SWAP_T.diffEven)}</b>`;
   }
 
-  const empty = !mine.length && !oursCount;
+  const empty = !mine.length && !oursCount && !swapTradeBalance;
   swapTelegramBtn.classList.toggle("disabled", empty);
-  swapTelegramBtn.href = empty ? "#" : telegramLink(mine, ours, mineSum, oursSum, diff);
+  swapTelegramBtn.href = empty ? "#" : telegramLink(mine, ours, giveSum, oursSum, diff);
 }
 
-function telegramLink(mine, ours, mineSum, oursSum, diff) {
+function telegramLink(mine, ours, giveSum, oursSum, diff) {
   const lines = [SWAP_T.msgIntro];
   if (mine.length) {
     lines.push("", SWAP_T.msgGive);
     lines.push(...mine.map((it) => `• ${it.marketHashName} — ${swapMoney(it.price)}`));
+  }
+  // Про вже зданий бік пишемо окремим рядком: за ним я в панелі бачу, що
+  // гроші за його скіни в мене вже є, і треба лише віддати наші.
+  if (swapTradeBalance) {
+    lines.push("", swapFill(SWAP_T.msgBalance, { amount: swapMoney(swapTradeBalance) }));
   }
   if (ours.length) {
     lines.push("", SWAP_T.msgGet);
@@ -359,7 +398,7 @@ function telegramLink(mine, ours, mineSum, oursSum, diff) {
   }
   lines.push(
     "",
-    swapFill(SWAP_T.msgTotals, { give: swapMoney(mineSum), get: swapMoney(oursSum) }),
+    swapFill(SWAP_T.msgTotals, { give: swapMoney(giveSum), get: swapMoney(oursSum) }),
     diff > 0
       ? swapFill(SWAP_T.msgYouPay, { amount: swapMoney(diff) })
       : diff < 0
@@ -368,6 +407,101 @@ function telegramLink(mine, ours, mineSum, oursSum, diff) {
   );
   return `https://t.me/${TELEGRAM_USER}?text=${encodeURIComponent(lines.join("\n"))}`;
 }
+
+// ---- Здати свій бік: автопродаж на Skinbux -> trade-баланс ----
+// Вікно з обміном від бота Skinbux — те саме, що в кабінеті
+// (sell-offer-modal.js), тільки текст про гроші інший: тут вони стають
+// trade-балансом одразу, а не лягають у холд на 7 днів.
+const swapSaleModal = document.getElementById("swapSaleModal")
+  ? createSellOfferModal({
+      modal: document.getElementById("swapSaleModal"),
+      body: document.getElementById("swapSaleBody"),
+      title: document.getElementById("swapSaleTitle"),
+      closeBtn: document.getElementById("swapSaleClose"),
+      texts: SWAP_T,
+      receivedText: (sale) =>
+        swapFill(swapEscape(SWAP_T.receivedText), {
+          amount: `<b>${swapMoney(Number(sale.totalPrice))}</b>`,
+        }),
+      // Гроші вже на trade-балансі — лишається домовитись, які наші скіни
+      // клієнт за них забирає, а це досі Telegram.
+      receivedButton: { label: SWAP_T.receivedBtn, onClick: () => swapTelegramBtn.click() },
+      onFinished: () => refreshTradeBalance().then(() => loadMine({ refresh: true })),
+    })
+  : null;
+
+function renderSellButton(picked) {
+  if (!swapSellBtn) return;
+  swapSellBtn.style.display = swapCustomer ? "" : "none";
+  swapSellBtn.disabled = !picked.length;
+  swapSellBtn.textContent = picked.length
+    ? swapFill(SWAP_T.sellBtn, {
+        amount: swapMoney(picked.reduce((sum, it) => sum + it.price, 0)),
+        count: picked.length,
+      })
+    : SWAP_T.sellBtnEmpty;
+}
+
+async function refreshTradeBalance() {
+  const me = await fetch("/api/account/me")
+    .then((r) => r.json())
+    .catch(() => ({}));
+  swapTradeBalance = Number(me.balance?.trade) || 0;
+  renderSummary();
+  window.refreshNavBalance?.();
+}
+
+swapSellBtn?.addEventListener("click", async () => {
+  const picked = pickedMineItems();
+  if (!picked.length) return;
+  // Без посилання на обмін Skinbux не має куди надіслати трейд. Зберігається
+  // вона в кабінеті, там же і підказка, де її взяти.
+  if (!swapCustomer?.tradeUrl) {
+    swapSellStatusEl.innerHTML = `${swapEscape(SWAP_T.sellNeedTradeUrl)} <a href="${swapEscape(
+      SWAP_T.accountUrl || "/account"
+    )}">${swapEscape(SWAP_T.sellNeedTradeUrlLink)}</a>`;
+    return;
+  }
+
+  swapSellBtn.disabled = true;
+  swapSellStatusEl.textContent = SWAP_T.sellSending;
+
+  let data;
+  try {
+    const res = await fetch("/api/account/trade-sell", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // Ціни, які клієнт бачив на картках: сервер не продасть дешевше.
+      body: JSON.stringify({
+        assetIds: picked.map((it) => it.assetId),
+        expectedPrices: Object.fromEntries(picked.map((it) => [it.assetId, it.price])),
+      }),
+    });
+    data = await res.json();
+  } catch {
+    data = { ok: false, error: SWAP_T.sellNetwork };
+  }
+
+  swapSellBtn.disabled = false;
+
+  // Ціна на Skinbux встигла поїхати вниз: перечитуємо інвентар, щоб клієнт
+  // побачив нові суми, перш ніж тиснути ще раз.
+  if (data.error === "PRICE_CHANGED") {
+    swapSellStatusEl.textContent = SWAP_T.sellPriceChanged;
+    await loadMine({ refresh: true });
+    return;
+  }
+  if (!data.ok) {
+    swapSellStatusEl.textContent = `${SWAP_T.sellFailedPrefix}${data.error}`;
+    return;
+  }
+
+  swapSellStatusEl.textContent = SWAP_T.sellWaitAccept;
+  swapPickedMine.clear();
+  renderMine();
+  renderSummary();
+  swapSaleModal?.show(data);
+});
 
 restoreSwapOurs();
 loadMine();

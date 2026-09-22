@@ -9,6 +9,16 @@
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
 
+  <div id="swapSaleModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="swapSaleTitle">Обмен от Skinbux отправлен</h3>
+        <button id="swapSaleClose" class="modal-close" type="button">✕</button>
+      </div>
+      <div id="swapSaleBody"></div>
+    </div>
+  </div>
+
   <header class="site-header">
     <a class="site-brand" href="/ru">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
@@ -38,6 +48,7 @@
   <section class="swap-summary">
     <span class="swap-summary-side" id="swapGive"></span>
     <span class="swap-summary-side" id="swapGet"></span>
+    <span class="swap-summary-balance" id="swapBalance" style="display:none;"></span>
     <span class="swap-summary-diff even" id="swapDiff"></span>
     <a id="swapTelegram" class="btn-gold disabled" href="#" target="_blank">Оформить обмен в Telegram</a>
   </section>
@@ -59,6 +70,12 @@
 
       <p id="swapMineLoading" class="card-hint">Загружаю инвентарь...</p>
       <div id="swapMineGrid" class="swap-grid"></div>
+
+      <div class="swap-sell">
+        <p class="card-hint">Свои предметы сдаёшь сразу: обмен отправляет Skinbux, а сумма становится твоим trade-балансом — его тратишь на наши скины в тот же день.</p>
+        <button id="swapSellBtn" class="btn-gold" type="button" style="display:none;" disabled>Выбери предметы, которые отдаёшь</button>
+        <p id="swapSellStatus" class="swap-sell-status"></p>
+      </div>
     </div>
 
     <div class="swap-panel">
@@ -101,6 +118,35 @@
 
   <script>
     window.SWAP_CONFIG = {
+      accountUrl: "/ru/account",
+      balanceLine: "🔄 Trade-баланс: {amount} — тратится на наши скины",
+      sellBtn: "Сдать выбранное на {amount} → trade-баланс",
+      sellBtnEmpty: "Выбери предметы, которые отдаёшь",
+      sellNeedTradeUrl: "Сначала сохрани ссылку на обмен Steam —",
+      sellNeedTradeUrlLink: "в кабинете",
+      sellSending: "Готовлю обмен в Skinbux...",
+      sellWaitAccept: "Прими обмен в Steam — после этого сумма станет trade-балансом.",
+      sellPriceChanged: "Цена на Skinbux изменилась — проверь новые суммы и нажми ещё раз.",
+      sellFailedPrefix: "Не получилось: ",
+      sellNetwork: "сеть не ответила",
+      msgBalance: "Мой trade-баланс: {amount} — свои скины я уже сдал.",
+      dateLocale: "ru-RU",
+      acceptOnlyVia: "Прими предложение только по этой ссылке:",
+      openOfferBtn: "Открыть обмен в Steam",
+      offerLinkPending: "Ссылка на обмен появится через несколько секунд — обнови страницу и посмотри в «Мои сделки».",
+      waitingForAccept: "⏳ Ждём, пока ты примешь обмен в Steam — это окно обновится само.",
+      scamWarning: "Любой другой обмен с этими предметами — мошенничество. Не принимай предложения, пришедшие не по этой ссылке, даже если предметы и сумма совпадают.",
+      senderTitle: "Кто отправляет обмен",
+      steamIdLabel: "SteamID",
+      levelLabel: "Уровень",
+      registeredLabel: "Аккаунт создан",
+      openProfile: "Профиль в Steam",
+      receivedTitle: "Предметы получены",
+      receivedLead: "Готово, мы забрали твои предметы!",
+      receivedText: "{amount} уже на твоём trade-балансе — бери наши скины прямо сейчас, 7 дней ждать не нужно.",
+      receivedBtn: "Оформить обмен в Telegram",
+      cancelledTitle: "Обмен отменён",
+      cancelledText: "Обмен не состоялся — предметы остались у тебя. Можешь попробовать ещё раз.",
       filtersTitle: "Фильтры",
       resetLabel: "Сбросить",
       searchPlaceholder: "Поиск по названию...",
@@ -125,6 +171,7 @@
       summaryGet: "Ты получаешь",
       diffYouPay: "Доплачиваешь ты ",
       diffWePay: "Доплачиваем мы ",
+      diffLeftover: "Остаток trade-баланса {amount} — добери наши скины",
       diffEven: "Равный обмен",
       msgIntro: "Привет! Хочу сделать обмен.",
       msgGive: "Отдаю:",
@@ -145,6 +192,7 @@
   <script src="/nav-profile.js"></script>
   <script src="/item-aliases.js"></script>
   <script src="/item-filters.js"></script>
+  <script src="/sell-offer-modal.js"></script>
   <script src="/swap.js"></script>
 </body>
 </html>

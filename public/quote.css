@@ -788,6 +788,9 @@ a { color: var(--gold); }
 .nav-balance-uah { font-size: 11px; color: var(--muted); }
 /* Сума в холді — приглушено, щоб не сплутати з доступною до виплати. */
 .nav-balance-hold { font-size: 11px; color: #7f8794; }
+/* Trade-баланс — гроші, які вже можна витратити на обмін, тому не сірий, як
+   холд, а золотий: це не "колись", а "просто зараз". */
+.nav-balance-trade { font-size: 11px; color: var(--gold); }
 
 .nav-profile { display: flex; align-items: center; min-height: 36px; }
 .nav-profile-user {
@@ -1212,7 +1215,31 @@ a.sender-line { color: var(--gold); }
 .swap-summary-diff b { font-size: 19px; color: var(--gold); }
 .swap-summary-diff.even b { color: var(--text); }
 .swap-summary .btn-gold { white-space: nowrap; }
+/* Зданий бік клієнта: його предметів уже немає в інвентарі, тому сума видна
+   тільки тут — без неї здавалось, що обмін "з'їв" скіни. */
+.swap-summary-balance {
+  font-size: 13px;
+  color: var(--gold);
+  border: 1px solid var(--gold-line);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
 .swap-empty { grid-column: 1 / -1; color: var(--muted); font-size: 13px; padding: 8px 2px; }
+
+/* Кнопка "здати свій бік" під інвентарем клієнта. */
+.swap-sell {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.swap-sell .btn-gold { align-self: stretch; text-align: center; }
+.swap-sell .btn-gold:disabled { opacity: 0.45; pointer-events: none; }
+.swap-sell-status { margin: 0; font-size: 12px; color: var(--muted); min-height: 16px; }
+.swap-sell-status a { color: var(--gold); }
 
 /* Кнопка обміну, поки нічого не вибрано. */
 .btn-gold.disabled { opacity: 0.45; pointer-events: none; }

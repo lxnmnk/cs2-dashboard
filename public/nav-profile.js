@@ -8,6 +8,24 @@ const NAV_T = window.NAV_CONFIG || {};
 const navProfileEl = document.getElementById("navProfile");
 const navBalanceEl = document.getElementById("navBalance");
 
+// Підписи, які зʼявились після того, як NAV_CONFIG уже стояв на десятку
+// сторінок у трьох мовах: сторінка може їх не задавати, тоді беремо переклад
+// за мовою самої сторінки, а не лишаємо порожній підпис.
+const NAV_FALLBACKS = {
+  tradeTitle: {
+    uk: "Trade-баланс: можна витратити на наші скіни просто зараз",
+    ru: "Trade-баланс: можно потратить на наши скины прямо сейчас",
+    en: "Trade balance: spend it on our skins right now",
+  },
+};
+
+function navText(key) {
+  if (NAV_T[key]) return NAV_T[key];
+  const lang = (document.documentElement.lang || "uk").slice(0, 2);
+  const byLang = NAV_FALLBACKS[key] || {};
+  return byLang[lang] || byLang.uk || "";
+}
+
 function escapeHtml(s) {
   return (s || "").replace(
     /[&<>"']/g,
@@ -34,7 +52,7 @@ function refreshNavBalance() {
       // Гривні рахує сервер за курсом з config.json, щоб не тримати його копію
       // в кожній мовній версії сторінки.
       if (navBalanceEl && data.customer && data.balance) {
-        const { available, availableUah, hold, holdUah } = data.balance;
+        const { available, availableUah, hold, holdUah, trade, tradeUah } = data.balance;
         // Гроші в холді показуємо окремим рядком: без цього клієнт після
         // успішного продажу бачив у шапці $0.00 і не розумів, чи все дійшло.
         const holdLine = hold
@@ -42,11 +60,21 @@ function refreshNavBalance() {
               2
             )} · ${holdUah} ₴</span>`
           : "";
+        // Trade-баланс — гроші за сторону клієнта в обміні. Витрачаються лише
+        // на наші скіни, тому ведуть не в кабінет, а в сам обмін.
+        const tradeLine = trade
+          ? `<span class="nav-balance-trade" title="${escapeHtml(navText("tradeTitle"))}">🔄 $${trade.toFixed(
+              2
+            )} · ${tradeUah} ₴</span>`
+          : "";
         navBalanceEl.innerHTML = `
-          <a class="nav-balance" href="${escapeHtml(NAV_T.accountUrl)}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
+          <a class="nav-balance" href="${escapeHtml(
+            trade && !available && !hold ? NAV_T.tradeUrl || "/trade" : NAV_T.accountUrl
+          )}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
             <span class="nav-balance-usd">$${available.toFixed(2)}</span>
             <span class="nav-balance-uah">${availableUah} ₴</span>
             ${holdLine}
+            ${tradeLine}
           </a>`;
       }
     })
