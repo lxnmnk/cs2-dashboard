@@ -349,7 +349,8 @@ app.get("/api/account/me", (req, res) => {
 function sellQuoteFor(marketHashName, row, opts) {
   const manual = priceOverrides.get(marketHashName);
   if (manual != null) return { ok: true, price: manual, manual: true };
-  return computeSellQuote(row, opts);
+  // Скидка от цены Skinbux — из панели (Pricing), а не зашитые 5%.
+  return computeSellQuote(row, opts || { discount: pricingSettings.get().sellDiscount });
 }
 
 // Doppler и Gamma Doppler стоят по-разному в зависимости от фазы, поэтому в
@@ -425,7 +426,7 @@ app.get("/api/account/inventory", async (req, res) => {
         // У розділі Trade предмет клієнта беремо за 97% ціни Skinbux, а не
         // за 95%, як при звичайному викупі: там ми заробляємо ще й на своєму
         // боці обміну.
-        const { quote } = quoteForItem(it, tradeMode ? { discount: 0.03 } : undefined);
+        const { quote } = quoteForItem(it, tradeMode ? { discount: pricingSettings.get().tradeDiscount } : undefined);
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -1015,26 +1016,28 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
 // market_hash_name (и подхватывало фазы Doppler/Gamma Doppler).
 // ---- Наценки (только владелец сайта) ----
 // Меняются из панели, чтобы не лезть в код ради процента.
+// В панели всё в процентах, храним дробью.
+function pricingPercents(p) {
+  const pct = (v) => Math.round(v * 10000) / 100;
+  return {
+    buyMarkupPercent: pct(p.buyMarkup),
+    sellDiscountPercent: pct(p.sellDiscount),
+    tradeMarkupPercent: pct(p.tradeMarkup),
+    tradeDiscountPercent: pct(p.tradeDiscount),
+  };
+}
+
 app.get("/api/pricing-settings", requireSiteOwner, (req, res) => {
-  const s = pricingSettings.get();
-  res.json({
-    ok: true,
-    buyMarkupPercent: Math.round(s.buyMarkup * 10000) / 100,
-    tradeMarkupPercent: Math.round(s.tradeMarkup * 10000) / 100,
-  });
+  res.json({ ok: true, ...pricingPercents(pricingSettings.get()) });
 });
 
 app.post("/api/pricing-settings", requireSiteOwner, (req, res) => {
   try {
-    const next = pricingSettings.setFromPercents(req.body || {});
+    const p = pricingPercents(pricingSettings.setFromPercents(req.body || {}));
     console.log(
-      `[pricing] Купівля youpin +${(next.buyMarkup * 100).toFixed(2)}%, вітрина Trade youpin +${(next.tradeMarkup * 100).toFixed(2)}%`
+      `[pricing] Купівля: youpin +${p.buyMarkupPercent}% | продаж: Skinbux −${p.sellDiscountPercent}% | трейд: наші youpin +${p.tradeMarkupPercent}%, клієнта Skinbux −${p.tradeDiscountPercent}%`
     );
-    res.json({
-      ok: true,
-      buyMarkupPercent: Math.round(next.buyMarkup * 10000) / 100,
-      tradeMarkupPercent: Math.round(next.tradeMarkup * 10000) / 100,
-    });
+    res.json({ ok: true, ...p });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
@@ -1047,7 +1050,7 @@ app.post("/api/pricing-settings", requireSiteOwner, (req, res) => {
 app.get("/api/price-overrides", requireSiteOwner, (req, res) => {
   const items = priceOverrides.list().map((entry) => {
     const row = cache.rows.find((r) => r.marketHashName === entry.marketHashName);
-    const auto = computeSellQuote(row);
+    const auto = computeSellQuote(row, { discount: pricingSettings.get().sellDiscount });
     return { ...entry, autoPrice: auto.ok ? auto.price : null };
   });
   res.json({ ok: true, items });

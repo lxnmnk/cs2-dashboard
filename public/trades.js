@@ -1489,33 +1489,45 @@ fetch("/api/me")
     loadPricingSettings();
   });
 
-// ---- Наценки (только владелец) ----
-// Цена в "Купить скины" = youpin ask + наценка; в витрине Trade — своя.
+// ---- Проценты (только владелец) ----
+// Покупка: youpin + %; продажа: Skinbux − %; у трейда свои проценты на обе
+// стороны — он от покупки и продажи не зависит.
+const PRICING_FIELDS = {
+  buyMarkupPercent: "buyMarkupInput",
+  sellDiscountPercent: "sellDiscountInput",
+  tradeMarkupPercent: "tradeMarkupInput",
+  tradeDiscountPercent: "tradeDiscountInput",
+};
+
 async function loadPricingSettings() {
   const res = await fetch("/api/pricing-settings");
   const data = await res.json();
   if (!data.ok) return;
-  document.getElementById("buyMarkupInput").value = data.buyMarkupPercent;
-  document.getElementById("tradeMarkupInput").value = data.tradeMarkupPercent;
+  for (const [field, inputId] of Object.entries(PRICING_FIELDS)) {
+    document.getElementById(inputId).value = data[field];
+  }
 }
 
 document.getElementById("pricingSaveBtn").addEventListener("click", async () => {
   const status = document.getElementById("pricingStatus");
+  const body = {};
+  for (const [field, inputId] of Object.entries(PRICING_FIELDS)) {
+    body[field] = document.getElementById(inputId).value;
+  }
   const res = await fetch("/api/pricing-settings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      buyMarkupPercent: document.getElementById("buyMarkupInput").value,
-      tradeMarkupPercent: document.getElementById("tradeMarkupInput").value,
-    }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   if (!data.ok) {
     status.textContent = data.error;
     return;
   }
-  status.textContent = `Saved: buy +${data.buyMarkupPercent}%, trade +${data.tradeMarkupPercent}%`;
-  setTimeout(() => (status.textContent = ""), 4000);
+  status.textContent =
+    `Saved: buy +${data.buyMarkupPercent}%, sell −${data.sellDiscountPercent}%, ` +
+    `trade +${data.tradeMarkupPercent}% / −${data.tradeDiscountPercent}%`;
+  setTimeout(() => (status.textContent = ""), 5000);
 });
 
 // ---- Сворачивание разделов ----

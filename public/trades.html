@@ -139,13 +139,19 @@
       </table>
     </div>
 
-    <div class="section-title">Pricing <span class="section-hint">how much we add to the Youpin price — changes what clients pay right away</span></div>
+    <div class="section-title">Pricing <span class="section-hint">what clients pay and get — changes on the site right away; for a promo set them to 0</span></div>
     <section class="add-trade-form">
-      <label>Buy tab markup, %
-        <input id="buyMarkupInput" type="number" step="0.5" min="0" max="100" placeholder="0" />
+      <label>Buy tab: Youpin +, %
+        <input id="buyMarkupInput" type="number" step="0.5" min="0" max="100" placeholder="0" title="Buy skins: price = Youpin ask + this %" />
       </label>
-      <label>Trade showcase markup, %
-        <input id="tradeMarkupInput" type="number" step="0.5" min="0" max="100" placeholder="3" />
+      <label>Sell tab: Skinbux −, %
+        <input id="sellDiscountInput" type="number" step="0.5" min="0" max="100" placeholder="5" title="Sell skins (account, auto-sell, price check): we pay the Skinbux price minus this %" />
+      </label>
+      <label>Trade, our skins: Youpin +, %
+        <input id="tradeMarkupInput" type="number" step="0.5" min="0" max="100" placeholder="3" title="Trade, right side: Youpin ask + this %" />
+      </label>
+      <label>Trade, client skins: Skinbux −, %
+        <input id="tradeDiscountInput" type="number" step="0.5" min="0" max="100" placeholder="3" title="Trade, left side: we take client items at the Skinbux price minus this %" />
       </label>
       <button id="pricingSaveBtn">Save</button>
       <span id="pricingStatus" class="section-hint"></span>
