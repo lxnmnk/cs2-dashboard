@@ -4,7 +4,7 @@
 // trade lock, та сама обіцянка "Оплата через 7 днів", що на sell-quote), і
 // кнопку "Написати в Telegram", яка з'являється лише коли гроші вже вільні.
 // Локалізація — через window.ACCOUNT_CONFIG (див. account-inventory.js).
-const TELEGRAM_USERNAME = "lxnmnk";
+const TELEGRAM_USERNAME = "gabenmarket_support";
 
 const {
   dateLocale,

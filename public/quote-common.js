@@ -194,7 +194,7 @@ function renderCart() {
     (it) => `${it.marketHashName}${it.qty > 1 ? ` × ${it.qty}` : ""} — ${formatPrice(it.price * it.qty)}`
   );
   const message = `${messageIntro}\n${lines.join("\n")}\n\n${totalLabel} ${formatPrice(total)} (${priceNote}).`;
-  cartTelegramLink.href = `https://t.me/lxnmnk?text=${encodeURIComponent(message)}`;
+  cartTelegramLink.href = `https://t.me/gabenmarket_support?text=${encodeURIComponent(message)}`;
 }
 
 function escapeHtml(s) {

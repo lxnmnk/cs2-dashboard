@@ -190,6 +190,7 @@ const PUBLIC_PATHS = new Set([
   "/quote.css",
   "/quote-common.js",
   "/bg-map.jpg",
+  "/favicon.svg",
   "/api/public/item-search",
   "/api/public/sell-quote",
   "/api/public/buy-quote",

@@ -16,7 +16,7 @@
 // (у продажу обміни шле Skinbux), тому кнопка Telegram збирає готове
 // повідомлення з обома сторонами, trade-балансом і різницею.
 const SWAP_T = window.SWAP_CONFIG;
-const TELEGRAM_USER = "lxnmnk";
+const TELEGRAM_USER = "gabenmarket_support";
 
 const swapMineGrid = document.getElementById("swapMineGrid");
 const swapOursGrid = document.getElementById("swapOursGrid");

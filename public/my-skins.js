@@ -203,7 +203,7 @@ function renderCart() {
   );
 
   const message = `${messageIntro}\n${lines.join("\n")}\n\n${totalLabel} $${total.toFixed(2)} (${priceNote}).`;
-  cartTelegramLink.href = `https://t.me/lxnmnk?text=${encodeURIComponent(message)}`;
+  cartTelegramLink.href = `https://t.me/gabenmarket_support?text=${encodeURIComponent(message)}`;
 }
 
 function escapeHtml(s) {
