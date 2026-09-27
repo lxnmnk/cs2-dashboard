@@ -750,7 +750,11 @@ async function csfloatImport(dryRun) {
     const res = await fetch("/api/trades/import/csfloat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dryRun }),
+      body: JSON.stringify({
+        dryRun,
+        days: Number(document.getElementById("csfloatImportDays").value) || 30,
+        mode: document.getElementById("csfloatImportMode").value,
+      }),
     });
     data = await res.json();
   } catch (err) {
@@ -796,7 +800,9 @@ function renderCsfloatPreview(data) {
           .map(
             (it) => `<tr>
               <td>${it.buyDate ? fmtDate(it.buyDate) : '<span class="na">—</span>'}</td>
-              <td>${escapeHtml(it.marketHashName)}</td>
+              <td>${escapeHtml(it.marketHashName)}${
+                it.received === false ? ' <span class="na">(not sent yet)</span>' : ""
+              }</td>
               <td>${it.floatValue != null ? it.floatValue.toFixed(6) : '<span class="na">—</span>'}</td>
               <td>${fmtMoney(it.buyPrice)}</td>
             </tr>`

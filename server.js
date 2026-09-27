@@ -1207,10 +1207,20 @@ app.post("/api/trades", (req, res) => {
 // записи полусотни строк дешевле, чем потом их удалять.
 app.post("/api/trades/import/csfloat", requireSiteOwner, async (req, res) => {
   try {
-    const { purchases, fetched, skipped } = await csfloatPurchases.fetchPurchases(process.env.CSFLOAT_API_KEY);
+    const { purchases, fetched, skipped, days, mode } = await csfloatPurchases.fetchPurchases(
+      process.env.CSFLOAT_API_KEY,
+      { days: req.body?.days, mode: req.body?.mode === "all" ? "all" : "purchased" }
+    );
     const known = trades.listExternalIds(req.session.username);
     const fresh = purchases.filter((p) => !known.has(p.externalId));
-    const summary = { fetched, skipped, found: purchases.length, alreadyHave: purchases.length - fresh.length };
+    const summary = {
+      fetched,
+      skipped,
+      days,
+      mode,
+      found: purchases.length,
+      alreadyHave: purchases.length - fresh.length,
+    };
 
     if (req.body?.dryRun) {
       return res.json({
@@ -1222,6 +1232,7 @@ app.post("/api/trades/import/csfloat", requireSiteOwner, async (req, res) => {
           buyPrice: p.buyPrice,
           buyDate: p.buyDate,
           floatValue: p.floatValue,
+          received: p.received,
         })),
       });
     }
