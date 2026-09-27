@@ -30,7 +30,23 @@ function findOwnedTrade(allTrades, id, owner) {
   return trade;
 }
 
-function addTrade({ marketHashName, name, wear, buySource, buyPrice, buyDate, unlockAt, owner, rows, sourcesConfig }) {
+function addTrade({
+  marketHashName,
+  name,
+  wear,
+  buySource,
+  buyPrice,
+  buyDate,
+  unlockAt,
+  owner,
+  rows,
+  sourcesConfig,
+  // Для автоимпорта (csfloatPurchases.js): externalId — идентификатор сделки
+  // на площадке, по нему импорт понимает, что она уже занесена; floatValue —
+  // float конкретного предмета, руками его никто не вписывает.
+  externalId,
+  floatValue,
+}) {
   if (!owner) throw new Error("owner обязателен");
   if (!marketHashName) throw new Error("marketHashName обязателен");
   // buySource — площадка з config.sources або будь-яка своя назва, вписана руками.
@@ -56,6 +72,8 @@ function addTrade({ marketHashName, name, wear, buySource, buyPrice, buyDate, un
     // при наличии точного значения используем его вместо приблизительного
     // buyDate + config.portfolio.tradeLockDays.
     customUnlockAt: unlockAt ? new Date(unlockAt).toISOString() : null,
+    externalId: externalId || null,
+    floatValue: Number.isFinite(Number(floatValue)) ? Number(floatValue) : null,
     status: "holding",
     sellSource: null,
     sellPrice: null,
@@ -441,8 +459,14 @@ async function listPublicHoldings(owner, config) {
   return items.sort((a, b) => a.marketHashName.localeCompare(b.marketHashName));
 }
 
+/** Идентификаторы уже импортированных сделок владельца — чтобы не задваивать. */
+function listExternalIds(owner) {
+  return new Set(loadTrades().filter((t) => t.owner === owner && t.externalId).map((t) => t.externalId));
+}
+
 module.exports = {
   addTrade,
+  listExternalIds,
   sellTrade,
   setUnlockAt,
   setBuyDate,

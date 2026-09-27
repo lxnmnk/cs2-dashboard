@@ -733,6 +733,94 @@ document.getElementById("addTradeBtn").addEventListener("click", async () => {
   await loadTrades();
 });
 
+// ---- Импорт покупок с CSFloat ----
+// Два шага: сначала dryRun (сервер только смотрит и считает), показываем
+// список и сумму, и лишь по кнопке пишем в таблицу. Уже импортированные
+// сделки сервер отсеивает сам по externalId, так что повторный клик ничего
+// не задваивает.
+const csfloatImportBtn = document.getElementById("csfloatImportBtn");
+const csfloatImportStatus = document.getElementById("csfloatImportStatus");
+const csfloatImportPreview = document.getElementById("csfloatImportPreview");
+
+async function csfloatImport(dryRun) {
+  csfloatImportBtn.disabled = true;
+  csfloatImportStatus.textContent = dryRun ? "Asking CSFloat..." : "Importing...";
+  let data;
+  try {
+    const res = await fetch("/api/trades/import/csfloat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dryRun }),
+    });
+    data = await res.json();
+  } catch (err) {
+    data = { ok: false, error: err.message };
+  }
+  csfloatImportBtn.disabled = false;
+  return data;
+}
+
+csfloatImportBtn?.addEventListener("click", async () => {
+  const data = await csfloatImport(true);
+  if (!data.ok) {
+    csfloatImportStatus.textContent = "";
+    csfloatImportPreview.style.display = "none";
+    errorBox.style.display = "block";
+    errorBox.textContent = `CSFloat import failed: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  renderCsfloatPreview(data);
+});
+
+function renderCsfloatPreview(data) {
+  const items = data.items || [];
+  csfloatImportStatus.textContent = `${data.found} purchases on CSFloat, ${data.alreadyHave} already in the table${
+    data.skipped ? `, ${data.skipped} entries skipped` : ""
+  }`;
+
+  if (!items.length) {
+    csfloatImportPreview.style.display = "block";
+    csfloatImportPreview.innerHTML = '<p class="empty-row">Nothing new to import.</p>';
+    return;
+  }
+
+  const total = items.reduce((sum, it) => sum + it.buyPrice, 0);
+  csfloatImportPreview.style.display = "block";
+  csfloatImportPreview.innerHTML = `
+    <p><b>${items.length}</b> new purchase(s), ${fmtMoney(total)} in total — all of them go in as bought on CSFloat.</p>
+    <table class="trades-table">
+      <thead><tr><th>Date</th><th>Item</th><th>Float</th><th>Price</th></tr></thead>
+      <tbody>
+        ${items
+          .map(
+            (it) => `<tr>
+              <td>${it.buyDate ? fmtDate(it.buyDate) : '<span class="na">—</span>'}</td>
+              <td>${escapeHtml(it.marketHashName)}</td>
+              <td>${it.floatValue != null ? it.floatValue.toFixed(6) : '<span class="na">—</span>'}</td>
+              <td>${fmtMoney(it.buyPrice)}</td>
+            </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+    <button id="csfloatImportConfirm" class="btn-small">Add these ${items.length} to the table</button>`;
+
+  document.getElementById("csfloatImportConfirm").addEventListener("click", async () => {
+    const result = await csfloatImport(false);
+    if (!result.ok) {
+      errorBox.style.display = "block";
+      errorBox.textContent = `CSFloat import failed: ${result.error}`;
+      return;
+    }
+    csfloatImportPreview.style.display = "none";
+    csfloatImportStatus.textContent = `Added ${result.added}${
+      result.failed?.length ? `, ${result.failed.length} failed: ${result.failed[0]}` : ""
+    }`;
+    await loadTrades();
+  });
+}
+
 // Парсит "MM/DD/YYYY HH:MM" (то, что показывает prompt-хинт из toLocaleString("en-US"))
 // в ISO-строку. Возвращает null, если формат не совпал.
 function parseUsDateTime(input) {

@@ -30,6 +30,7 @@ const { fetchInventory } = require("./steamInventory");
 const skinbuxInventory = require("./skinbuxInventory");
 const skinbuxTx = require("./skinbuxTransactions");
 const skinbuxSales = require("./skinbuxSales");
+const csfloatPurchases = require("./csfloatPurchases");
 const crypto = require("crypto");
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
@@ -1193,6 +1194,64 @@ app.post("/api/trades", (req, res) => {
     });
     res.json({ ok: true, trade });
   } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Импорт покупок с CSFloat одной кнопкой (csfloatPurchases.js). Только для
+// владельца: ключ CSFloat один на весь сайт — его, и чужой аккаунт в панели
+// не должен затащить себе его сделки.
+//
+// dryRun — сначала показать, что найдено, и только потом писать: список
+// приходит из недокументированного эндпоинта, и увидеть его глазами до
+// записи полусотни строк дешевле, чем потом их удалять.
+app.post("/api/trades/import/csfloat", requireSiteOwner, async (req, res) => {
+  try {
+    const { purchases, fetched, skipped } = await csfloatPurchases.fetchPurchases(process.env.CSFLOAT_API_KEY);
+    const known = trades.listExternalIds(req.session.username);
+    const fresh = purchases.filter((p) => !known.has(p.externalId));
+    const summary = { fetched, skipped, found: purchases.length, alreadyHave: purchases.length - fresh.length };
+
+    if (req.body?.dryRun) {
+      return res.json({
+        ok: true,
+        dryRun: true,
+        ...summary,
+        items: fresh.map((p) => ({
+          marketHashName: p.marketHashName,
+          buyPrice: p.buyPrice,
+          buyDate: p.buyDate,
+          floatValue: p.floatValue,
+        })),
+      });
+    }
+
+    let added = 0;
+    const failed = [];
+    for (const p of fresh) {
+      const { baseName, wear } = parseItemName(p.marketHashName);
+      try {
+        trades.addTrade({
+          marketHashName: p.marketHashName,
+          name: baseName,
+          wear,
+          buySource: "csfloat",
+          buyPrice: p.buyPrice,
+          buyDate: p.buyDate,
+          owner: req.session.username,
+          rows: cache.rows,
+          sourcesConfig: config.sources,
+          externalId: p.externalId,
+          floatValue: p.floatValue,
+        });
+        added++;
+      } catch (err) {
+        failed.push(`${p.marketHashName}: ${err.message}`);
+      }
+    }
+    res.json({ ok: true, added, failed, ...summary });
+  } catch (err) {
+    console.error("[csfloat-import] Ошибка:", err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
 });

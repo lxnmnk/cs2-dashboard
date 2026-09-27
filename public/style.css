@@ -589,3 +589,15 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
   transition: transform 0.15s ease;
 }
 .section-title.collapsed .collapse-chevron { transform: rotate(-90deg); }
+
+/* Импорт покупок с CSFloat: кнопка отдельной полосой под формой, а список
+   найденного — раскрывающейся таблицей, чтобы перед записью 50 строк было
+   видно, что именно приедет. */
+.csfloat-import { gap: 12px; align-items: center; }
+.csfloat-import-preview {
+  padding: 12px 24px 20px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.csfloat-import-preview p { margin: 0 0 10px; font-size: 13px; }
+.csfloat-import-preview table { margin-bottom: 12px; }
