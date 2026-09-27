@@ -1238,6 +1238,7 @@ app.post("/api/trades/import/csfloat", requireSiteOwner, async (req, res) => {
           buySource: "csfloat",
           buyPrice: p.buyPrice,
           buyDate: p.buyDate,
+          unlockAt: p.unlockAt,
           owner: req.session.username,
           rows: cache.rows,
           sourcesConfig: config.sources,

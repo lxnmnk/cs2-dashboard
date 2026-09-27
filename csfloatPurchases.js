@@ -14,9 +14,27 @@ const BASE_URL = process.env.CSFLOAT_BASE_URL || "https://csfloat.com";
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 20; // 2000 сделок — с запасом, дальше почти наверняка зацикливание
 
-// Сделка считается покупкой только в этих состояниях: предмет уже наш.
-// pending/queued ещё могут отмениться, их не заносим.
+// Состояния, в которых предмет к нам не приедет: деньги вернулись, заносить
+// нечего.
+const DEAD_STATES = new Set(["cancelled", "canceled", "failed", "expired", "refunded", "reverted", "rejected"]);
+// Состояния, которые сами по себе означают завершённую покупку.
 const DONE_STATES = new Set(["completed", "verified", "accepted", "success"]);
+// Steam ETradeOfferState: 3 — обмен принят, предмет уже в инвентаре.
+const STEAM_OFFER_ACCEPTED = 3;
+
+/**
+ * Покупка ли это. Ориентируемся не на state сделки, а на то, дошёл ли
+ * предмет: у CSFloat сделка висит в "pending" до конца защиты покупателя
+ * (verify_sale_at — это ещё неделя после того, как вещь уже лежит в
+ * инвентаре), и по state её легко принять за незавершённую.
+ */
+function isReceivedPurchase(raw) {
+  const state = String(pick(raw, ["state", "status"]) || "").toLowerCase();
+  if (DEAD_STATES.has(state)) return false;
+  if (DONE_STATES.has(state)) return true;
+  if (pick(raw, ["accepted_at", "verified_at"])) return true;
+  return Number(pick(raw, ["steam_offer.state"])) === STEAM_OFFER_ACCEPTED;
+}
 
 /** GET к CSFloat с ключом владельца. Ошибку отдаём человеку как есть. */
 async function apiGet(apiKey, path) {
@@ -65,8 +83,7 @@ function pick(obj, paths) {
  * не хватает названия/цены.
  */
 function normalizeTrade(raw) {
-  const state = String(pick(raw, ["state", "status"]) || "").toLowerCase();
-  if (state && !DONE_STATES.has(state)) return null;
+  if (!isReceivedPurchase(raw)) return null;
 
   const marketHashName = pick(raw, [
     "contract.item.market_hash_name",
@@ -85,7 +102,12 @@ function normalizeTrade(raw) {
     externalId: `csfloat:${pick(raw, ["id", "trade_id", "contract.id"]) || ""}`,
     marketHashName: String(marketHashName),
     buyPrice: Math.round(cents) / 100,
-    buyDate: pick(raw, ["created_at", "accepted_at", "verified_at", "contract.created_at"]) || null,
+    // Когда предмет реально к нам приехал. contract.created_at тут не годится:
+    // это дата появления лота у продавца (у Deagle — за две недели до покупки).
+    buyDate: pick(raw, ["accepted_at", "created_at", "verified_at"]) || null,
+    // Конец защиты сделки у CSFloat — те же 7 дней, что предмет нельзя
+    // передавать дальше, только точной датой площадки, а не нашей прикидкой.
+    unlockAt: pick(raw, ["trade_protection_ends_at"]) || null,
     floatValue: Number(pick(raw, ["contract.item.float_value", "item.float_value"])) || null,
     inspectLink: pick(raw, ["contract.item.inspect_link", "item.inspect_link"]),
   };
