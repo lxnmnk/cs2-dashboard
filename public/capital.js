@@ -86,8 +86,16 @@ function renderBankTable(bank) {
     ["Инвентарь Steam, можно продать сейчас", inv.tradable.value, `${inv.tradable.count} шт · лучший bid минус комиссия`],
     ["Инвентарь Steam, в трейд-бане", inv.locked.value, `${inv.locked.count} шт · по цене покупки${inv.locked.unknownCost ? `; ${inv.locked.unknownCost} без известной цены — по рынку` : ""}`],
     ["Баланс CSFloat", bank.csfloat.value, bank.csfloat.source === "api" ? "из API" : bank.csfloat.source === "manual" ? "вписан руками" : "не прочитан"],
+    [
+      "Баланс Skinbux",
+      bank.skinbux.value,
+      bank.skinbux.source === "api"
+        ? `из API · доступно ${money(bank.skinbux.available)} · в холде ${money(bank.skinbux.pending)}`
+        : bank.skinbux.source === "manual"
+          ? "вписан руками"
+          : "не прочитан",
+    ],
     ["Баланс Youpin", bank.youpin, "вручную"],
-    ["Баланс Skinbux", bank.skinbux, "вручную"],
     ["Крипта / кеш", bank.cash, "вручную"],
     ["Переплата за флот", bank.overpay, "вручную"],
     ["Итого активы", bank.assets, ""],

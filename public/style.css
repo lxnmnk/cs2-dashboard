@@ -634,3 +634,6 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 }
 .row-total td { font-weight: 600; border-top: 1px solid var(--border); }
 @media (max-width: 900px) { .capital-split { grid-template-columns: 1fr; } }
+
+/* Пункты меню только для владельца: спрятаны, пока /api/me не подтвердит. */
+.owner-only-hidden { display: none; }

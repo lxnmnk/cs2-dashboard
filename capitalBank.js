@@ -15,6 +15,7 @@ const { fetchInventory } = require("./steamInventory");
 const trades = require("./trades");
 const skinbuxSales = require("./skinbuxSales");
 const { fetchBalance } = require("./csfloatAccount");
+const skinbuxAccount = require("./skinbuxAccount");
 
 function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
@@ -111,12 +112,22 @@ function valueInventory(items, { rows, sourcesConfig, owner }) {
   return result;
 }
 
-/** Сколько мы должны клиентам сайта: непогашенные балансы из их продаж. */
+/**
+ * Сколько мы должны клиентам сайта: непогашенные балансы из их продаж.
+ *
+ * Баланс Skinbux — общий котёл: там и наша доля, и деньги клиентов, которые
+ * мы им ещё не выплатили. Вычитаем именно долги, а не урезаем строку Skinbux,
+ * чтобы было видно обе величины по отдельности.
+ *
+ * Продажи с наших собственных аккаунтов (см. skinbuxSales.OWN_STEAM_IDS) —
+ * не долг: это наши же деньги, просто проданные через свой сайт.
+ */
 function clientLiabilities() {
   let payout = 0; // обычные продажи: должны деньгами
   let tradeCredit = 0; // сторона клиента в обмене: должны скинами
   for (const sale of skinbuxSales.loadAll()) {
     if (sale.paidAt) continue;
+    if (skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId))) continue;
     if (sale.status !== "hold" && sale.status !== "completed") continue;
     if (sale.kind === "trade") tradeCredit = round2(tradeCredit + sale.totalPrice);
     else payout = round2(payout + sale.totalPrice);
@@ -152,16 +163,29 @@ async function collectBank({ state, rows, config, owner, refresh = false }) {
     }
   }
 
+  // Skinbux отдаёт и доступное, и то, что ещё в холде (7 дней после обмена).
+  // В банк идёт всё: холд никуда не денется, просто придёт позже.
+  let skinbux = { value: state.manual.skinbux ?? 0, source: "manual", available: null, pending: null };
+  if (state.manual.skinbux == null) {
+    try {
+      const balance = await skinbuxAccount.fetchBalance(process.env.SKINBUX_API_KEY);
+      skinbux = { value: balance.total, source: "api", available: balance.available, pending: balance.pending };
+    } catch (err) {
+      skinbux = { value: 0, source: "error", available: null, pending: null };
+      errors.push(`Баланс Skinbux: ${err.message}`);
+    }
+  }
+
   const liabilities = clientLiabilities();
   const assets = round2(
-    inventory.total + csfloat.value + state.manual.youpin + state.manual.skinbux + state.manual.cash + state.manual.overpay
+    inventory.total + csfloat.value + skinbux.value + state.manual.youpin + state.manual.cash + state.manual.overpay
   );
 
   return {
     inventory,
     csfloat,
     youpin: state.manual.youpin,
-    skinbux: state.manual.skinbux,
+    skinbux,
     cash: state.manual.cash,
     overpay: state.manual.overpay,
     liabilities,

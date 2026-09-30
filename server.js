@@ -253,6 +253,13 @@ app.get("/api/me", (req, res) => {
   res.json({ username: req.session.username, isSiteOwner: req.session.username === SITE_OWNER });
 });
 
+// Страница капитала — только владельцу. Стоит ДО express.static: public/
+// раздаётся любому вошедшему в панель (там есть аккаунты друзей), и без
+// этой проверки файл открылся бы по прямому адресу в обход роута /capital.
+app.get(["/capital.html", "/capital.js"], requireSiteOwner, (req, res) => {
+  res.sendFile(path.join(__dirname, "public", req.path.slice(1)));
+});
+
 // Корень сайта — публичная клиентская страница (выбор Купити/Продати), а не
 // внутренняя закрытая логином панель. Должен идти ДО express.static, иначе
 // static сам отдаст public/index.html (внутренний арбитраж) на "/".
@@ -991,11 +998,8 @@ app.get("/api/public/my-skins", async (req, res) => {
 // Skinbux, и тем, что мы должны клиенту.
 // Свои аккаунты в "Продажах клиентов" не показываем: продажи с них — это не
 // клиенты, а наши собственные сделки, и они только путают прибыль по клиентам.
-// Сами записи не трогаем — у владельца аккаунта они видны в его кабинете.
-const CLIENT_SALES_HIDDEN_STEAM_IDS = new Set([
-  "76561199060089261", // lxnmnk
-  "76561198158130074", // TARHUN
-]);
+// Список общий с расчётом банка (capitalBank.js), поэтому лежит в skinbuxSales.
+const CLIENT_SALES_HIDDEN_STEAM_IDS = skinbuxSales.OWN_STEAM_IDS;
 
 app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
   const clientSales = () => skinbuxSales.loadAll().filter((s) => !CLIENT_SALES_HIDDEN_STEAM_IDS.has(String(s.steamId)));

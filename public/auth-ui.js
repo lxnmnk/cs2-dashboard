@@ -5,6 +5,12 @@
     const data = await res.json();
     const whoami = document.getElementById("whoami");
     if (whoami) whoami.textContent = data.username ? `Logged in as ${data.username}` : "";
+    // Ссылки только для владельца (например "Капитал" — балансы инвесторов).
+    // В разметке они спрятаны, чтобы у друзей в панели не мелькал пункт,
+    // который всё равно отдаст 403.
+    if (data.isSiteOwner) {
+      document.querySelectorAll(".owner-only").forEach((el) => el.classList.remove("owner-only-hidden"));
+    }
   } catch (e) {
     console.warn("Failed to load current user:", e);
   }

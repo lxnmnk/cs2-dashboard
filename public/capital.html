@@ -39,9 +39,9 @@
 
     <div class="capital-manual">
       <h3>Вписать руками</h3>
-      <p class="card-hint">Эти площадки не отдают баланс по API. Пустой CSFloat — берём из API.</p>
+      <p class="card-hint">Пустые CSFloat и Skinbux берутся из их API (у Skinbux — вместе с холдом). Число в поле перебивает API.</p>
       <label>Youpin (优品) $ <input id="manualYoupin" type="number" step="0.01" /></label>
-      <label>Skinbux $ <input id="manualSkinbux" type="number" step="0.01" /></label>
+      <label>Skinbux $ <input id="manualSkinbux" type="number" step="0.01" placeholder="из API" /></label>
       <label>Крипта / кеш $ <input id="manualCash" type="number" step="0.01" /></label>
       <label>Переплата за флот $ <input id="manualOverpay" type="number" step="0.01" /></label>
       <label>CSFloat вручную $ <input id="manualCsfloat" type="number" step="0.01" placeholder="из API" /></label>

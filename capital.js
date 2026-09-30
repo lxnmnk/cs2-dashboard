@@ -46,7 +46,8 @@ const DEFAULTS = {
   managerFeePct: 50,
   participants: [],
   // Балансы, которые площадки не отдают по API — вписываются руками.
-  manual: { youpin: 0, skinbux: 0, cash: 0, overpay: 0, csfloat: null },
+  // null у csfloat и skinbux означает "берём из API их аккаунтов".
+  manual: { youpin: 0, skinbux: null, cash: 0, overpay: 0, csfloat: null },
   movements: [],
   periods: [],
 };
@@ -108,9 +109,9 @@ function setManual(patch) {
   for (const key of Object.keys(state.manual)) {
     if (patch?.[key] === undefined) continue;
     const raw = patch[key];
-    // null у csfloat означает "берём из API", остальные — числа.
+    // Пустое поле у csfloat/skinbux значит "спросить их API", у остальных ноль.
     if (raw === null || raw === "") {
-      state.manual[key] = key === "csfloat" ? null : 0;
+      state.manual[key] = key === "csfloat" || key === "skinbux" ? null : 0;
       continue;
     }
     const value = Number(raw);
