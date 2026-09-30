@@ -126,6 +126,9 @@ function normalizeTrade(raw, mode = "purchased") {
     // Конец защиты сделки у CSFloat — те же 7 дней, что предмет нельзя
     // передавать дальше, только точной датой площадки, а не нашей прикидкой.
     unlockAt: pick(raw, ["trade_protection_ends_at"]) || null,
+    // assetId нужен расчёту банка (capitalBank.js): по нему предмет из
+    // инвентаря Steam находит свою цену покупки, не угадывая по названию.
+    assetId: pick(raw, ["contract.item.asset_id", "item.asset_id"]),
     floatValue: Number(pick(raw, ["contract.item.float_value", "item.float_value"])) || null,
     inspectLink: pick(raw, ["contract.item.inspect_link", "item.inspect_link"]),
     // Оплачено, но продавец ещё не отправил обмен: в таблицу такое заносить

@@ -46,6 +46,7 @@ function addTrade({
   // float конкретного предмета, руками его никто не вписывает.
   externalId,
   floatValue,
+  assetId,
 }) {
   if (!owner) throw new Error("owner обязателен");
   if (!marketHashName) throw new Error("marketHashName обязателен");
@@ -73,6 +74,7 @@ function addTrade({
     // buyDate + config.portfolio.tradeLockDays.
     customUnlockAt: unlockAt ? new Date(unlockAt).toISOString() : null,
     externalId: externalId || null,
+    assetId: assetId || null,
     floatValue: Number.isFinite(Number(floatValue)) ? Number(floatValue) : null,
     status: "holding",
     sellSource: null,
@@ -464,9 +466,16 @@ function listExternalIds(owner) {
   return new Set(loadTrades().filter((t) => t.owner === owner && t.externalId).map((t) => t.externalId));
 }
 
+/** Сделки владельца как они лежат в файле, без расчётных полей. */
+function listRawTrades(owner) {
+  return loadTrades().filter((t) => t.owner === owner);
+}
+
 module.exports = {
   addTrade,
   listExternalIds,
+  listRawTrades,
+  findAllSellOptions,
   sellTrade,
   setUnlockAt,
   setBuyDate,

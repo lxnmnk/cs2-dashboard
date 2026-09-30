@@ -601,3 +601,36 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 }
 .csfloat-import-preview p { margin: 0 0 10px; font-size: 13px; }
 .csfloat-import-preview table { margin-bottom: 12px; }
+
+/* Страница "Капитал и прибыль": слева разбивка банка, справа поля, которые
+   площадки не отдают по API и приходится вписывать руками. */
+.capital-split {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: 20px;
+  padding: 0 24px 20px;
+  align-items: start;
+}
+.capital-split > table { width: 100%; }
+.capital-manual {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.capital-manual h3 { margin: 0; font-size: 14px; }
+.capital-manual label { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.capital-manual input { width: 110px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text); }
+.capital-people { padding: 0 24px 12px; }
+.capital-people table { width: 100%; }
+.capital-setup { margin: 0 24px 20px; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; }
+.capital-setup summary { cursor: pointer; font-size: 14px; }
+.capital-setup table { width: 100%; margin: 12px 0; }
+.capital-setup input[type="text"], .capital-setup input[type="number"] {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; color: var(--text); width: 100%;
+}
+.row-total td { font-weight: 600; border-top: 1px solid var(--border); }
+@media (max-width: 900px) { .capital-split { grid-template-columns: 1fr; } }

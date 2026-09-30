@@ -31,6 +31,8 @@ const skinbuxInventory = require("./skinbuxInventory");
 const skinbuxTx = require("./skinbuxTransactions");
 const skinbuxSales = require("./skinbuxSales");
 const csfloatPurchases = require("./csfloatPurchases");
+const capital = require("./capital");
+const capitalBank = require("./capitalBank");
 const crypto = require("crypto");
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
@@ -1198,6 +1200,106 @@ app.post("/api/trades", (req, res) => {
   }
 });
 
+// ---- Капитал и прибыль инвесторов (capital.js, capitalBank.js) ----
+// Вся страница /capital и её роуты — только для владельца: тут балансы
+// инвесторов и личные траты, чужим аккаунтам в панели этого видеть незачем.
+app.get("/capital", requireSiteOwner, (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "capital.html"));
+});
+
+// Банк на сейчас + предварительный расчёт периода. refresh=1 — перечитать
+// инвентарь Steam мимо кеша.
+app.get("/api/capital", requireSiteOwner, async (req, res) => {
+  try {
+    const state = capital.load();
+    const bank = await capitalBank.collectBank({
+      state,
+      rows: cache.rows,
+      config,
+      owner: req.session.username,
+      refresh: req.query.refresh === "1",
+    });
+    res.json({
+      ok: true,
+      state: { ...state, periods: state.periods.slice(-12) },
+      bank,
+      preview: capital.previewPeriod(state, bank.total),
+      pricesReady: cache.rows.length > 0,
+    });
+  } catch (err) {
+    console.error("[capital] Ошибка:", err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/capital/participants", requireSiteOwner, (req, res) => {
+  try {
+    capital.setParticipants(req.body?.participants);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/capital/manual", requireSiteOwner, (req, res) => {
+  try {
+    capital.setManual(req.body || {});
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/capital/settings", requireSiteOwner, (req, res) => {
+  try {
+    capital.setSettings(req.body || {});
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/capital/movement", requireSiteOwner, (req, res) => {
+  try {
+    capital.addMovement(req.body || {});
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.delete("/api/capital/movement/:id", requireSiteOwner, (req, res) => {
+  try {
+    capital.deleteMovement(req.params.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Закрытие периода: банк собирается заново прямо здесь, а не берётся из
+// того, что прислал браузер — иначе прибыль зависела бы от того, как давно
+// открыта страница.
+app.post("/api/capital/close", requireSiteOwner, async (req, res) => {
+  try {
+    const state = capital.load();
+    const bank = await capitalBank.collectBank({
+      state,
+      rows: cache.rows,
+      config,
+      owner: req.session.username,
+      refresh: true,
+    });
+    if (bank.errors.length) {
+      return res.status(400).json({ ok: false, error: `Банк собран не полностью: ${bank.errors.join("; ")}` });
+    }
+    const period = capital.closePeriod(bank.total, bank, { note: req.body?.note });
+    res.json({ ok: true, period });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 // Импорт покупок с CSFloat одной кнопкой (csfloatPurchases.js). Только для
 // владельца: ключ CSFloat один на весь сайт — его, и чужой аккаунт в панели
 // не должен затащить себе его сделки.
@@ -1255,6 +1357,7 @@ app.post("/api/trades/import/csfloat", requireSiteOwner, async (req, res) => {
           sourcesConfig: config.sources,
           externalId: p.externalId,
           floatValue: p.floatValue,
+          assetId: p.assetId,
         });
         added++;
       } catch (err) {
