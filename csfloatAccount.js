@@ -7,7 +7,11 @@
 // страница предложит вписать баланс руками, а не покажет тихий ноль.
 const BASE_URL = process.env.CSFLOAT_BASE_URL || "https://csfloat.com";
 
-const BALANCE_PATHS = ["balance", "user.balance", "user.balance_cents", "balance_cents", "user.pending_balance"];
+// Где у них лежит баланс — сверху или внутри user, в документации не сказано,
+// поэтому смотрим оба варианта. Всё в центах.
+const AVAILABLE_PATHS = ["balance", "user.balance", "balance_cents", "user.balance_cents"];
+// Деньги за продажи, ещё не прошедшие защиту сделки, — у нас это "hold".
+const PENDING_PATHS = ["pending_balance", "user.pending_balance", "pending_balance_cents", "user.pending_balance_cents"];
 
 function pick(obj, paths) {
   for (const path of paths) {
@@ -35,9 +39,11 @@ async function fetchBalance(apiKey) {
     throw new Error("CSFloat вернул не JSON");
   }
 
-  const cents = pick(payload, BALANCE_PATHS);
+  const cents = pick(payload, AVAILABLE_PATHS);
   if (cents == null) throw new Error("в ответе нет баланса — впиши руками");
-  return Math.round(cents) / 100;
+  const available = Math.round(cents) / 100;
+  const pending = Math.round(pick(payload, PENDING_PATHS) || 0) / 100;
+  return { available, pending, total: Math.round((available + pending) * 100) / 100 };
 }
 
 module.exports = { fetchBalance };

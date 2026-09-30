@@ -1263,13 +1263,21 @@ function renderBalances(balances) {
   container.innerHTML = sources
     .map((s) => {
       const b = balances[s] || { active: 0, hold: 0, frozen: 0, nextUnlockAt: null };
+      // Площадка с живым API (CSFloat): число приходит с их сервера, поэтому
+      // карандаша нет — править нечего, при следующем чтении вернётся то же.
+      const live = b.source === "api";
       const extras = [];
-      if (b.hold > 0) {
-        extras.push(
-          `<div class="balance-extra">+${fmtMoney(b.hold)} hold · unlocks ${fmtDate(b.nextUnlockAt)} ${balanceEditBtn(s, "hold", b.hold)}</div>`
-        );
+      if (live) extras.push('<div class="balance-extra balance-live">из API CSFloat</div>');
+      if (b.source === "error") {
+        extras.push(`<div class="balance-extra unstable" title="${escapeHtml(b.error || "")}">API не ответил — показан расчёт по продажам</div>`);
       }
-      if (b.frozen > 0) {
+      if (b.hold > 0) {
+        const holdLine = live
+          ? `+${fmtMoney(b.hold)} pending · ждёт окончания защиты сделки`
+          : `+${fmtMoney(b.hold)} hold · unlocks ${fmtDate(b.nextUnlockAt)} ${balanceEditBtn(s, "hold", b.hold)}`;
+        extras.push(`<div class="balance-extra">${holdLine}</div>`);
+      }
+      if (b.frozen > 0 && !live) {
         extras.push(
           `<div class="balance-extra" title="Условие освобождения (не использовал ли покупатель свой frozen balance) не отслеживается">+${fmtMoney(b.frozen)} frozen ⚠️ ${balanceEditBtn(s, "frozen", b.frozen)}</div>`
         );
@@ -1284,7 +1292,7 @@ function renderBalances(balances) {
       return `
         <div class="summary-card">
           <div class="label">${BALANCE_LABEL_OVERRIDES[s] || sourceLabel(s)}</div>
-          <div class="value">${fmtMoney(b.active)} ${balanceEditBtn(s, "active", b.active)}</div>
+          <div class="value">${fmtMoney(b.active)} ${live ? "" : balanceEditBtn(s, "active", b.active)}</div>
           ${extras.join("")}
           ${withdrawBtn ? `<div class="balance-extra">${withdrawBtn}</div>` : ""}
         </div>`;

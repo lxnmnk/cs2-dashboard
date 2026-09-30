@@ -33,6 +33,7 @@ const skinbuxSales = require("./skinbuxSales");
 const csfloatPurchases = require("./csfloatPurchases");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
+const csfloatAccount = require("./csfloatAccount");
 const crypto = require("crypto");
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
@@ -1129,16 +1130,46 @@ app.get("/api/trades", (req, res) => {
 // счёт, площадки не дают API для этого). Поверх расчёта накладываются ручные
 // поправки владельца (balanceAdjustments.js) — например, если он часть денег
 // уже вывел или потратил не через наш трекер.
-app.get("/api/balances", (req, res) => {
-  const raw = trades.computeBalances(req.session.username, config.sources);
-  const adjustments = balanceAdjustments.getAdjustments(req.session.username);
-  res.json(balanceAdjustments.applyAdjustments(raw, adjustments));
+// Баланс CSFloat берём из их API — это единственная площадка, которая его
+// отдаёт. Прикидка по истории продаж и ручные поправки для неё больше не
+// нужны: живое число всегда точнее. Ключ у нас один, владельца сайта, поэтому
+// подменяем только ему — у друзей в панели останется их собственный расчёт.
+async function balancesFor(username) {
+  const raw = trades.computeBalances(username, config.sources);
+  const merged = balanceAdjustments.applyAdjustments(raw, balanceAdjustments.getAdjustments(username));
+  if (username !== SITE_OWNER) return merged;
+
+  try {
+    const live = await csfloatAccount.fetchBalance(process.env.CSFLOAT_API_KEY);
+    merged.csfloat = {
+      // pending у CSFloat — деньги за продажи, пока идёт защита сделки:
+      // по смыслу это тот же hold, что у других площадок.
+      active: live.available,
+      hold: live.pending,
+      frozen: 0,
+      nextUnlockAt: null,
+      source: "api",
+    };
+  } catch (err) {
+    // Не молчим: иначе не отличить "на CSFloat пусто" от "ключ не сработал".
+    merged.csfloat = { ...(merged.csfloat || { active: 0, hold: 0, frozen: 0, nextUnlockAt: null }), source: "error", error: err.message };
+  }
+  return merged;
+}
+
+app.get("/api/balances", async (req, res) => {
+  res.json(await balancesFor(req.session.username));
 });
 
 // Ручная правка баланса конкретного поля (active/hold/frozen) на площадке —
 // value это то число, которое владелец хочет видеть, а не сама поправка;
 // разницу с текущим "чистым" расчётом мы сохраняем сами (см. balanceAdjustments.js).
 app.post("/api/balances/:source/adjust", (req, res) => {
+  // CSFloat читается из API — правка руками всё равно не переживёт
+  // следующее чтение, поэтому честно отказываем, а не делаем вид.
+  if (req.params.source === "csfloat" && req.session.username === SITE_OWNER) {
+    return res.status(400).json({ ok: false, error: "Баланс CSFloat приходит из их API и правке не подлежит" });
+  }
   const { field, value } = req.body || {};
   if (!["active", "hold", "frozen"].includes(field)) {
     return res.status(400).json({ ok: false, error: "Некорректное поле" });
@@ -1161,7 +1192,7 @@ app.post("/api/balances/:source/adjust", (req, res) => {
 // Это тоже просто цифры в наших поправках, никакого реального вывода денег
 // не происходит — только чтобы дашборд отражал, что деньги теперь "лежат"
 // в другом месте.
-app.post("/api/balances/transfer", (req, res) => {
+app.post("/api/balances/transfer", async (req, res) => {
   const { fromSource, toSource, amount } = req.body || {};
   const amt = Number(amount);
   if (!Number.isFinite(amt) || amt <= 0) {
@@ -1183,11 +1214,15 @@ app.post("/api/balances/transfer", (req, res) => {
   const rawToActive = raw[toSource]?.active ?? 0;
   const toActive = merged[toSource]?.active ?? 0;
 
-  balanceAdjustments.setAdjustment(req.session.username, fromSource, "active", fromActive - amt, rawFromActive);
+  // CSFloat читается из API: списание там произойдёт само, когда деньги
+  // реально уйдут. Поправку по нему не сохраняем, иначе она будет вычитаться
+  // из живого баланса каждый раз.
+  if (!(fromSource === "csfloat" && req.session.username === SITE_OWNER)) {
+    balanceAdjustments.setAdjustment(req.session.username, fromSource, "active", fromActive - amt, rawFromActive);
+  }
   balanceAdjustments.setAdjustment(req.session.username, toSource, "active", toActive + amt, rawToActive);
 
-  const updatedAdjustments = balanceAdjustments.getAdjustments(req.session.username);
-  res.json({ ok: true, balances: balanceAdjustments.applyAdjustments(raw, updatedAdjustments) });
+  res.json({ ok: true, balances: await balancesFor(req.session.username) });
 });
 
 app.post("/api/trades", (req, res) => {

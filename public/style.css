@@ -637,3 +637,6 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 
 /* Пункты меню только для владельца: спрятаны, пока /api/me не подтвердит. */
 .owner-only-hidden { display: none; }
+
+/* Баланс, пришедший из API площадки, а не посчитанный по нашим продажам. */
+.balance-live { color: var(--gold); opacity: 0.85; }

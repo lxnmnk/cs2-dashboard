@@ -160,7 +160,8 @@ async function collectBank({ state, rows, config, owner, refresh = false }) {
   let csfloat = { value: state.manual.csfloat ?? 0, source: state.manual.csfloat != null ? "manual" : "api" };
   if (state.manual.csfloat == null) {
     try {
-      csfloat = { value: await fetchBalance(process.env.CSFLOAT_API_KEY), source: "api" };
+      const live = await fetchBalance(process.env.CSFLOAT_API_KEY);
+      csfloat = { value: live.total, source: "api", available: live.available, pending: live.pending };
     } catch (err) {
       csfloat = { value: 0, source: "error" };
       errors.push(`Баланс CSFloat: ${err.message}`);
