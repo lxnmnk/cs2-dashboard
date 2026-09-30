@@ -641,3 +641,22 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 /* Баланс, пришедший из API площадки, а не посчитанный по нашим продажам. */
 .balance-live { color: var(--gold); opacity: 0.85; }
 .balance-split { color: var(--muted); font-size: 11px; padding-left: 8px; }
+
+/* Подсказки поиска рисуются поверх всего, что идёт ниже.
+   Без этого их перекрывали: на арбитраже — липкая шапка таблицы
+   (thead th: position sticky), в My Trades — следующая секция формы
+   (у неё тоже position: relative, а она позже в разметке). Поднимаем сам
+   блок с полем, пока в нём фокус, а не только список: список лежит внутри
+   и чужой контекст наложения ему не перепрыгнуть. */
+.controls,
+.trade-form,
+.add-trade-form {
+  position: relative;
+  z-index: 1;
+}
+.controls:focus-within,
+.trade-form:focus-within,
+.add-trade-form:focus-within {
+  z-index: 60;
+}
+.autocomplete-list { z-index: 70; }

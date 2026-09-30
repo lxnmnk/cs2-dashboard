@@ -1327,3 +1327,9 @@ a.sender-line { color: var(--gold); }
   cursor: pointer;
   backdrop-filter: blur(8px);
 }
+
+/* То же и на клиентских страницах: там ниже поля поиска бывает липкая
+   панель итогов (swap-summary) с z-index 20-25, и она накрывала подсказки. */
+.autocomplete-wrap { z-index: 1; }
+.autocomplete-wrap:focus-within { z-index: 60; }
+.autocomplete-list { z-index: 70; }
