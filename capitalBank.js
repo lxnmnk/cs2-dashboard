@@ -38,77 +38,78 @@ function instantSellValue(marketHashName, rows, sourcesConfig) {
 }
 
 /**
- * Цены покупки открытых позиций из трекера: имя предмета -> список цен, от
- * свежих к старым. Для предметов в трейд-бане берём отсюда.
+ * Оценка инвентаря по открытым позициям трекера (/mytrades) — он и есть наш
+ * учёт: там цена покупки, дата разблокировки и текущий bid по каждому
+ * предмету, и он пополняется автоматически импортом покупок с CSFloat.
+ *
+ * Инвентарь Steam для этого не годится: его публичная версия НЕ показывает
+ * трейд-бан (owner_descriptions с "Tradable After" отдаются только самому
+ * владельцу при входе), поэтому только что купленные скины выглядели там
+ * свободными, а в "бане" оказывались медали и брелоки, которые не торгуются
+ * вообще и к бизнесу отношения не имеют.
  */
-function buyPriceIndex(owner) {
-  const index = new Map();
-  for (const trade of trades.listRawTrades(owner)) {
-    if (trade.status !== "holding") continue;
-    const list = index.get(trade.marketHashName) || [];
-    list.push({ assetId: trade.assetId || null, buyPrice: trade.buyPrice, buyDate: trade.buyDate });
-    index.set(trade.marketHashName, list);
-  }
-  for (const list of index.values()) list.sort((a, b) => new Date(b.buyDate) - new Date(a.buyDate));
-  return index;
-}
-
-/** Цена покупки конкретного предмета: сначала по assetId, потом по названию. */
-function takeBuyPrice(index, item) {
-  const list = index.get(item.marketHashName);
-  if (!list?.length) return null;
-  const exact = list.findIndex((t) => t.assetId && t.assetId === item.assetId);
-  const [match] = list.splice(exact >= 0 ? exact : 0, 1);
-  return match ? match.buyPrice : null;
-}
-
-/**
- * Оценка инвентаря Steam. Возвращает суммы и разбивку, чтобы на странице было
- * видно, какая часть банка сейчас неликвидна (в бане) и сколько предметов мы
- * не смогли оценить вообще.
- */
-function valueInventory(items, { rows, sourcesConfig, owner }) {
-  const index = buyPriceIndex(owner);
+function valueTracker({ owner, rows, config }) {
   const result = {
     tradable: { count: 0, value: 0 },
-    // В трейд-бане: те, для кого нашли цену покупки, и те, для кого нет.
-    locked: { count: 0, value: 0, atCost: 0, atMarket: 0, unknownCost: 0 },
-    unpriced: { count: 0, names: [] },
+    locked: { count: 0, value: 0 },
+    // Предмет без цены в снапшоте: в банк идёт по цене покупки, но мы это
+    // показываем — значит, оценка у него не рыночная.
+    noMarketPrice: { count: 0, value: 0, names: [] },
     total: 0,
   };
 
-  for (const item of items) {
-    const locked = !item.tradable;
-    const market = instantSellValue(item.marketHashName, rows, sourcesConfig);
+  for (const trade of trades.listTrades({ owner, rows, config })) {
+    if (trade.status !== "holding") continue;
 
-    if (locked) {
-      const cost = takeBuyPrice(index, item);
-      const value = cost != null ? cost : market;
-      if (value == null) {
-        result.unpriced.count++;
-        if (result.unpriced.names.length < 20) result.unpriced.names.push(item.marketHashName);
-        continue;
-      }
+    if (trade.isLocked) {
+      // В трейд-бане — по цене покупки: продать нельзя, переоценивать нечего.
       result.locked.count++;
-      result.locked.value = round2(result.locked.value + value);
-      if (cost != null) result.locked.atCost = round2(result.locked.atCost + value);
-      else {
-        result.locked.atMarket = round2(result.locked.atMarket + value);
-        result.locked.unknownCost++;
-      }
+      result.locked.value = round2(result.locked.value + trade.buyPrice);
       continue;
     }
 
-    if (market == null) {
-      result.unpriced.count++;
-      if (result.unpriced.names.length < 20) result.unpriced.names.push(item.marketHashName);
+    const bid = (trade.sellOptions || []).filter((o) => o.side === "bid")[0];
+    if (!bid) {
+      result.noMarketPrice.count++;
+      result.noMarketPrice.value = round2(result.noMarketPrice.value + trade.buyPrice);
+      if (result.noMarketPrice.names.length < 20) result.noMarketPrice.names.push(trade.marketHashName);
       continue;
     }
     result.tradable.count++;
-    result.tradable.value = round2(result.tradable.value + market);
+    result.tradable.value = round2(result.tradable.value + bid.price);
   }
 
-  result.total = round2(result.tradable.value + result.locked.value);
+  result.total = round2(result.tradable.value + result.locked.value + result.noMarketPrice.value);
+  return result;
+}
+
+/**
+ * Сверка с реальным инвентарём Steam: предметы, которые лежат в аккаунте, но
+ * в трекере их нет. В банк они не идут (трекер — источник истины), но молча
+ * терять их нельзя, поэтому считаем и показываем отдельно.
+ */
+function untrackedSteamItems(items, { owner, rows, sourcesConfig }) {
+  const holdings = new Map();
+  for (const trade of trades.listRawTrades(owner)) {
+    if (trade.status !== "holding") continue;
+    holdings.set(trade.marketHashName, (holdings.get(trade.marketHashName) || 0) + 1);
+  }
+
+  const result = { count: 0, value: 0, names: [] };
+  for (const item of items) {
+    const left = holdings.get(item.marketHashName) || 0;
+    if (left > 0) {
+      holdings.set(item.marketHashName, left - 1);
+      continue;
+    }
+    // Медали, монеты, брелоки и прочее, что не торгуется и цены не имеет, в
+    // сверку не тащим — это не товар.
+    const market = instantSellValue(item.marketHashName, rows, sourcesConfig);
+    if (market == null) continue;
+    result.count++;
+    result.value = round2(result.value + market);
+    if (result.names.length < 20) result.names.push(item.marketHashName);
+  }
   return result;
 }
 
@@ -143,12 +144,15 @@ function clientLiabilities() {
 async function collectBank({ state, rows, config, owner, refresh = false }) {
   const errors = [];
 
-  let inventory = { tradable: { count: 0, value: 0 }, locked: { count: 0, value: 0, atCost: 0, atMarket: 0, unknownCost: 0 }, unpriced: { count: 0, names: [] }, total: 0 };
+  // Инвентарь считаем по трекеру сделок, а Steam используем только для
+  // сверки: не потерялось ли что-то, чего в трекере нет.
+  const inventory = valueTracker({ owner, rows, config });
+  let untracked = { count: 0, value: 0, names: [] };
   try {
     const items = await fetchInventory(state.steamId, { force: refresh });
-    inventory = valueInventory(items, { rows, sourcesConfig: config.sources, owner });
+    untracked = untrackedSteamItems(items, { owner, rows, sourcesConfig: config.sources });
   } catch (err) {
-    errors.push(`Инвентарь Steam: ${err.message}`);
+    errors.push(`Сверка с инвентарём Steam не вышла: ${err.message}`);
   }
 
   // Баланс CSFloat отдаёт API, но если ключа нет или ответ не разобрали —
@@ -183,6 +187,7 @@ async function collectBank({ state, rows, config, owner, refresh = false }) {
 
   return {
     inventory,
+    untracked,
     csfloat,
     youpin: state.manual.youpin,
     skinbux,
@@ -196,4 +201,4 @@ async function collectBank({ state, rows, config, owner, refresh = false }) {
   };
 }
 
-module.exports = { collectBank, valueInventory, clientLiabilities, instantSellValue };
+module.exports = { collectBank, valueTracker, untrackedSteamItems, clientLiabilities, instantSellValue };

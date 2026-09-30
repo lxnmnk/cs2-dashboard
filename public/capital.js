@@ -51,8 +51,12 @@ function render() {
 
   const problems = [...bank.errors];
   if (!pricesReady) problems.push("Цены ещё не загрузились — инвентарь посчитан не полностью");
-  if (bank.inventory.unpriced.count) {
-    problems.push(`${bank.inventory.unpriced.count} предмет(ов) без цены не попали в банк: ${bank.inventory.unpriced.names.slice(0, 3).join(", ")}`);
+  // Банк считается по трекеру, поэтому предмет, которого там нет, в банк не
+  // попадёт. Молчать об этом нельзя — это потерянные деньги.
+  if (bank.untracked.count) {
+    problems.push(
+      `В инвентаре Steam ${bank.untracked.count} предмет(ов) на ${money(bank.untracked.value)}, которых нет в My Trades — в банк они не вошли: ${bank.untracked.names.slice(0, 3).join(", ")}`
+    );
   }
   showError(problems.join(" · "));
 
@@ -83,8 +87,11 @@ function renderBankCards(bank, preview) {
 function renderBankTable(bank) {
   const inv = bank.inventory;
   const rows = [
-    ["Инвентарь Steam, можно продать сейчас", inv.tradable.value, `${inv.tradable.count} шт · лучший bid минус комиссия`],
-    ["Инвентарь Steam, в трейд-бане", inv.locked.value, `${inv.locked.count} шт · по цене покупки${inv.locked.unknownCost ? `; ${inv.locked.unknownCost} без известной цены — по рынку` : ""}`],
+    ["Позиции из My Trades, можно продать", inv.tradable.value, `${inv.tradable.count} шт · лучший bid минус комиссия`],
+    ["Позиции в трейд-бане", inv.locked.value, `${inv.locked.count} шт · по цене покупки`],
+    ...(inv.noMarketPrice.count
+      ? [["Позиции без рыночной цены", inv.noMarketPrice.value, `${inv.noMarketPrice.count} шт · по цене покупки`]]
+      : []),
     ["Баланс CSFloat", bank.csfloat.value, bank.csfloat.source === "api" ? "из API" : bank.csfloat.source === "manual" ? "вписан руками" : "не прочитан"],
     [
       "Баланс Skinbux",
