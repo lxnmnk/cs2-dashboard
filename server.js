@@ -232,10 +232,6 @@ app.use((req, res, next) => {
 // только спрятанными кнопками, иначе это можно вызвать запросом напрямую.
 const SITE_OWNER = "lxnmnk";
 
-function round2(n) {
-  return Math.round((Number(n) || 0) * 100) / 100;
-}
-
 function requireSiteOwner(req, res, next) {
   if (req.session?.username === SITE_OWNER) return next();
   res.status(403).json({ ok: false, error: "Только для владельца сайта" });
@@ -1042,31 +1038,7 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
     })
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-  // Ручные продажи за клиента: сделку заводишь сам в add trade, в поле
-  // Bought On пишешь gaben.market. Через сайт она не проходила, записи в
-  // журнале нет — берём её из трекера, чтобы клиентские сделки были в одном
-  // списке, а не в двух местах.
-  const manual = trades
-    .listRawTrades(req.session.username)
-    .filter((t) => skinbuxAccount.CLIENT_BUY_SOURCES.has(skinbuxAccount.normalizeSource(t.buySource)))
-    .map((t) => ({
-      id: t.id.slice(0, 8),
-      steamId: null,
-      customerName: null,
-      manual: true,
-      kind: "manual",
-      items: [t.marketHashName],
-      // "Должны клиенту" — это то, что мы за предмет заплатили.
-      totalPrice: round2(t.buyPrice),
-      skinbuxTotal: t.status === "sold" ? round2(t.sellPrice) : 0,
-      profit: t.status === "sold" ? round2(t.sellPrice - t.buyPrice) : 0,
-      status: t.status === "sold" ? "completed" : "holding",
-      paidAt: null,
-      unlockAt: null,
-      createdAt: t.buyDate,
-    }));
-
-  res.json({ ok: true, sales: [...sales, ...manual].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)) });
+  res.json({ ok: true, sales });
 });
 
 // Автодополнение названия предмета при добавлении сделки — ищем по подстроке
@@ -1194,9 +1166,6 @@ async function balancesFor(username) {
       const transactions = await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY);
       hold = skinbuxAccount.splitHold(transactions, {
         sales: skinbuxSales.loadAll(),
-        // Продажи мимо сайта опознаются по трекеру: там видно, за сколько
-        // предмет куплен и у кого (Bought On: gaben.market — у клиента).
-        trackerSales: trades.listRawTrades(username),
         ownerSteamId: skinbuxSales.OWNER_STEAM_ID,
         partners: skinbuxSales.PARTNER_STEAM_IDS,
       });

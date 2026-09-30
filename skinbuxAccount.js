@@ -86,62 +86,9 @@ function round2(n) {
  *   unknown  — транзакции, которых нет в журнале (продано мимо сайта).
  *              Не гадаем, а показываем отдельно.
  */
-
-// Названия площадок, означающие "куплено у клиента": вписываются руками в
-// поле Bought On, когда сделка сделана напрямую, а не через сайт.
-const CLIENT_BUY_SOURCES = new Set(["gabenmarket", "gaben", "client", "клиент"]);
-
-function normalizeSource(value) {
-  return String(value || "")
-    .toLowerCase()
-    .replace(/[^a-zа-яё0-9]+/gi, "");
-}
-
-/** Проданные через Skinbux сделки трекера: название -> список, по одной штуке. */
-function buildTrackerIndex(trackerSales) {
-  const index = new Map();
-  for (const t of trackerSales) {
-    if (t.status !== "sold" || normalizeSource(t.sellSource) !== "skinbux") continue;
-    const list = index.get(t.marketHashName) || [];
-    list.push(t);
-    index.set(t.marketHashName, list);
-  }
-  return index;
-}
-
-/**
- * Ищет сделки трекера, из которых состоит транзакция. Совпадение по названию
- * предмета и цене продажи: у Skinbux комиссии нет, поэтому цена в трекере
- * равна цене предмета в транзакции. Транзакция из двух предметов найдёт обе
- * свои сделки.
- *
- * fromClient — хотя бы одна из сделок куплена у клиента (Bought On:
- * gaben.market), тогда payout это сумма, которую мы клиенту заплатили.
- */
-function matchTracker(tx, index) {
-  const items = tx.tradeItems || [];
-  if (!items.length) return null;
-
-  const found = [];
-  for (const item of items) {
-    const list = index.get(item.name);
-    if (!list?.length) continue;
-    const price = round2((Number(item.price) || 0) / 100);
-    const at = list.findIndex((t) => Math.abs(round2(t.sellPrice) - price) < 0.02);
-    if (at < 0) continue;
-    found.push(list.splice(at, 1)[0]);
-  }
-  if (!found.length) return null;
-
-  const fromClient = found.some((t) => CLIENT_BUY_SOURCES.has(normalizeSource(t.buySource)));
-  const payout = round2(found.reduce((sum, t) => sum + (Number(t.buyPrice) || 0), 0));
-  return { trades: found, fromClient, payout };
-}
-
-function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partners = {}, holdDays = HOLD_DAYS }) {
+function splitHold(transactions, { sales, ownerSteamId, partners = {}, holdDays = HOLD_DAYS }) {
   const cutoff = Date.now() - holdDays * 86400000;
   const byId = new Map(sales.map((s) => [String(s.id), s]));
-  const trackerIndex = buildTrackerIndex(trackerSales);
 
   const result = {
     total: 0,
@@ -166,23 +113,9 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
 
     const sale = byId.get(String(tx.id));
     const steamId = sale ? String(sale.steamId) : null;
-    // Продажи мимо сайта (свои скины и ручные продажи за клиента) в журнале
-    // не лежат, зато лежат в трекере сделок: там записано, за сколько предмет
-    // куплен и где продан. Сопоставляем по названию и цене предмета — Skinbux
-    // отдаёт их в tradeItems, комиссии у него нет, поэтому цены совпадают.
-    const matched = steamId ? null : matchTracker(tx, trackerIndex);
     let owner;
 
-    if (matched) {
-      owner = matched.fromClient ? "client" : "mine";
-      if (matched.fromClient) {
-        result.clients.gross = round2(result.clients.gross + amount);
-        result.clients.payout = round2(result.clients.payout + matched.payout);
-        result.clients.margin = round2(result.clients.margin + (amount - matched.payout));
-      } else {
-        result.mine = round2(result.mine + amount);
-      }
-    } else if (!steamId) {
+    if (!steamId) {
       owner = "unknown";
       result.unknown.sum = round2(result.unknown.sum + amount);
       result.unknown.count++;
@@ -207,9 +140,6 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       amount,
       owner,
       steamId,
-      // Откуда узнали владельца: журнал сайта, пометка руками или никак.
-      via: steamId ? "journal" : matched ? "tracker" : "unknown",
-      payout: matched?.fromClient ? matched.payout : sale && owner === "client" ? round2(sale.totalPrice || 0) : null,
       customerName: sale?.customerName || null,
       unlockAt,
       names: (tx.tradeItems || []).map((i) => i.name),
@@ -221,6 +151,4 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
 
 module.exports.fetchTransactions = fetchTransactions;
 module.exports.splitHold = splitHold;
-module.exports.CLIENT_BUY_SOURCES = CLIENT_BUY_SOURCES;
-module.exports.normalizeSource = normalizeSource;
 module.exports.HOLD_DAYS = HOLD_DAYS;

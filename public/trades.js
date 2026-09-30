@@ -1412,17 +1412,13 @@ async function loadClientSales() {
     .map((s) => {
       // Отметить выплату можно и пока деньги ещё в холде у Skinbux: бывает,
       // что клиенту платишь раньше, и без этого сумма так и висела у него.
-      const canPay = !s.paidAt && s.kind !== "manual" && (s.status === "hold" || s.status === "completed");
+      const canPay = !s.paidAt && (s.status === "hold" || s.status === "completed");
       // Сделки из вкладки Trade: клиент сдал свою сторону на Skinbux, деньги
       // висят у него trade-балансом, и "оплатить" тут значит отдать ему наши
       // скины, а не перевести деньги. Холд на этих деньгах ждём мы.
       const isTrade = s.kind === "trade";
-      // Ручная сделка из трекера (Bought On: gaben.market): деньги клиенту
-      // отданы сразу при покупке, поэтому кнопки выплаты у неё нет.
-      const isManual = s.kind === "manual";
       let status;
-      if (isManual) status = s.status === "completed" ? "manual · sold on Skinbux" : "manual · in stock";
-      else if (s.paidAt) status = isTrade ? `skins given ${fmtDate(s.paidAt)}` : `paid ${fmtDate(s.paidAt)}`;
+      if (s.paidAt) status = isTrade ? `skins given ${fmtDate(s.paidAt)}` : `paid ${fmtDate(s.paidAt)}`;
       else if (isTrade && (s.status === "hold" || s.status === "completed")) status = "trade balance — owes him skins";
       else if (s.status === "hold" && s.unlockAt) status = `on hold until ${fmtDate(s.unlockAt)}`;
       else if (s.status === "completed") status = "released — client can withdraw";
@@ -1434,19 +1430,14 @@ async function loadClientSales() {
       } else if (s.paidAt) {
         action = `<button class="btn-small btn-secondary" data-action="unmark-paid" data-id="${s.id}">Undo</button>`;
       }
-      if (isManual) action = "";
 
       // Номер сделки — тот же, что клиент пишет в Telegram ("Угода #..."),
       // по нему строку и находишь.
       return `
         <tr>
           <td>${fmtDate(s.createdAt)}</td>
-          <td>#${escapeHtml(String(s.id))}${isTrade ? ' <span class="na">trade</span>' : ""}${isManual ? ' <span class="na">manual</span>' : ""}</td>
-          <td>${
-            s.steamId
-              ? `<a href="https://steamcommunity.com/profiles/${escapeHtml(s.steamId)}" target="_blank">${escapeHtml(s.customerName || s.steamId)}</a>`
-              : '<span class="na">off-site deal</span>'
-          }</td>
+          <td>#${escapeHtml(String(s.id))}${isTrade ? ' <span class="na">trade</span>' : ""}</td>
+          <td><a href="https://steamcommunity.com/profiles/${escapeHtml(s.steamId)}" target="_blank">${escapeHtml(s.customerName || s.steamId)}</a></td>
           <td>${escapeHtml(s.items.join(", "))}</td>
           <td>${fmtMoney(s.totalPrice)}</td>
           <td>${s.skinbuxTotal ? fmtMoney(s.skinbuxTotal) : '<span class="na">—</span>'}</td>
