@@ -1310,7 +1310,21 @@ function renderBalances(balances) {
 function holdSplitLines(split) {
   if (!split) return [];
   const lines = [];
-  if (split.mine > 0) lines.push(`моё: ${fmtMoney(split.mine)}`);
+  if (split.mine > 0) {
+    // "Не подтверждено" — это не отдельные деньги, а часть строки "моё":
+    // продажи мимо сайта, которых нет ни в журнале, ни в трекере. Когда не
+    // подтверждено всё (обычное дело — свои скины продаются не через сайт),
+    // две строки показывали одну и ту же сумму и выглядели как ошибка.
+    const unconfirmed = split.unconfirmed || { sum: 0, count: 0 };
+    let note = "";
+    if (unconfirmed.sum > 0) {
+      note =
+        Math.abs(unconfirmed.sum - split.mine) < 0.01
+          ? ` · не подтверждено сделками (${unconfirmed.count} транз.)`
+          : ` · из них не подтверждено ${fmtMoney(unconfirmed.sum)} (${unconfirmed.count} транз.)`;
+    }
+    lines.push(`моё: ${fmtMoney(split.mine)}${note}`);
+  }
   for (const [name, amount] of Object.entries(split.partners || {})) {
     lines.push(`${escapeHtml(name)} — вернуть: ${fmtMoney(amount)}`);
   }
@@ -1318,10 +1332,6 @@ function holdSplitLines(split) {
     lines.push(
       `клиенты сайта: ${fmtMoney(split.clients.gross)} (им ${fmtMoney(split.clients.payout)}, моя маржа ${fmtMoney(split.clients.margin)})`
     );
-  }
-  if (split.unconfirmed?.sum > 0) {
-    // Это часть строки "моё": продажи мимо сайта, которых нет в трекере.
-    lines.push(`из них не подтверждено сделками (${split.unconfirmed.count}): ${fmtMoney(split.unconfirmed.sum)}`);
   }
   return lines.map((l) => `<div class="balance-extra balance-split">${l}</div>`);
 }
