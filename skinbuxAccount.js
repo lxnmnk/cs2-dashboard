@@ -135,12 +135,7 @@ function matchTracker(tx, index) {
 
   const fromClient = found.some((t) => CLIENT_BUY_SOURCES.has(normalizeSource(t.buySource)));
   const payout = round2(found.reduce((sum, t) => sum + (Number(t.buyPrice) || 0), 0));
-  // Сколько денег транзакции приходится именно на найденные предметы. Если
-  // в трекере нашлась только часть, остальное относить к клиенту нельзя:
-  // иначе выплата считается по одному предмету, а выручка по всем, и маржа
-  // выходит завышенной.
-  const matchedAmount = round2(found.reduce((sum, t) => sum + (Number(t.sellPrice) || 0), 0));
-  return { trades: found, fromClient, payout, matchedAmount, partial: found.length < items.length };
+  return { trades: found, fromClient, payout };
 }
 
 function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partners = {}, holdDays = HOLD_DAYS }) {
@@ -180,20 +175,12 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
 
     if (matched) {
       owner = matched.fromClient ? "client" : "mine";
-      // Опознана только часть предметов — остаток честно уходит в "не
-      // опознано", пока недостающие сделки не появятся в трекере.
-      const known = Math.min(matched.matchedAmount, amount);
-      const rest = round2(amount - known);
       if (matched.fromClient) {
-        result.clients.gross = round2(result.clients.gross + known);
+        result.clients.gross = round2(result.clients.gross + amount);
         result.clients.payout = round2(result.clients.payout + matched.payout);
-        result.clients.margin = round2(result.clients.margin + (known - matched.payout));
+        result.clients.margin = round2(result.clients.margin + (amount - matched.payout));
       } else {
-        result.mine = round2(result.mine + known);
-      }
-      if (rest > 0.009) {
-        result.unknown.sum = round2(result.unknown.sum + rest);
-        result.unknown.count++;
+        result.mine = round2(result.mine + amount);
       }
     } else if (!steamId) {
       owner = "unknown";
@@ -223,8 +210,6 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       // Откуда узнали владельца: журнал сайта, пометка руками или никак.
       via: steamId ? "journal" : matched ? "tracker" : "unknown",
       payout: matched?.fromClient ? matched.payout : sale && owner === "client" ? round2(sale.totalPrice || 0) : null,
-      // Часть предметов транзакции в трекере не нашлась — видно в таблице.
-      partial: matched?.partial ? round2(amount - Math.min(matched.matchedAmount, amount)) : 0,
       customerName: sale?.customerName || null,
       unlockAt,
       names: (tx.tradeItems || []).map((i) => i.name),
