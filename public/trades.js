@@ -277,12 +277,19 @@ function hideModalSellForm() {
 document.getElementById("modalSellCancelBtn").addEventListener("click", hideModalSellForm);
 
 // ---- Прямой Steam-трейд: несколько полученных предметов вместо одной цены ----
-function createModalTradeRow() {
+// source: "catalog" — полученные предметы, их в холдингах ещё нет, ищем по
+// прайсу; "holdings" — то, что отдал: это уже заведённые позиции, поэтому
+// выбираем из них, а не набираем название. Так закрывается ровно та сделка,
+// которую отдал, даже если таких предметов у тебя два.
+function createModalTradeRow(source = "catalog") {
+  const fromHoldings = source === "holdings";
   const row = document.createElement("div");
   row.className = "modal-trade-row";
   row.innerHTML = `
     <div class="autocomplete-wrap">
-      <input type="text" class="modal-trade-item-search" placeholder="Start typing an item name..." autocomplete="off" />
+      <input type="text" class="modal-trade-item-search" placeholder="${
+        fromHoldings ? "Выбери свой предмет из holdings..." : "Start typing an item name..."
+      }" autocomplete="off" />
       <div class="autocomplete-list"></div>
     </div>
     <input type="number" class="modal-trade-item-price" step="0.01" min="0" placeholder="value $" />
@@ -296,20 +303,32 @@ function createModalTradeRow() {
   const removeBtn = row.querySelector(".modal-trade-remove-btn");
 
   let debounce = null;
-  searchInput.addEventListener("input", () => {
-    row.selectedItem = null;
-    clearTimeout(debounce);
-    const q = searchInput.value.trim();
-    if (q.length < 2) {
-      listEl.classList.remove("open");
-      return;
-    }
-    debounce = setTimeout(async () => {
-      const res = await fetch(`/api/item-search?q=${encodeURIComponent(q)}`);
-      const items = await res.json();
-      renderRowAutocomplete(row, items);
-    }, 200);
-  });
+  if (fromHoldings) {
+    // Список свой, локальный — запрос на сервер не нужен. Пустое поле по
+    // клику показывает все открытые позиции: обычно проще выбрать, чем
+    // вспоминать название.
+    const openList = () => renderHoldingsAutocomplete(row, findHoldings(searchInput.value));
+    searchInput.addEventListener("focus", openList);
+    searchInput.addEventListener("input", () => {
+      row.selectedItem = null;
+      openList();
+    });
+  } else {
+    searchInput.addEventListener("input", () => {
+      row.selectedItem = null;
+      clearTimeout(debounce);
+      const q = searchInput.value.trim();
+      if (q.length < 2) {
+        listEl.classList.remove("open");
+        return;
+      }
+      debounce = setTimeout(async () => {
+        const res = await fetch(`/api/item-search?q=${encodeURIComponent(q)}`);
+        const items = await res.json();
+        renderRowAutocomplete(row, items);
+      }, 200);
+    });
+  }
 
   priceInput.addEventListener("input", updateModalTradeTotal);
 
@@ -319,6 +338,44 @@ function createModalTradeRow() {
   });
 
   return row;
+}
+
+/** Открытые позиции, кроме той, что сейчас продаём в окне. */
+function findHoldings(query) {
+  const q = (query || "").trim().toLowerCase();
+  return lastTrades
+    .filter((t) => t.status === "holding" && t.id !== modalTradeId)
+    .filter((t) => !q || `${t.name} ${t.wear}`.toLowerCase().includes(q))
+    .slice(0, 30);
+}
+
+function renderHoldingsAutocomplete(row, holdings) {
+  const listEl = row.querySelector(".autocomplete-list");
+  if (!holdings.length) {
+    listEl.innerHTML = '<div class="autocomplete-item na">В holdings ничего не нашлось</div>';
+    listEl.classList.add("open");
+    return;
+  }
+  listEl.innerHTML = holdings
+    .map(
+      (t, i) => `<div class="autocomplete-item" data-idx="${i}">
+        ${escapeHtml(t.name)} <span class="wear">${escapeHtml(t.wear)}</span>
+        <span class="na">· куплено ${fmtMoney(t.buyPrice)} ${fmtDate(t.buyDate)}</span>
+      </div>`
+    )
+    .join("");
+  listEl.classList.add("open");
+
+  listEl.querySelectorAll(".autocomplete-item[data-idx]").forEach((el, i) => {
+    el.addEventListener("click", () => {
+      const t = holdings[i];
+      // holdingId — по нему закроем ровно эту позицию, а не первую попавшуюся
+      // с таким же названием.
+      row.selectedItem = { marketHashName: t.marketHashName, name: t.name, wear: t.wear, holdingId: t.id, buyPrice: t.buyPrice };
+      row.querySelector(".modal-trade-item-search").value = `${t.name} (${t.wear})`;
+      listEl.classList.remove("open");
+    });
+  });
 }
 
 function renderRowAutocomplete(row, items) {
@@ -349,6 +406,8 @@ function collectModalTradeRows(containerId) {
   return [...document.querySelectorAll(`#${containerId} .modal-trade-row`)]
     .map((row) => ({
       item: row.selectedItem,
+      // Для отданных предметов известно, какую именно позицию закрывать.
+      holdingId: row.selectedItem?.holdingId || null,
       price: parseFloat(row.querySelector(".modal-trade-item-price").value),
     }))
     .filter((r) => r.item && Number.isFinite(r.price) && r.price > 0);
@@ -386,7 +445,7 @@ document.getElementById("modalTradeAddItemBtn").addEventListener("click", () => 
   document.getElementById("modalTradeItems").appendChild(createModalTradeRow());
 });
 document.getElementById("modalTradeAddGivenBtn").addEventListener("click", () => {
-  document.getElementById("modalTradeGivenItems").appendChild(createModalTradeRow());
+  document.getElementById("modalTradeGivenItems").appendChild(createModalTradeRow("holdings"));
 });
 document.getElementById("modalTradeCancelBtn").addEventListener("click", hideModalTradeForm);
 
@@ -449,9 +508,14 @@ document.getElementById("modalTradeConfirmBtn").addEventListener("click", async 
   // никогда не заведённый в системе — его стоимость уже учтена через
   // mainSellPrice выше, отдельно закрывать нечего.
   for (const g of givenItems) {
-    const existing = lastTrades.find(
-      (t) => t.status === "holding" && t.id !== modalTradeId && t.marketHashName === g.item.marketHashName
-    );
+    // Позиция выбрана из списка холдингов — закрываем ровно её. Старые
+    // записи без holdingId (предмет набрали руками) ищем по названию, как
+    // раньше, чтобы ничего не сломать.
+    const existing = g.holdingId
+      ? lastTrades.find((t) => t.id === g.holdingId)
+      : lastTrades.find(
+          (t) => t.status === "holding" && t.id !== modalTradeId && t.marketHashName === g.item.marketHashName
+        );
     if (!existing) continue;
     const res = await fetch(`/api/trades/${existing.id}/sell`, {
       method: "POST",

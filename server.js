@@ -95,7 +95,9 @@ async function refreshPrices() {
       config.sources.csfloat.enabled || config.sources.buff.enabled || config.sources.youpin.enabled;
 
     const [csMoneyResult, cs2shResult, skinbuxResult] = await Promise.allSettled([
-      fetchCsMoneyLatest(),
+      // Выключенный источник не дёргаем вообще: у cs.money это не бесплатно —
+      // каждая попытка поднимает headless-браузер и ждёт таймауты.
+      config.sources.csmoney.enabled ? fetchCsMoneyLatest() : Promise.resolve(new Map()),
       cs2shNeeded ? fetchCs2ShLatest(process.env.CS2SH_API_KEY) : Promise.resolve({}),
       config.sources.skinbux.enabled ? fetchSkinbuxLatest(process.env.SKINBUX_API_KEY) : Promise.resolve(new Map()),
     ]);

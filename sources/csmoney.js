@@ -167,12 +167,41 @@ async function fetchViaBrowser(url) {
   }
 }
 
+// Осенью 2026 cs.money включил интерактивную проверку Cloudflare ("Verify you
+// are human"): её не проходит ни прямой запрос, ни headless-браузер — проверено.
+// Пока так, каждая попытка стоит запуска Chrome и двух таймаутов, поэтому
+// после отказа замолкаем на полчаса, а не долбимся каждое обновление цен.
+const CHALLENGE_RE = /just a moment|cf-chl|verify you are human|challenge-platform/i;
+const CHALLENGE_QUIET_MS = 30 * 60 * 1000;
+let challengedUntil = 0;
+
+function isChallenge(err) {
+  return CHALLENGE_RE.test(err.message) || /ответил 403/.test(err.message);
+}
+
 async function fetchJson(url) {
+  if (Date.now() < challengedUntil) {
+    const minutes = Math.ceil((challengedUntil - Date.now()) / 60000);
+    throw new Error(`cs.money закрыт проверкой Cloudflare — следующая попытка через ${minutes} мин`);
+  }
+
   try {
     return await fetchViaHttp(url);
   } catch (err) {
+    if (!isChallenge(err)) throw err;
     console.warn(`[csmoney] ${err.message} — пробую через headless-браузер...`);
-    return await fetchViaBrowser(url);
+    try {
+      return await fetchViaBrowser(url);
+    } catch (browserErr) {
+      if (isChallenge(browserErr) || /timeout|Navigation/i.test(browserErr.message)) {
+        challengedUntil = Date.now() + CHALLENGE_QUIET_MS;
+        console.warn(
+          "[csmoney] Cloudflare требует пройти проверку человеком — цены cs.money недоступны. " +
+            "Отключи источник в config.json (sources.csmoney.enabled = false) или получи у них доступ к API."
+        );
+      }
+      throw browserErr;
+    }
   }
 }
 
