@@ -1323,14 +1323,17 @@ function holdSplitLines(split) {
           ? ` · не подтверждено сделками (${unconfirmed.count} транз.)`
           : ` · из них не подтверждено ${fmtMoney(unconfirmed.sum)} (${unconfirmed.count} транз.)`;
     }
-    lines.push(`моё: ${fmtMoney(split.mine)}${note}`);
+    // Маржа с клиентских продаж уже внутри "моё" — говорим об этом прямо,
+    // иначе непонятно, куда делся заработок с клиентской сделки.
+    const margin = split.clients?.margin > 0 ? ` · в т.ч. маржа с клиентов ${fmtMoney(split.clients.margin)}` : "";
+    lines.push(`моё: ${fmtMoney(split.mine)}${margin}${note}`);
   }
   for (const [name, amount] of Object.entries(split.partners || {})) {
     lines.push(`${escapeHtml(name)} — вернуть: ${fmtMoney(amount)}`);
   }
   if (split.clients.gross > 0) {
     lines.push(
-      `клиенты сайта: ${fmtMoney(split.clients.gross)} (им ${fmtMoney(split.clients.payout)}, моя маржа ${fmtMoney(split.clients.margin)})`
+      `клиентам выплатить: ${fmtMoney(split.clients.payout)} (их продажи на ${fmtMoney(split.clients.gross)})`
     );
   }
   return lines.map((l) => `<div class="balance-extra balance-split">${l}</div>`);

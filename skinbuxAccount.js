@@ -232,8 +232,11 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
     });
   }
 
+  // Моё — всё, что не придётся отдать: вычитаем долги (партнёрам целиком,
+  // клиентам только их выплату), а маржа с клиентских продаж остаётся у нас.
+  // Три строки в сумме дают весь холд: моё + партнёры + выплата клиентам.
   const partnersTotal = Object.values(result.partners).reduce((sum, v) => sum + v, 0);
-  result.mine = round2(result.total - partnersTotal - result.clients.gross);
+  result.mine = round2(result.total - partnersTotal - result.clients.payout);
   delete result.identifiedRest;
   return result;
 }
