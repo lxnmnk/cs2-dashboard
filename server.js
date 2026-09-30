@@ -1048,7 +1048,7 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
   // списке, а не в двух местах.
   const manual = trades
     .listRawTrades(req.session.username)
-    .filter((t) => skinbuxAccount.CLIENT_BUY_SOURCES.has(skinbuxAccount.normalizeSource(t.buySource)))
+    .filter((t) => skinbuxAccount.boughtFromClient(t))
     .map((t) => ({
       id: t.id.slice(0, 8),
       steamId: null,

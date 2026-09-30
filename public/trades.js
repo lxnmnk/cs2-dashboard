@@ -1319,8 +1319,9 @@ function holdSplitLines(split) {
       `клиенты сайта: ${fmtMoney(split.clients.gross)} (им ${fmtMoney(split.clients.payout)}, моя маржа ${fmtMoney(split.clients.margin)})`
     );
   }
-  if (split.unknown.sum > 0) {
-    lines.push(`не опознано (${split.unknown.count}): ${fmtMoney(split.unknown.sum)}`);
+  if (split.unconfirmed?.sum > 0) {
+    // Это часть строки "моё": продажи мимо сайта, которых нет в трекере.
+    lines.push(`из них не подтверждено сделками (${split.unconfirmed.count}): ${fmtMoney(split.unconfirmed.sum)}`);
   }
   return lines.map((l) => `<div class="balance-extra balance-split">${l}</div>`);
 }

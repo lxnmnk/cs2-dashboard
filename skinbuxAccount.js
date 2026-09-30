@@ -90,6 +90,16 @@ function round2(n) {
 // Названия площадок, означающие "куплено у клиента": вписываются руками в
 // поле Bought On, когда сделка сделана напрямую, а не через сайт.
 const CLIENT_BUY_SOURCES = new Set(["gabenmarket", "gaben", "client", "клиент"]);
+// С этого дня "gaben.market" в поле Bought On означает "куплено у клиента".
+// Раньше это поле заполнялось по другому поводу, поэтому старые сделки под
+// правило не попадают — иначе в клиентские уехали бы давние свои покупки.
+const CLIENT_SOURCE_SINCE = Date.parse("2026-09-30T00:00:00Z");
+
+function boughtFromClient(trade) {
+  if (!CLIENT_BUY_SOURCES.has(normalizeSource(trade.buySource))) return false;
+  const at = Date.parse(trade.buyDate);
+  return Number.isFinite(at) && at >= CLIENT_SOURCE_SINCE;
+}
 
 function normalizeSource(value) {
   return String(value || "")
@@ -133,9 +143,13 @@ function matchTracker(tx, index) {
   }
   if (!found.length) return null;
 
-  const fromClient = found.some((t) => CLIENT_BUY_SOURCES.has(normalizeSource(t.buySource)));
+  const fromClient = found.some(boughtFromClient);
   const payout = round2(found.reduce((sum, t) => sum + (Number(t.buyPrice) || 0), 0));
-  return { trades: found, fromClient, payout };
+  // Если из нескольких предметов транзакции нашлась только часть, относить
+  // к клиенту всю сумму нельзя: выручка считалась бы по всем предметам, а
+  // выплата по найденным, и маржа выходила бы завышенной.
+  const matchedAmount = round2(found.reduce((sum, t) => sum + (Number(t.sellPrice) || 0), 0));
+  return { trades: found, fromClient, payout, matchedAmount };
 }
 
 function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partners = {}, holdDays = HOLD_DAYS }) {
@@ -148,7 +162,9 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
     mine: 0,
     partners: {},
     clients: { gross: 0, payout: 0, margin: 0 },
-    unknown: { sum: 0, count: 0 },
+    // Часть "моего", которую подтвердить нечем: продажи мимо сайта,
+    // не заведённые в трекер.
+    unconfirmed: { sum: 0, count: 0 },
     items: [],
     nextUnlockAt: null,
   };
@@ -173,22 +189,22 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
     const matched = steamId ? null : matchTracker(tx, trackerIndex);
     let owner;
 
-    if (matched) {
-      owner = matched.fromClient ? "client" : "mine";
-      if (matched.fromClient) {
-        result.clients.gross = round2(result.clients.gross + amount);
-        result.clients.payout = round2(result.clients.payout + matched.payout);
-        result.clients.margin = round2(result.clients.margin + (amount - matched.payout));
-      } else {
-        result.mine = round2(result.mine + amount);
-      }
+    if (matched && matched.fromClient) {
+      owner = "client";
+      const known = round2(Math.min(matched.matchedAmount, amount));
+      result.clients.gross = round2(result.clients.gross + known);
+      result.clients.payout = round2(result.clients.payout + matched.payout);
+      result.clients.margin = round2(result.clients.margin + (known - matched.payout));
+      // Не опознанный остаток транзакции остаётся в "моё" (см. ниже).
+      result.identifiedRest = round2((result.identifiedRest || 0) + (amount - known));
     } else if (!steamId) {
-      owner = "unknown";
-      result.unknown.sum = round2(result.unknown.sum + amount);
-      result.unknown.count++;
+      // Продажа мимо сайта, которой нет в трекере: деньги наши, просто
+      // подтвердить их нечем — считаем в "моё" и отмечаем как неподтверждённые.
+      owner = "mine";
+      result.unconfirmed.sum = round2(result.unconfirmed.sum + amount);
+      result.unconfirmed.count++;
     } else if (steamId === ownerSteamId) {
       owner = "mine";
-      result.mine = round2(result.mine + amount);
     } else if (partners[steamId]) {
       owner = partners[steamId];
       const prev = result.partners[owner] || 0;
@@ -216,11 +232,16 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
     });
   }
 
+  const partnersTotal = Object.values(result.partners).reduce((sum, v) => sum + v, 0);
+  result.mine = round2(result.total - partnersTotal - result.clients.gross);
+  delete result.identifiedRest;
   return result;
 }
 
 module.exports.fetchTransactions = fetchTransactions;
 module.exports.splitHold = splitHold;
 module.exports.CLIENT_BUY_SOURCES = CLIENT_BUY_SOURCES;
+module.exports.boughtFromClient = boughtFromClient;
+module.exports.CLIENT_SOURCE_SINCE = CLIENT_SOURCE_SINCE;
 module.exports.normalizeSource = normalizeSource;
 module.exports.HOLD_DAYS = HOLD_DAYS;
