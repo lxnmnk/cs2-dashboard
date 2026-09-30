@@ -14,10 +14,11 @@ const FILE = path.join(__dirname, "skinbuxSales.json");
 
 // Наши собственные аккаунты: продажи с них — это не клиенты, а наши же
 // сделки. Им мы ничего не должны, и в "Продажах клиентов" их не показываем.
-const OWN_STEAM_IDS = new Set([
-  "76561199060089261", // lxnmnk
-  "76561198158130074", // TARHUN
-]);
+const OWNER_STEAM_ID = "76561199060089261"; // lxnmnk
+// Друзья, которые продают через наш аккаунт Skinbux: деньги за их продажи
+// приходят к нам, но принадлежат им — это долг, а не заработок.
+const PARTNER_STEAM_IDS = { "76561198158130074": "TARHUN" };
+const OWN_STEAM_IDS = new Set([OWNER_STEAM_ID, ...Object.keys(PARTNER_STEAM_IDS)]);
 const HOLD_DAYS = 7;
 
 function loadAll() {
@@ -158,4 +159,4 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-module.exports = { OWN_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, HOLD_DAYS };
+module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, HOLD_DAYS };

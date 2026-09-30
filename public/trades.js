@@ -1267,15 +1267,16 @@ function renderBalances(balances) {
       // карандаша нет — править нечего, при следующем чтении вернётся то же.
       const live = b.source === "api";
       const extras = [];
-      if (live) extras.push('<div class="balance-extra balance-live">из API CSFloat</div>');
+      if (live) extras.push(`<div class="balance-extra balance-live">из API ${escapeHtml(BALANCE_LABEL_OVERRIDES[s] || sourceLabel(s))}</div>`);
       if (b.source === "error") {
         extras.push(`<div class="balance-extra unstable" title="${escapeHtml(b.error || "")}">API не ответил — показан расчёт по продажам</div>`);
       }
       if (b.hold > 0) {
         const holdLine = live
-          ? `+${fmtMoney(b.hold)} pending · ждёт окончания защиты сделки`
+          ? `+${fmtMoney(b.hold)} pending${b.nextUnlockAt ? ` · ближайшая разблокировка ${fmtDate(b.nextUnlockAt)}` : " · ждёт окончания защиты сделки"}`
           : `+${fmtMoney(b.hold)} hold · unlocks ${fmtDate(b.nextUnlockAt)} ${balanceEditBtn(s, "hold", b.hold)}`;
         extras.push(`<div class="balance-extra">${holdLine}</div>`);
+        extras.push(...holdSplitLines(b.holdSplit));
       }
       if (b.frozen > 0 && !live) {
         extras.push(
@@ -1300,6 +1301,28 @@ function renderBalances(balances) {
     .join("");
 
   wireBalanceButtons(container);
+}
+
+
+// Чьи деньги лежат в холде Skinbux. Их API этого не знает (steamId в
+// транзакциях нет), поэтому сервер сопоставляет транзакции с нашим журналом
+// продаж по id — см. skinbuxAccount.splitHold.
+function holdSplitLines(split) {
+  if (!split) return [];
+  const lines = [];
+  if (split.mine > 0) lines.push(`моё: ${fmtMoney(split.mine)}`);
+  for (const [name, amount] of Object.entries(split.partners || {})) {
+    lines.push(`${escapeHtml(name)} — вернуть: ${fmtMoney(amount)}`);
+  }
+  if (split.clients.gross > 0) {
+    lines.push(
+      `клиенты сайта: ${fmtMoney(split.clients.gross)} (им ${fmtMoney(split.clients.payout)}, моя маржа ${fmtMoney(split.clients.margin)})`
+    );
+  }
+  if (split.unknown.sum > 0) {
+    lines.push(`не опознано (${split.unknown.count}): ${fmtMoney(split.unknown.sum)}`);
+  }
+  return lines.map((l) => `<div class="balance-extra balance-split">${l}</div>`);
 }
 
 async function editBalanceField(source, field, currentValue) {

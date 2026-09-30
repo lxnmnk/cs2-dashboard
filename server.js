@@ -34,6 +34,7 @@ const csfloatPurchases = require("./csfloatPurchases");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
+const skinbuxAccount = require("./skinbuxAccount");
 const crypto = require("crypto");
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
@@ -1154,6 +1155,35 @@ async function balancesFor(username) {
     // Не молчим: иначе не отличить "на CSFloat пусто" от "ключ не сработал".
     merged.csfloat = { ...(merged.csfloat || { active: 0, hold: 0, frozen: 0, nextUnlockAt: null }), source: "error", error: err.message };
   }
+
+  // Skinbux тоже отдаёт баланс, и вдобавок мы умеем разложить холд по
+  // владельцам денег: свои продажи, продажи друга через наш аккаунт и
+  // продажи клиентов через сайт (см. skinbuxAccount.splitHold).
+  try {
+    const live = await skinbuxAccount.fetchBalance(process.env.SKINBUX_API_KEY);
+    let hold = null;
+    try {
+      const transactions = await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY);
+      hold = skinbuxAccount.splitHold(transactions, {
+        sales: skinbuxSales.loadAll(),
+        ownerSteamId: skinbuxSales.OWNER_STEAM_ID,
+        partners: skinbuxSales.PARTNER_STEAM_IDS,
+      });
+    } catch (err) {
+      console.warn("[balances] Skinbux: холд не разложен:", err.message);
+    }
+    merged.skinbux = {
+      active: live.available,
+      hold: live.pending,
+      frozen: 0,
+      nextUnlockAt: hold?.nextUnlockAt || null,
+      source: "api",
+      holdSplit: hold,
+    };
+  } catch (err) {
+    merged.skinbux = { ...(merged.skinbux || { active: 0, hold: 0, frozen: 0, nextUnlockAt: null }), source: "error", error: err.message };
+  }
+
   return merged;
 }
 
@@ -1167,8 +1197,8 @@ app.get("/api/balances", async (req, res) => {
 app.post("/api/balances/:source/adjust", (req, res) => {
   // CSFloat читается из API — правка руками всё равно не переживёт
   // следующее чтение, поэтому честно отказываем, а не делаем вид.
-  if (req.params.source === "csfloat" && req.session.username === SITE_OWNER) {
-    return res.status(400).json({ ok: false, error: "Баланс CSFloat приходит из их API и правке не подлежит" });
+  if (["csfloat", "skinbux"].includes(req.params.source) && req.session.username === SITE_OWNER) {
+    return res.status(400).json({ ok: false, error: "Этот баланс приходит из API площадки и правке не подлежит" });
   }
   const { field, value } = req.body || {};
   if (!["active", "hold", "frozen"].includes(field)) {
@@ -1214,10 +1244,10 @@ app.post("/api/balances/transfer", async (req, res) => {
   const rawToActive = raw[toSource]?.active ?? 0;
   const toActive = merged[toSource]?.active ?? 0;
 
-  // CSFloat читается из API: списание там произойдёт само, когда деньги
+  // CSFloat и Skinbux читаются из API: списание там произойдёт само, когда деньги
   // реально уйдут. Поправку по нему не сохраняем, иначе она будет вычитаться
   // из живого баланса каждый раз.
-  if (!(fromSource === "csfloat" && req.session.username === SITE_OWNER)) {
+  if (!(["csfloat", "skinbux"].includes(fromSource) && req.session.username === SITE_OWNER)) {
     balanceAdjustments.setAdjustment(req.session.username, fromSource, "active", fromActive - amt, rawFromActive);
   }
   balanceAdjustments.setAdjustment(req.session.username, toSource, "active", toActive + amt, rawToActive);
