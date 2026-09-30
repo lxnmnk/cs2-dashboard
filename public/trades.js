@@ -1301,6 +1301,49 @@ function renderBalances(balances) {
     .join("");
 
   wireBalanceButtons(container);
+  renderHoldDetails(balances.skinbux?.holdSplit);
+}
+
+// Разбор холда по транзакциям: видно, какая сумма куда отнесена и по чему
+// опознана — журнал сайта (там steamId), сделки трекера или никак. Без этого
+// итоговые четыре строки приходится принимать на веру.
+const HOLD_OWNER_LABELS = { mine: "моё", client: "клиент", unknown: "не опознано" };
+const HOLD_VIA_LABELS = { journal: "продажа через сайт", tracker: "сделка из трекера", unknown: "нет данных" };
+
+function renderHoldDetails(split) {
+  const box = document.getElementById("skinbuxHoldDetails");
+  if (!box) return;
+  if (!split?.items?.length) {
+    box.style.display = "none";
+    return;
+  }
+  box.style.display = "";
+  const rows = [...split.items].sort((a, b) => b.amount - a.amount);
+  box.innerHTML = `
+    <details>
+      <summary>Из чего состоит холд Skinbux — ${rows.length} транзакц. на ${fmtMoney(split.total)}</summary>
+      <table class="trades-table">
+        <thead><tr><th>Транзакция</th><th>Сумма</th><th>Чьё</th><th>Опознано по</th><th>Выплата</th><th>Предметы</th></tr></thead>
+        <tbody>
+          ${rows
+            .map(
+              (r) => `<tr>
+                <td>TXN-${escapeHtml(String(r.id))}</td>
+                <td>${fmtMoney(r.amount)}</td>
+                <td>${escapeHtml(HOLD_OWNER_LABELS[r.owner] || r.owner)}${
+                  r.customerName ? ` · ${escapeHtml(r.customerName)}` : ""
+                }${r.steamId ? ` <span class="na">${escapeHtml(r.steamId)}</span>` : ""}</td>
+                <td class="na">${escapeHtml(HOLD_VIA_LABELS[r.via] || r.via)}${
+                  r.partial > 0 ? ` <span class="unstable">частично: ${fmtMoney(r.partial)} без сделки</span>` : ""
+                }</td>
+                <td>${r.payout != null ? fmtMoney(r.payout) : '<span class="na">—</span>'}</td>
+                <td class="na">${escapeHtml((r.names || []).join(", "))}</td>
+              </tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </details>`;
 }
 
 

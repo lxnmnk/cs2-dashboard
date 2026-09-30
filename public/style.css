@@ -641,3 +641,8 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 /* Баланс, пришедший из API площадки, а не посчитанный по нашим продажам. */
 .balance-live { color: var(--gold); opacity: 0.85; }
 .balance-split { color: var(--muted); font-size: 11px; padding-left: 8px; }
+
+/* Разбор холда Skinbux по транзакциям — под карточками балансов. */
+.hold-details { padding: 0 24px 16px; }
+.hold-details summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 6px 0; }
+.hold-details table { width: 100%; margin-top: 8px; }
