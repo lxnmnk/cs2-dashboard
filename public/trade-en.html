@@ -34,9 +34,6 @@
     <span class="eyebrow">CS2 SKINS TRADE</span>
     <h1>CS2 skins: <span class="accent">we buy, sell and trade</span></h1>
     <p class="hero-sub hero-lead">Sell your skins in a couple of minutes, buy any item for less than Steam, or swap one for another — no middlemen, no waiting for a buyer.</p>
-    <!-- Баннер акции и остаток на витрине ставит landing.js: оба зависят от
-         живых данных, в разметке их держать нельзя. -->
-    <div id="promoBanner" class="promo-banner" style="display:none;"></div>
     <div class="hero-cta">
       <a class="btn-gold" href="/en/account">Sell skins</a>
       <a class="btn-ghost" href="/en/buy">Buy skins</a>
@@ -155,7 +152,7 @@
 
   <script>
     window.NAV_CONFIG = {"signInLabel":"Sign in","accountUrl":"/en/account","loginUrl":"/auth/steam?lang=en","balanceTitle":"Available for payout","holdTitle":"On hold"};
-    window.LANDING_CONFIG = {"promoFrom":"2026-10-01","promoTo":"2026-10-15","promoTag":"PROMO","promoText":"0% fee on buying skins from 1 to 15 October — you pay exactly the marketplace price.","stockLine":"{count} skins in stock right now, {total} worth"};
+    window.LANDING_CONFIG = {"stockLine":"{count} skins in stock right now, {total} worth"};
   </script>
   <script src="/nav-profile.js"></script>
   <script src="/landing.js"></script>

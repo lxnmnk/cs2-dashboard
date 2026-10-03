@@ -34,9 +34,6 @@
     <span class="eyebrow">CS2 SKINS TRADE</span>
     <h1>Скіни CS2: <span class="accent">купуємо, продаємо, обмінюємо</span></h1>
     <p class="hero-sub hero-lead">Продай свої скіни за пару хвилин, купи будь-який предмет дешевше за Steam або обміняй один на інший — без посередників і без очікування покупця.</p>
-    <!-- Баннер акции и остаток на витрине ставит landing.js: оба зависят от
-         живых данных, в разметке их держать нельзя. -->
-    <div id="promoBanner" class="promo-banner" style="display:none;"></div>
     <div class="hero-cta">
       <a class="btn-gold" href="/account">Продати скіни</a>
       <a class="btn-ghost" href="/buy">Купити скіни</a>
@@ -155,7 +152,7 @@
 
   <script>
     window.NAV_CONFIG = {"signInLabel":"Увійти","accountUrl":"/account","loginUrl":"/auth/steam","balanceTitle":"Доступно до виплати","holdTitle":"У холді"};
-    window.LANDING_CONFIG = {"promoFrom":"2026-10-01","promoTo":"2026-10-15","promoTag":"АКЦІЯ","promoText":"0% комісії на купівлю скінів з 1 по 15 жовтня — платиш рівно ціну майданчика.","stockLine":"Зараз у наявності {count} скінів на {total}"};
+    window.LANDING_CONFIG = {"stockLine":"Зараз у наявності {count} скінів на {total}"};
   </script>
   <script src="/nav-profile.js"></script>
   <script src="/landing.js"></script>
