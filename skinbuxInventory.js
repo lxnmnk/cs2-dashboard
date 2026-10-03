@@ -67,7 +67,7 @@ async function fetchUserInventory(apiKey, steamId, { force = false } = {}) {
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.success) {
     if (cached) return cached.items;
-    const err = new Error(data?.error?.message || `Skinbux ответил ${res.status}`);
+    const err = new Error(data?.error?.message || `Майданчик відповів ${res.status}`);
     err.code = data?.error?.code;
     throw err;
   }

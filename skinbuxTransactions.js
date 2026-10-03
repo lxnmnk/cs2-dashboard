@@ -22,7 +22,7 @@ async function call(apiKey, path, body) {
       "Ответ:",
       JSON.stringify(data)
     );
-    const message = data?.error?.message || `Skinbux ответил ${res.status}`;
+    const message = data?.error?.message || `Майданчик відповів ${res.status}`;
     const err = new Error(message);
     err.code = data?.error?.code;
     // При INVALID_PRICE тут лежить їхня поточна ціна по кожному предмету:
@@ -53,7 +53,7 @@ async function getTransactionStatus(apiKey, id) {
   const res = await fetch(`${BASE}/transaction/status/${id}`, { headers: { "x-api-key": apiKey } });
   const data = await res.json().catch(() => null);
   if (!res.ok || !data?.success) {
-    throw new Error(data?.error?.message || `Skinbux ответил ${res.status}`);
+    throw new Error(data?.error?.message || `Майданчик відповів ${res.status}`);
   }
   return data.data;
 }

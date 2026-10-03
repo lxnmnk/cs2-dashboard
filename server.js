@@ -537,7 +537,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
         throw new Error(`"${it.marketHashName}" ще в трейд-бані, його не можна продати`);
       }
       if (it.sellAccept === false) {
-        throw new Error(`Skinbux не приймає "${it.marketHashName}"`);
+        throw new Error(`Ми не приймаємо "${it.marketHashName}"`);
       }
 
       const { row, quote } = quoteForItem(it, tradeMode ? { discount: pricingSettings.get().tradeDiscount } : undefined);
@@ -557,7 +557,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       // предмета нет в снапшоте цен — тогда полагаемся только на инвентарь.
       const skinbuxBid = row?.prices?.skinbux?.bid;
       const skinbuxCents = it.skinbuxPriceCents ?? (skinbuxBid != null ? Math.round(skinbuxBid * 100) : null);
-      if (skinbuxCents == null) throw new Error(`Skinbux не дав ціни на "${it.marketHashName}"`);
+      if (skinbuxCents == null) throw new Error(`Немає ціни на "${it.marketHashName}" — напиши в Telegram, порахуємо вручну`);
       // Клієнту ніколи не платимо більше, ніж платить нам Skinbux: якщо їхня
       // ціна вже впала нижче показаної клієнту, продаж не проводимо.
       if (Math.round(quote.price * 100) > skinbuxCents) throw skinbuxTx.priceChangedError();
