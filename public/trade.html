@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Купівля та продаж скінів CS2 — gaben.market</title>
+  <title>Купівля, продаж і обмін скінів CS2 — gaben.market</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="description" content="Продай свої скіни за пару хвилин, купи будь-який предмет дешевше за Steam або обміняй один на інший — без посередників і без очікування покупця." />
   <link rel="stylesheet" href="/quote.css" />
 </head>
 <body>
@@ -31,32 +32,108 @@
 
   <section class="hero">
     <span class="eyebrow">CS2 SKINS TRADE</span>
-    <h1>Купівля та продаж <span class="accent">скінів</span></h1>
-    <p class="hero-sub">Обери, що тобі потрібно</p>
+    <h1>Скіни CS2: <span class="accent">купуємо, продаємо, обмінюємо</span></h1>
+    <p class="hero-sub hero-lead">Продай свої скіни за пару хвилин, купи будь-який предмет дешевше за Steam або обміняй один на інший — без посередників і без очікування покупця.</p>
+    <!-- Баннер акции и остаток на витрине ставит landing.js: оба зависят от
+         живых данных, в разметке их держать нельзя. -->
+    <div id="promoBanner" class="promo-banner" style="display:none;"></div>
+    <div class="hero-cta">
+      <a class="btn-gold" href="/account">Продати скіни</a>
+      <a class="btn-ghost" href="/buy">Купити скіни</a>
+    </div>
+    <p id="stockCount" class="hero-stock" style="display:none;"></p>
   </section>
 
-  <div class="chooser">
+  <div class="chooser chooser-four">
     <a class="chooser-card" href="/account">
       <div class="chooser-icon">💰</div>
       <div class="chooser-title">Продати скіни</div>
-      <div class="chooser-desc">Увійди через Steam — ми самі підтягнемо твій інвентар і покажемо ціну викупу за кожен предмет.</div>
+      <div class="chooser-desc">Увійди через Steam — ми самі підтягнемо інвентар і покажемо ціну викупу за кожен предмет. Обмін надсилає бот Skinbux.</div>
       <div class="chooser-go">Продати →</div>
     </a>
 
     <a class="chooser-card" href="/buy">
       <div class="chooser-icon">🛒</div>
       <div class="chooser-title">Купити скіни</div>
-      <div class="chooser-desc">Будь-який ніж чи рукавиці з каталогу Youpin898, доставка від 5 хвилин.</div>
+      <div class="chooser-desc">Будь-який ніж, рукавиці чи зброя з каталогу. Доставка від 5 хвилин.</div>
       <div class="chooser-go">Купити →</div>
+    </a>
+
+    <a class="chooser-card" href="/trade">
+      <div class="chooser-icon">🔄</div>
+      <div class="chooser-title">Обміняти</div>
+      <div class="chooser-desc">Віддай свої скіни, забери наші. Обмін день у день — без 7 днів очікування, як при продажу.</div>
+      <div class="chooser-go">До обміну →</div>
     </a>
 
     <a class="chooser-card" href="/my-skins">
       <div class="chooser-icon">📦</div>
       <div class="chooser-title">Наші скіни</div>
-      <div class="chooser-desc">Усе, що вже є в наявності — можна забронювати заздалегідь, навіть якщо предмет у трейд-бані.</div>
+      <div class="chooser-desc">Усе, що вже є в наявності — можна забронювати, навіть якщо предмет у трейд-бані.</div>
       <div class="chooser-go">Дивитись →</div>
     </a>
   </div>
+
+  <section class="landing-block">
+    <h2>Як це працює</h2>
+    <div class="how-steps">
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-title">Входиш через Steam</div>
+        <div class="how-text">Нічого не встановлюєш і не вводиш пароль — лише стандартний вхід Steam.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-title">Бачиш ціну одразу</div>
+        <div class="how-text">Ціна рахується по кожному предмету окремо, з урахуванням якості й фази.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-title">Отримуєш гроші</div>
+        <div class="how-text">Обмін надсилає бот Skinbux, гроші йдуть на баланс і виводяться на карту чи крипту.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="landing-block">
+    <h2>Як отримаєш гроші</h2>
+    <p class="card-hint">Виплати на українські картки та в криптовалюті — як тобі зручніше.</p>
+    <div class="pay-badges">
+      <span class="pay-badge pay-mono">
+        <img src="/pay/mono.svg" alt="" onerror="this.remove()" />
+        <span>mono</span>
+      </span>
+      <span class="pay-badge pay-privat24">
+        <img src="/pay/privat24.svg" alt="" onerror="this.remove()" />
+        <span>Privat24</span>
+      </span>
+      <span class="pay-badge pay-abank">
+        <img src="/pay/abank.svg" alt="" onerror="this.remove()" />
+        <span>A-Bank</span>
+      </span>
+      <span class="pay-badge pay-binance">
+        <img src="/pay/binance.svg" alt="" onerror="this.remove()" />
+        <span>Binance</span>
+      </span>
+      <span class="pay-badge pay-usdt">
+        <img src="/pay/usdt.svg" alt="" onerror="this.remove()" />
+        <span>USDT</span>
+      </span>
+      <span class="pay-badge pay-usdc">
+        <img src="/pay/usdc.svg" alt="" onerror="this.remove()" />
+        <span>USDC</span>
+      </span>
+    </div>
+  </section>
+
+  <section class="landing-block">
+    <h2>Чому це безпечно</h2>
+    <div class="trust-grid">
+      <div class="trust-item"><h4>Обмін надсилає майданчик</h4><p>Скіни йдуть не випадковій людині, а боту Skinbux — у вікні видно пряме посилання саме на твій обмін.</p></div>
+      <div class="trust-item"><h4>Відгуки та гарант</h4><p>Понад тисячу угод. Відгуки й гаранти — у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p></div>
+      <div class="trust-item"><h4>Пишу особисто</h4><p>Будь-яке питання — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>, відповідаю сам.</p></div>
+    </div>
+  </section>
 
   <footer class="site-footer">
     <div class="site-footer-inner">
@@ -67,28 +144,20 @@
       </div>
       <div class="site-footer-col">
         <h4>Розділи</h4>
-        <p>
-          <a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> ·
-          <a href="/my-skins">Наші скіни</a> · <a href="/sell">Перевірити ціну</a>
-        </p>
+        <p><a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> · <a href="/my-skins">Наші скіни</a> · <a href="/trade">Обмін</a> · <a href="/sell">Перевірити ціну</a></p>
       </div>
     </div>
     <p class="site-footer-legal">
-      Сайт не пов'язаний з Valve Corporation, Steam і не є їхнім офіційним партнером.
-      Counter-Strike 2, назви предметів, зображення та торгові марки належать їхнім власникам.
-      Усі операції з предметами відбуваються між користувачами напряму.
-      <br />© 2026 gaben.market. Усі права захищені.
+      Сайт не пов'язаний з Valve Corporation, Steam і не є їхнім офіційним партнером. Counter-Strike 2, назви предметів, зображення та торгові марки належать їхнім власникам. Усі операції з предметами відбуваються між користувачами напряму.
+      <br />© 2026 gaben.market.
     </p>
   </footer>
 
   <script>
-    window.NAV_CONFIG = {
-      signInLabel: "Увійти",
-      accountUrl: "/account",
-      loginUrl: "/auth/steam",
-      balanceTitle: "Доступно до виплати", holdTitle: "У холді",
-    };
+    window.NAV_CONFIG = {"signInLabel":"Увійти","accountUrl":"/account","loginUrl":"/auth/steam","balanceTitle":"Доступно до виплати","holdTitle":"У холді"};
+    window.LANDING_CONFIG = {"promoFrom":"2026-10-01","promoTo":"2026-10-15","promoTag":"АКЦІЯ","promoText":"0% комісії на купівлю скінів з 1 по 15 жовтня — платиш рівно ціну майданчика.","stockLine":"Зараз у наявності {count} скінів на {total}"};
   </script>
   <script src="/nav-profile.js"></script>
+  <script src="/landing.js"></script>
 </body>
 </html>

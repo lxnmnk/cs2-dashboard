@@ -202,6 +202,8 @@ const PUBLIC_PATHS = new Set([
   "/api/public/sell-quote",
   "/api/public/buy-quote",
   "/api/public/my-skins",
+  "/api/public/pricing",
+  "/landing.js",
   "/api/public/trade-catalog",
   "/api/public/trade-search",
   "/swap.js",
@@ -1086,6 +1088,13 @@ function pricingPercents(p) {
     tradeDiscountPercent: pct(p.tradeDiscount),
   };
 }
+
+// Проценты для публичных страниц: по ним витрина решает, показывать ли
+// акцию "0% на покупку". Секрета тут нет — клиент и так видит итоговую цену,
+// зато баннер не соврёт, если процент в панели поменяли.
+app.get("/api/public/pricing", (req, res) => {
+  res.json(pricingPercents(pricingSettings.get()));
+});
 
 app.get("/api/pricing-settings", requireSiteOwner, (req, res) => {
   res.json({ ok: true, ...pricingPercents(pricingSettings.get()) });
