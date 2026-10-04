@@ -891,6 +891,99 @@ function renderCsfloatPreview(data) {
   });
 }
 
+// ---- Импорт продаж со Skinbux ----
+// Зеркало импорта покупок: там позиции открываются, тут закрываются. Сервер
+// сам пропускает продажи клиентов через сайт — предметы в них не наши.
+const skinbuxImportBtn = document.getElementById("skinbuxImportBtn");
+const skinbuxImportStatus = document.getElementById("skinbuxImportStatus");
+const skinbuxImportPreview = document.getElementById("skinbuxImportPreview");
+
+async function skinbuxImport(dryRun) {
+  skinbuxImportBtn.disabled = true;
+  skinbuxImportStatus.textContent = dryRun ? "Asking Skinbux..." : "Closing positions...";
+  let data;
+  try {
+    const res = await fetch("/api/trades/import/skinbux", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dryRun, days: Number(document.getElementById("skinbuxImportDays").value) || 90 }),
+    });
+    data = await res.json();
+  } catch (err) {
+    data = { ok: false, error: err.message };
+  }
+  skinbuxImportBtn.disabled = false;
+  return data;
+}
+
+skinbuxImportBtn?.addEventListener("click", async () => {
+  const data = await skinbuxImport(true);
+  if (!data.ok) {
+    skinbuxImportStatus.textContent = "";
+    skinbuxImportPreview.style.display = "none";
+    errorBox.style.display = "block";
+    errorBox.textContent = `Skinbux import failed: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  renderSkinbuxPreview(data);
+});
+
+const SKINBUX_ROW_LABELS = {
+  match: "closes a position",
+  already: "already imported",
+  nomatch: "not in the tracker",
+};
+
+function renderSkinbuxPreview(plan) {
+  const rows = (plan.rows || []).filter((r) => r.status !== "already");
+  skinbuxImportStatus.textContent = `${plan.matched} to close, ${plan.already} already in, ${plan.nomatch} without a position`;
+
+  if (!rows.length) {
+    skinbuxImportPreview.style.display = "block";
+    skinbuxImportPreview.innerHTML = '<p class="empty-row">Nothing new to import.</p>';
+    return;
+  }
+
+  skinbuxImportPreview.style.display = "block";
+  skinbuxImportPreview.innerHTML = `
+    <p><b>${plan.matched}</b> position(s) will be closed for ${fmtMoney(plan.matchedSum)}, profit ${fmtMoney(plan.profit)}.${
+      plan.nomatch ? ` ${plan.nomatch} sold item(s) for ${fmtMoney(plan.nomatchSum)} have no position in the tracker — add them by hand if they were yours.` : ""
+    }</p>
+    <table class="trades-table">
+      <thead><tr><th>Sold</th><th>Item</th><th>Sold for</th><th>Bought for</th><th>Profit</th><th>What happens</th></tr></thead>
+      <tbody>
+        ${rows
+          .map(
+            (r) => `<tr>
+              <td>${fmtDate(r.soldAt)}</td>
+              <td>${escapeHtml(r.marketHashName)}${r.viaSite ? ' <span class="na">via site</span>' : ""}</td>
+              <td>${fmtMoney(r.price)}</td>
+              <td>${r.buyPrice != null ? fmtMoney(r.buyPrice) : '<span class="na">—</span>'}</td>
+              <td class="${r.profit >= 0 ? "profit" : "loss"}">${r.profit != null ? fmtMoney(r.profit) : '<span class="na">—</span>'}</td>
+              <td class="na">${escapeHtml(SKINBUX_ROW_LABELS[r.status] || r.status)}</td>
+            </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+    ${plan.matched ? `<button id="skinbuxImportConfirm" class="btn-small">Close these ${plan.matched} position(s)</button>` : ""}`;
+
+  document.getElementById("skinbuxImportConfirm")?.addEventListener("click", async () => {
+    const result = await skinbuxImport(false);
+    if (!result.ok) {
+      errorBox.style.display = "block";
+      errorBox.textContent = `Skinbux import failed: ${result.error}`;
+      return;
+    }
+    skinbuxImportPreview.style.display = "none";
+    skinbuxImportStatus.textContent = `Closed ${result.closed}${
+      result.failed?.length ? `, ${result.failed.length} failed: ${result.failed[0]}` : ""
+    }`;
+    await loadTrades();
+  });
+}
+
 // Парсит "MM/DD/YYYY HH:MM" (то, что показывает prompt-хинт из toLocaleString("en-US"))
 // в ISO-строку. Возвращает null, если формат не совпал.
 function parseUsDateTime(input) {

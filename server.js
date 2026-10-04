@@ -31,6 +31,7 @@ const skinbuxInventory = require("./skinbuxInventory");
 const skinbuxTx = require("./skinbuxTransactions");
 const skinbuxSales = require("./skinbuxSales");
 const csfloatPurchases = require("./csfloatPurchases");
+const skinbuxSalesImport = require("./skinbuxSalesImport");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
@@ -1399,6 +1400,33 @@ app.post("/api/capital/close", requireSiteOwner, async (req, res) => {
     const period = capital.closePeriod(bank.total, bank, { note: req.body?.note });
     res.json({ ok: true, period });
   } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Импорт продаж со Skinbux: закрывает в трекере позиции, которые проданы с
+// нашего аккаунта (skinbuxSalesImport.js). Продажи клиентов и друга через
+// сайт пропускаются — они учтены отдельно и предметы там не наши.
+app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
+  try {
+    const transactions = await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY);
+    const plan = skinbuxSalesImport.planImport({
+      transactions,
+      journal: skinbuxSales.loadAll(),
+      rawTrades: trades.listRawTrades(req.session.username),
+      days: req.body?.days,
+      ownerSteamId: skinbuxSales.OWNER_STEAM_ID,
+    });
+
+    if (req.body?.dryRun) return res.json({ ok: true, dryRun: true, ...plan });
+
+    const { closed, failed } = skinbuxSalesImport.applyImport(plan, {
+      owner: req.session.username,
+      sourcesConfig: config.sources,
+    });
+    res.json({ ok: true, closed, failed, ...plan });
+  } catch (err) {
+    console.error("[skinbux-import] Ошибка:", err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
 });

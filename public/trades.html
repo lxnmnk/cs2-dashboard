@@ -129,6 +129,17 @@
   </section>
   <div id="csfloatImportPreview" class="csfloat-import-preview" style="display:none;"></div>
 
+  <!-- Обратная сторона: продажи с нашего аккаунта закрывают позиции в трекере. -->
+  <section class="trade-form csfloat-import">
+    <button id="skinbuxImportBtn" class="btn-small btn-secondary" type="button">Import sales from Skinbux</button>
+    <label class="csfloat-import-days">from the last
+      <input id="skinbuxImportDays" type="number" min="1" max="3650" value="90" title="Client sales made through the site are skipped — those items are not ours." />
+      days
+    </label>
+    <span id="skinbuxImportStatus" class="field-hint"></span>
+  </section>
+  <div id="skinbuxImportPreview" class="csfloat-import-preview" style="display:none;"></div>
+
   <div class="section-title">Balances <span class="section-hint">money from sales, estimated from your sale history — not a real account balance</span></div>
   <section class="summary-cards" id="balancesCards">
     <div class="summary-card"><div class="label">Loading...</div></div>

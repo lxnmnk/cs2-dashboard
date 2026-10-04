@@ -93,7 +93,9 @@ function addTrade({
 // sellSource может быть как площадкой из config.sources, так и любым своим
 // названием (продал где-то ещё) — во втором случае правил холда мы не знаем,
 // поэтому их можно задать вручную через sellHoldDays, см. computeBalances.
-function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide, sellHoldDays }, sourcesConfig) {
+// sellExternalId — идентификатор продажи на площадке (импорт продаж со
+// Skinbux). По нему повторный импорт видит, что сделка уже занесена.
+function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide, sellHoldDays, sellExternalId }, sourcesConfig) {
   const source = typeof sellSource === "string" ? sellSource.trim() : "";
   if (!source) throw new Error("sellSource обязателен");
   if (source.length > 40) throw new Error("Название площадки слишком длинное");
@@ -128,6 +130,7 @@ function sellTrade(id, owner, { sellSource, sellPrice, sellDate, sellSide, sellH
   trade.sellFeeApplied = true;
   trade.sellPrice = round2(price * (1 - feeRate));
   trade.sellDate = sellDate ? new Date(sellDate).toISOString() : new Date().toISOString();
+  if (sellExternalId) trade.sellExternalId = String(sellExternalId);
 
   saveTrades(trades);
   return trade;
