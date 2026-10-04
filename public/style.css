@@ -602,6 +602,10 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 .csfloat-import-preview p { margin: 0 0 10px; font-size: 13px; }
 .csfloat-import-preview table { margin-bottom: 12px; }
 
+/* Float — число на шесть знаков: моноширинным оно читается глазами, а кнопка
+   правки не должна отрываться от него на новую строку. */
+.float-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 /* Страница "Капитал и прибыль": слева разбивка банка, справа поля, которые
    площадки не отдают по API и приходится вписывать руками. */
 .capital-split {

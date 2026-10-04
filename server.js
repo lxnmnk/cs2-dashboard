@@ -32,6 +32,7 @@ const skinbuxTx = require("./skinbuxTransactions");
 const skinbuxSales = require("./skinbuxSales");
 const csfloatPurchases = require("./csfloatPurchases");
 const skinbuxSalesImport = require("./skinbuxSalesImport");
+const tradeFloats = require("./tradeFloats");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
@@ -1410,21 +1411,46 @@ app.post("/api/capital/close", requireSiteOwner, async (req, res) => {
 app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
   try {
     const transactions = await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY);
+
+    // Инвентарь нужен, чтобы выбрать из одинаковых скинов проданный: float
+    // того, что ещё лежит, виден здесь (tradeFloats.js). force — кэш минутной
+    // давности тут вреден, предмет мог уйти только что. Если инвентарь не
+    // ответил, импорт не ломаем: откатываемся на FIFO и говорим об этом.
+    let inventory = null;
+    let inventoryError = null;
+    try {
+      inventory = await skinbuxInventory.fetchUserInventory(
+        process.env.SKINBUX_API_KEY,
+        skinbuxSales.OWNER_STEAM_ID,
+        { force: true }
+      );
+    } catch (err) {
+      inventoryError = err.message;
+    }
+
+    // Заодно дополняем float'ы позиций, где их не вписывали руками (youpin,
+    // cs.money): в предпросмотре это видно сразу, а записываем только при
+    // подтверждении — dryRun ничего не меняет.
+    const rawTrades = trades.listRawTrades(req.session.username);
+    const fill = tradeFloats.planFill(rawTrades, inventory);
     const plan = skinbuxSalesImport.planImport({
       transactions,
       journal: skinbuxSales.loadAll(),
-      rawTrades: trades.listRawTrades(req.session.username),
+      rawTrades: tradeFloats.applyFillInMemory(rawTrades, fill.assignments),
       days: req.body?.days,
       ownerSteamId: skinbuxSales.OWNER_STEAM_ID,
+      inventory,
     });
+    const floats = { filled: fill.assignments.length, ambiguous: fill.ambiguous, error: inventoryError };
 
-    if (req.body?.dryRun) return res.json({ ok: true, dryRun: true, ...plan });
+    if (req.body?.dryRun) return res.json({ ok: true, dryRun: true, floats, ...plan });
 
+    const filled = trades.setFloatMany(req.session.username, fill.assignments);
     const { closed, failed } = skinbuxSalesImport.applyImport(plan, {
       owner: req.session.username,
       sourcesConfig: config.sources,
     });
-    res.json({ ok: true, closed, failed, ...plan });
+    res.json({ ok: true, closed, failed, floats: { ...floats, filled }, ...plan });
   } catch (err) {
     console.error("[skinbux-import] Ошибка:", err.message);
     res.status(400).json({ ok: false, error: err.message });
@@ -1523,6 +1549,18 @@ app.post("/api/trades/:id/unlock-at", (req, res) => {
 app.post("/api/trades/:id/buy-date", (req, res) => {
   try {
     const trade = trades.setBuyDate(req.params.id, req.session.username, (req.body || {}).buyDate);
+    res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// float предмета руками: пустая строка — стереть. Пригождается там, где float
+// не приходит сам (youpin, cs.money) и подтянуть из инвентаря однозначно
+// нельзя — например, когда одинаковых скинов на аккаунте несколько.
+app.post("/api/trades/:id/float", (req, res) => {
+  try {
+    const trade = trades.setFloat(req.params.id, req.session.username, (req.body || {}).floatValue);
     res.json({ ok: true, trade });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });

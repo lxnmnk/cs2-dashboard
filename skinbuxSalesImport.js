@@ -11,7 +11,13 @@
 // Поэтому свои продажи отделяем от чужих по нашему же журналу (skinbuxSales):
 // если транзакция в журнале и steamId там чужой — это продажа клиента или
 // друга, её не трогаем. Всё остальное — наше.
+//
+// Какой из одинаковых скинов продан — отдельный вопрос: float продажи Skinbux
+// тоже не отдаёт. Его решает tradeFloats.js по инвентарю: позиция, чей float
+// всё ещё лежит в инвентаре, продана быть не могла, а та, чьего float там
+// больше нет, — как раз проданная.
 const trades = require("./trades");
+const tradeFloats = require("./tradeFloats");
 
 const DEFAULT_DAYS = 90;
 
@@ -25,18 +31,42 @@ function itemExternalId(txId, index) {
 }
 
 /**
- * Открытые позиции по названию, от старых к новым: продаём то, что куплено
- * раньше (FIFO) — так прибыль по партии считается привычным образом.
+ * Открытые позиции по названию в том порядке, в котором их стоит закрывать.
+ *
+ * Сначала те, чей float известен, а в инвентаре его больше нет: это ровно те
+ * предметы, которых у нас не осталось, то есть проданные. Потом те, про float
+ * которых мы ничего не знаем (старые записи, ручной ввод) — среди них выбираем
+ * по FIFO, как и раньше. В самом конце те, чей предмет инвентарь показывает на
+ * месте: закрывать их почти наверняка неправильно, но если продажу закрывать
+ * больше нечем, пусть лучше строка попадёт в предпросмотр с пометкой, чем
+ * продажа потеряется молча.
+ *
+ * Внутри каждой кучки — от старых покупок к новым.
  */
-function buildHoldingsIndex(rawTrades) {
-  const index = new Map();
+function buildHoldingsIndex(rawTrades, inventory) {
+  const invFloats = tradeFloats.floatsByName(inventory);
+  const byName = new Map();
   for (const t of rawTrades) {
     if (t.status !== "holding") continue;
-    const list = index.get(t.marketHashName) || [];
+    const list = byName.get(t.marketHashName) || [];
     list.push(t);
-    index.set(t.marketHashName, list);
+    byName.set(t.marketHashName, list);
   }
-  for (const list of index.values()) list.sort((a, b) => new Date(a.buyDate) - new Date(b.buyDate));
+
+  const index = new Map();
+  for (const [name, positions] of byName) {
+    positions.sort((a, b) => new Date(a.buyDate) - new Date(b.buyDate));
+    // null вместо списка — инвентарь недоступен: тогда про float ничего не
+    // утверждаем и работаем как раньше. Пустой список — инвентарь есть, но
+    // предметов с таким названием в нём нет, и это уже содержательный ответ.
+    const floats = inventory ? invFloats.get(name) || [] : null;
+    const { held, gone, unknown } = tradeFloats.splitByInventory(positions, floats);
+    index.set(name, [
+      ...gone.map((position) => ({ position, matchedBy: "float" })),
+      ...unknown.map((position) => ({ position, matchedBy: "fifo" })),
+      ...held.map((position) => ({ position, matchedBy: "held" })),
+    ]);
+  }
   return index;
 }
 
@@ -48,11 +78,16 @@ function buildHoldingsIndex(rawTrades) {
  *   match   — нашли открытую позицию, закроем её по цене продажи;
  *   already — уже импортировано раньше (по sellExternalId);
  *   nomatch — такого предмета в трекере нет, занести нечего.
+ *
+ * matchedBy говорит, чем именно выбрана позиция: "float" — предмета с таким
+ * float в инвентаре больше нет (самый надёжный случай), "fifo" — float
+ * неизвестен, взяли самую раннюю покупку, "held" — инвентарь уверяет, что
+ * предмет на месте, и других вариантов не осталось.
  */
-function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, ownerSteamId }) {
+function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, ownerSteamId, inventory = null }) {
   const cutoff = Date.now() - Math.max(1, Number(days) || DEFAULT_DAYS) * 86400000;
   const journalById = new Map(journal.map((s) => [String(s.id), s]));
-  const holdings = buildHoldingsIndex(rawTrades);
+  const holdings = buildHoldingsIndex(rawTrades, inventory);
   const importedIds = new Set(rawTrades.filter((t) => t.sellExternalId).map((t) => t.sellExternalId));
 
   const rows = [];
@@ -84,16 +119,19 @@ function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, own
       }
 
       const list = holdings.get(item.name);
-      const holding = list?.shift();
-      if (!holding) {
+      const pick = list?.shift();
+      if (!pick) {
         rows.push({ ...base, status: "nomatch" });
         return;
       }
 
+      const holding = pick.position;
       rows.push({
         ...base,
         status: "match",
+        matchedBy: pick.matchedBy,
         holdingId: holding.id,
+        floatValue: holding.floatValue ?? null,
         buyPrice: round2(holding.buyPrice),
         buyDate: holding.buyDate,
         profit: round2(price - holding.buyPrice),
@@ -102,9 +140,16 @@ function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, own
   }
 
   const sum = (filter) => round2(rows.filter(filter).reduce((acc, r) => acc + r.price, 0));
+  const countBy = (by) => rows.filter((r) => r.status === "match" && r.matchedBy === by).length;
   return {
     rows,
     days: Math.max(1, Number(days) || DEFAULT_DAYS),
+    // Работало ли сопоставление по float вообще: без инвентаря это обычный FIFO,
+    // и в интерфейсе об этом честно написано.
+    floatMatching: !!inventory,
+    byFloat: countBy("float"),
+    byFifo: countBy("fifo"),
+    byHeld: countBy("held"),
     matched: rows.filter((r) => r.status === "match").length,
     matchedSum: sum((r) => r.status === "match"),
     profit: round2(rows.filter((r) => r.status === "match").reduce((acc, r) => acc + r.profit, 0)),

@@ -58,7 +58,8 @@ function openTradeModal(trade) {
     ? `🔒 ${trade.daysLeft >= 2 ? `${trade.daysLeft}d` : `${trade.hoursLeft}h`} left`
     : "✅ sellable";
   document.getElementById("modalMeta").textContent =
-    `Bought on ${sourceLabel(trade.buySource)} · ${fmtMoney(trade.buyPrice)} · ${fmtDate(trade.buyDate)} · ${lockText}`;
+    `Bought on ${sourceLabel(trade.buySource)} · ${fmtMoney(trade.buyPrice)} · ${fmtDate(trade.buyDate)} · ${lockText}` +
+    (trade.floatValue != null ? ` · float ${trade.floatValue.toFixed(6)}` : "");
 
   // Снапшот лучших цен продажи на момент покупки — сравнивай с текущими
   // вариантами ниже, чтобы увидеть, куда сдвинулся рынок с тех пор.
@@ -749,6 +750,15 @@ document.getElementById("addTradeBtn").addEventListener("click", async () => {
   const unlockAtRaw = document.getElementById("unlockAtInput").value;
   const unlockAt = unlockAtRaw ? new Date(unlockAtRaw).toISOString() : null;
   const quantity = Math.max(1, parseInt(document.getElementById("buyQuantityInput").value, 10) || 1);
+  const floatInput = document.getElementById("floatValueInput");
+  const floatValue = floatInput.value.trim();
+  // Float — свойство одного конкретного предмета: у двух одинаковых скинов он
+  // разный, поэтому на несколько строк сразу его вписать нельзя.
+  if (floatValue && quantity > 1) {
+    alert("Float belongs to one exact item — add such purchases one by one, or leave the float empty");
+    floatInput.focus();
+    return;
+  }
 
   // Несколько одинаковых предметов, купленных за одну цену в одно и то же
   // время — заводим их как отдельные строки (каждая продаётся независимо),
@@ -767,6 +777,7 @@ document.getElementById("addTradeBtn").addEventListener("click", async () => {
         buyPrice,
         buyDate,
         unlockAt,
+        floatValue,
       }),
     });
     const data = await res.json();
@@ -791,6 +802,7 @@ document.getElementById("addTradeBtn").addEventListener("click", async () => {
     buyPriceCnyInput.value = "";
     document.getElementById("buyQuantityInput").value = "1";
     document.getElementById("unlockAtInput").value = "";
+    floatInput.value = "";
     selectedItem = null;
     document.getElementById("buyDateInput").value = nowForDatetimeLocal();
   }
@@ -935,13 +947,48 @@ const SKINBUX_ROW_LABELS = {
   nomatch: "not in the tracker",
 };
 
+// Чем выбрана позиция из нескольких одинаковых скинов (см. tradeFloats.js).
+const SKINBUX_MATCH_LABELS = {
+  float: "by float — this one is gone from your inventory",
+  fifo: "by buy date — float of this position is unknown",
+  held: "⚠ by buy date — your inventory still shows this float",
+};
+
+// Откуда известно, какой из одинаковых скинов продан. Skinbux float продажи
+// не отдаёт, поэтому смотрим на инвентарь: предмет, который там всё ещё лежит,
+// продать не могли.
+function skinbuxFloatNote(plan) {
+  const floats = plan.floats || {};
+  const parts = [];
+
+  if (!plan.floatMatching) {
+    parts.push(
+      `Could not read your Skinbux inventory${floats.error ? ` (${escapeHtml(floats.error)})` : ""}, so identical skins were picked by buy date only.`
+    );
+  } else {
+    parts.push(
+      `Picked by float: <b>${plan.byFloat || 0}</b> (gone from your inventory)` +
+        `${plan.byFifo ? `, by buy date: ${plan.byFifo} (float unknown)` : ""}` +
+        `${plan.byHeld ? `, <b>${plan.byHeld} questionable</b>: your inventory still shows that float` : ""}.`
+    );
+  }
+
+  if (floats.filled) parts.push(`Float filled in from your inventory for ${floats.filled} position(s).`);
+  if (floats.ambiguous?.length) {
+    const names = floats.ambiguous.map((a) => `${escapeHtml(a.marketHashName)} (${a.positions})`).join(", ");
+    parts.push(`Float still unknown where several identical skins sit together: ${names} — type it in the Holdings table to be exact.`);
+  }
+
+  return `<p class="na">${parts.join(" ")}</p>`;
+}
+
 function renderSkinbuxPreview(plan) {
   const rows = (plan.rows || []).filter((r) => r.status !== "already");
   skinbuxImportStatus.textContent = `${plan.matched} to close, ${plan.already} already in, ${plan.nomatch} without a position`;
 
   if (!rows.length) {
     skinbuxImportPreview.style.display = "block";
-    skinbuxImportPreview.innerHTML = '<p class="empty-row">Nothing new to import.</p>';
+    skinbuxImportPreview.innerHTML = `<p class="empty-row">Nothing new to import.</p>${skinbuxFloatNote(plan)}`;
     return;
   }
 
@@ -950,18 +997,22 @@ function renderSkinbuxPreview(plan) {
     <p><b>${plan.matched}</b> position(s) will be closed for ${fmtMoney(plan.matchedSum)}, profit ${fmtMoney(plan.profit)}.${
       plan.nomatch ? ` ${plan.nomatch} sold item(s) for ${fmtMoney(plan.nomatchSum)} have no position in the tracker — add them by hand if they were yours.` : ""
     }</p>
+    ${skinbuxFloatNote(plan)}
     <table class="trades-table">
-      <thead><tr><th>Sold</th><th>Item</th><th>Sold for</th><th>Bought for</th><th>Profit</th><th>What happens</th></tr></thead>
+      <thead><tr><th>Sold</th><th>Item</th><th>Float</th><th>Sold for</th><th>Bought for</th><th>Profit</th><th>What happens</th></tr></thead>
       <tbody>
         ${rows
           .map(
             (r) => `<tr>
               <td>${fmtDate(r.soldAt)}</td>
               <td>${escapeHtml(r.marketHashName)}${r.viaSite ? ' <span class="na">via site</span>' : ""}</td>
+              <td>${r.floatValue != null ? r.floatValue.toFixed(6) : '<span class="na">—</span>'}</td>
               <td>${fmtMoney(r.price)}</td>
               <td>${r.buyPrice != null ? fmtMoney(r.buyPrice) : '<span class="na">—</span>'}</td>
               <td class="${r.profit >= 0 ? "profit" : "loss"}">${r.profit != null ? fmtMoney(r.profit) : '<span class="na">—</span>'}</td>
-              <td class="na">${escapeHtml(SKINBUX_ROW_LABELS[r.status] || r.status)}</td>
+              <td class="na">${escapeHtml(SKINBUX_ROW_LABELS[r.status] || r.status)}${
+                r.matchedBy ? `, ${escapeHtml(SKINBUX_MATCH_LABELS[r.matchedBy] || r.matchedBy)}` : ""
+              }</td>
             </tr>`
           )
           .join("")}
@@ -1135,10 +1186,18 @@ wireSelectAll("soldSelectAll", "#soldBody .row-select");
 // Simple row: name/quality/bought-on/price/date/lock. Click anywhere on the
 // row (except a button) opens the "where to sell" modal with per-market
 // prices. Delete stays a quick row-level action.
+// Float позиции: по нему импорт продаж со Skinbux отличает два одинаковых
+// скина друг от друга. Приходит сам с CSFloat, подтягивается из инвентаря при
+// импорте продаж, остальное можно вписать руками.
+function floatCell(r) {
+  const value = r.floatValue != null ? r.floatValue.toFixed(6) : '<span class="na">—</span>';
+  return `${value} <button class="btn-small btn-secondary" data-action="edit-float" data-id="${r.id}" title="Edit float">✎</button>`;
+}
+
 function renderHolding(rows) {
   const tbody = document.getElementById("holdingBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
     document.getElementById("holdingSelectAll").checked = false;
     return;
   }
@@ -1155,6 +1214,7 @@ function renderHolding(rows) {
           <td><input type="checkbox" class="row-select" data-id="${r.id}" ${checked} /></td>
           <td>${escapeHtml(r.name)}</td>
           <td>${escapeHtml(r.wear)}</td>
+          <td class="float-cell">${floatCell(r)}</td>
           <td>${sourceLabel(r.buySource)}</td>
           <td>${fmtMoney(r.buyPrice)}</td>
           <td>${fmtDate(r.buyDate)} <button class="btn-small btn-secondary" data-action="edit-buy-date" data-id="${r.id}" title="Edit buy date">✎</button></td>
@@ -1190,12 +1250,45 @@ function renderHolding(rows) {
       editBuyDate(btn.dataset.id, trade?.buyDate);
     });
   });
+  tbody.querySelectorAll("[data-action='edit-float']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const trade = lastTrades.find((t) => t.id === btn.dataset.id);
+      editFloat(btn.dataset.id, trade?.floatValue);
+    });
+  });
+}
+
+async function editFloat(id, current) {
+  const input = prompt(
+    "Float of this exact item (0 to 1). Leave empty to clear.\nThe Skinbux sales import uses it to tell identical skins apart.",
+    current != null ? String(current) : ""
+  );
+  if (input === null) return;
+
+  const value = input.trim();
+  if (value && !(Number(value) >= 0 && Number(value) <= 1)) {
+    alert("Float must be a number between 0 and 1");
+    return;
+  }
+
+  const res = await fetch(`/api/trades/${id}/float`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ floatValue: value }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `Could not save float: ${data.error}`;
+    return;
+  }
+  await loadTrades();
 }
 
 function renderSold(rows) {
   const tbody = document.getElementById("soldBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No sales yet</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">No sales yet</td></tr>`;
     document.getElementById("soldSelectAll").checked = false;
     return;
   }
@@ -1210,6 +1303,7 @@ function renderSold(rows) {
           <td><input type="checkbox" class="row-select" data-id="${r.id}" ${checked} /></td>
           <td>${escapeHtml(r.name)}</td>
           <td>${escapeHtml(r.wear)}</td>
+          <td>${r.floatValue != null ? r.floatValue.toFixed(6) : '<span class="na">—</span>'}</td>
           <td>${sourceLabel(r.buySource)} · ${fmtMoney(r.buyPrice)} · ${fmtDate(r.buyDate)}</td>
           <td>${sourceLabel(r.sellSource)} · ${fmtMoney(r.sellPrice)} · ${fmtDate(r.sellDate)}</td>
           <td class="${profitClass}">${fmtMoney(r.profitUsd)}</td>

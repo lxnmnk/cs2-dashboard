@@ -101,6 +101,10 @@
       <input id="buyQuantityInput" type="number" step="1" min="1" value="1" title="Buying several identical items at the same price/date? Set how many — each gets its own row." />
     </label>
 
+    <label>Float (optional)
+      <input id="floatValueInput" type="number" step="0.000001" min="0" max="1" placeholder="0.123456" title="Tells two identical skins apart: the Skinbux sales import closes the position whose float is no longer in your inventory. CSFloat purchases fill this in by themselves." />
+    </label>
+
     <label>Buy Date &amp; Time
       <input id="buyDateInput" type="datetime-local" />
     </label>
@@ -234,6 +238,7 @@
           <th><input type="checkbox" id="holdingSelectAll" title="Select all" /></th>
           <th>Item Name</th>
           <th>Quality</th>
+          <th>Float</th>
           <th>Bought On</th>
           <th>Buy Price</th>
           <th>Buy Date</th>
@@ -242,7 +247,7 @@
         </tr>
       </thead>
       <tbody id="holdingBody">
-        <tr><td colspan="8" class="loading">Loading...</td></tr>
+        <tr><td colspan="9" class="loading">Loading...</td></tr>
       </tbody>
     </table>
   </div>
@@ -255,6 +260,7 @@
           <th><input type="checkbox" id="soldSelectAll" title="Select all" /></th>
           <th>Item Name</th>
           <th>Quality</th>
+          <th>Float</th>
           <th>Bought</th>
           <th>Sold</th>
           <th>Profit $</th>
@@ -264,7 +270,7 @@
         </tr>
       </thead>
       <tbody id="soldBody">
-        <tr><td colspan="9" class="loading">Loading...</td></tr>
+        <tr><td colspan="10" class="loading">Loading...</td></tr>
       </tbody>
     </table>
   </div>

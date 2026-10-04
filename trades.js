@@ -75,7 +75,8 @@ function addTrade({
     customUnlockAt: unlockAt ? new Date(unlockAt).toISOString() : null,
     externalId: externalId || null,
     assetId: assetId || null,
-    floatValue: Number.isFinite(Number(floatValue)) ? Number(floatValue) : null,
+    // Пустое поле формы приходит как "" — это именно "не знаю", а не float 0.
+    floatValue: parseFloatValue(floatValue),
     status: "holding",
     sellSource: null,
     sellPrice: null,
@@ -143,6 +144,41 @@ function setUnlockAt(id, owner, unlockAt) {
   trade.customUnlockAt = unlockAt ? new Date(unlockAt).toISOString() : null;
   saveTrades(trades);
   return trade;
+}
+
+// float предмета: приходит сам при импорте с CSFloat, подтягивается из
+// инвентаря Skinbux (tradeFloats.js) или вписывается руками — по нему импорт
+// продаж понимает, какой именно из одинаковых скинов продан.
+function parseFloatValue(value) {
+  if (value === null || value === "" || value === undefined) return null;
+  const float = Number(value);
+  if (!Number.isFinite(float) || float < 0 || float > 1) {
+    throw new Error("Float должен быть числом от 0 до 1");
+  }
+  return float;
+}
+
+function setFloat(id, owner, floatValue) {
+  const trades = loadTrades();
+  const trade = findOwnedTrade(trades, id, owner);
+
+  trade.floatValue = parseFloatValue(floatValue);
+  saveTrades(trades);
+  return trade;
+}
+
+/** Пакетная простановка float'ов (импорт из инвентаря) — одна запись на все. */
+function setFloatMany(owner, assignments) {
+  const trades = loadTrades();
+  let filled = 0;
+  for (const { id, floatValue } of assignments) {
+    const trade = trades.find((t) => t.id === id && t.owner === owner);
+    if (!trade) continue;
+    trade.floatValue = parseFloatValue(floatValue);
+    filled++;
+  }
+  if (filled) saveTrades(trades);
+  return filled;
 }
 
 function setBuyDate(id, owner, buyDate) {
@@ -482,6 +518,8 @@ module.exports = {
   sellTrade,
   setUnlockAt,
   setBuyDate,
+  setFloat,
+  setFloatMany,
   deleteTrade,
   listTrades,
   listPublicHoldings,
