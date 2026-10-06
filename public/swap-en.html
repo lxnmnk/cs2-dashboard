@@ -69,6 +69,10 @@
         <a class="btn-gold" href="/auth/steam?lang=en&amp;next=/en/trade">Sign in with Steam</a>
       </div>
 
+      <!-- Что уже выбрано: карточка видна только пока предмет в текущем
+           списке, а выбор переживает и поиск, и перезагрузку. -->
+      <div id="swapMineChosen" class="swap-chosen" style="display:none;"></div>
+
       <p id="swapMineLoading" class="card-hint">Loading inventory...</p>
       <div id="swapMineGrid" class="swap-grid"></div>
 
@@ -85,6 +89,10 @@
         <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
       </div>
       <p class="card-hint">These are the popular ones — find any other skin through the search. Click to add, right-click to remove.<br /><b class="swap-benefit">Trade the same day: no 7-day wait like with a sale, and better value than selling and buying.</b></p>
+
+      <!-- Что уже выбрано: карточка видна только пока предмет в текущем
+           списке, а выбор переживает и поиск, и перезагрузку. -->
+      <div id="swapOursChosen" class="swap-chosen" style="display:none;"></div>
 
       <p id="swapOursLoading" class="card-hint">Loading the showcase...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
@@ -157,6 +165,8 @@
       wearTitle: "Wear",
       specialTitle: "Special",
       normalLabel: "Normal",
+      chosenTitle: "Picked",
+      chosenClear: "Clear all",
       searchingLabel: "Searching...",
       searchEmpty: "Nothing found for that name. Message us on Telegram and we will look by hand.",
       catalogLoading: "Loading the showcase...",

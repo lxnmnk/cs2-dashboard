@@ -69,6 +69,10 @@
         <a class="btn-gold" href="/auth/steam?lang=ru&amp;next=/ru/trade">Войти через Steam</a>
       </div>
 
+      <!-- Что уже выбрано: карточка видна только пока предмет в текущем
+           списке, а выбор переживает и поиск, и перезагрузку. -->
+      <div id="swapMineChosen" class="swap-chosen" style="display:none;"></div>
+
       <p id="swapMineLoading" class="card-hint">Загружаю инвентарь...</p>
       <div id="swapMineGrid" class="swap-grid"></div>
 
@@ -85,6 +89,10 @@
         <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
       </div>
       <p class="card-hint">Здесь популярное — любой другой скин найдётся через поиск. Клик — добавить, правый клик — убрать.<br /><b class="swap-benefit">Обмен день в день: без 7 дней ожидания, как при продаже, и выгоднее, чем продать и купить.</b></p>
+
+      <!-- Что уже выбрано: карточка видна только пока предмет в текущем
+           списке, а выбор переживает и поиск, и перезагрузку. -->
+      <div id="swapOursChosen" class="swap-chosen" style="display:none;"></div>
 
       <p id="swapOursLoading" class="card-hint">Загружаю витрину...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
@@ -157,6 +165,8 @@
       wearTitle: "Качество",
       specialTitle: "Особые",
       normalLabel: "Обычные",
+      chosenTitle: "Выбрано",
+      chosenClear: "Убрать всё",
       searchingLabel: "Ищу...",
       searchEmpty: "По этому названию ничего не нашли. Напиши в Telegram — поищем вручную.",
       catalogLoading: "Загружаю витрину...",

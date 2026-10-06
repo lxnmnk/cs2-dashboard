@@ -1159,6 +1159,54 @@ a.sender-line { color: var(--gold); }
   font-size: 13px;
 }
 .swap-search:focus { border-color: var(--gold-line); outline: none; }
+/* Рядок "обрано" над сіткою: вибір переживає пошук і перезавантаження, а
+   картка з галочкою — ні, тож без цього рядка людина бачить суму й не бачить,
+   за що вона. Хрестик прибирає предмет прямо звідси. */
+.swap-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+  padding: 10px;
+  background: var(--gold-soft, rgba(215, 168, 78, 0.1));
+  border: 1px solid var(--gold-line);
+  border-radius: 10px;
+  /* Предметов может быть много — рядок не должен выдавливать сетку вниз. */
+  max-height: 124px;
+  overflow-y: auto;
+}
+.swap-chosen-title { font-size: 12px; color: var(--muted); margin-right: 2px; }
+.swap-chosen-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.swap-chosen-chip:hover { border-color: var(--gold-line); }
+.swap-chosen-price { color: var(--gold); font-weight: 700; }
+.swap-chosen-x { color: var(--muted); }
+.swap-chosen-chip:hover .swap-chosen-x { color: var(--text); }
+.swap-chosen-clear {
+  margin-left: auto;
+  padding: 5px 9px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.swap-chosen-clear:hover { color: var(--text); }
+
 .swap-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));

@@ -321,6 +321,79 @@ function renderOurs({ searched = false } = {}) {
   });
 }
 
+// ---- Що вже обрано ----
+// Галочка "× 1" на картці видно лише доти, доки предмет є в поточному списку:
+// варто змінити пошук чи перезавантажити сторінку — і вітрина знову показує
+// популярне, а обраний ніж зник з очей. Сума при цьому стоїть, і забрати
+// предмет нема як. Тому обране окремим рядком над сіткою, з ціною і хрестиком.
+const swapMineChosen = document.getElementById("swapMineChosen");
+const swapOursChosen = document.getElementById("swapOursChosen");
+
+function renderChosenRow(el, entries, onRemove, onClear) {
+  if (!el) return;
+  if (!entries.length) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+
+  el.style.display = "";
+  el.innerHTML = `
+    <span class="swap-chosen-title">${swapEscape(SWAP_T.chosenTitle)}</span>
+    ${entries
+      .map(
+        (e) => `<button type="button" class="swap-chosen-chip" data-key="${swapEscape(e.key)}">
+          ${swapEscape(e.label)}${e.qty > 1 ? ` × ${e.qty}` : ""}
+          <span class="swap-chosen-price">${swapMoney(e.sum)}</span>
+          <span class="swap-chosen-x">✕</span>
+        </button>`
+      )
+      .join("")}
+    <button type="button" class="swap-chosen-clear">${swapEscape(SWAP_T.chosenClear)}</button>`;
+
+  el.querySelectorAll("[data-key]").forEach((chip) => {
+    chip.addEventListener("click", () => onRemove(chip.getAttribute("data-key")));
+  });
+  el.querySelector(".swap-chosen-clear").addEventListener("click", onClear);
+}
+
+function renderChosen() {
+  renderChosenRow(
+    swapMineChosen,
+    pickedMineItems().map((it) => ({ key: it.assetId, label: `${it.name || it.marketHashName}`, qty: 1, sum: it.price })),
+    (assetId) => {
+      swapPickedMine.delete(assetId);
+      renderMine();
+      renderSummary();
+    },
+    () => {
+      swapPickedMine.clear();
+      renderMine();
+      renderSummary();
+    }
+  );
+
+  renderChosenRow(
+    swapOursChosen,
+    pickedOursItems().map(({ item, qty }) => ({
+      key: item.marketHashName,
+      label: `${item.name || item.marketHashName}${item.wear ? ` (${item.wear})` : ""}`,
+      qty,
+      sum: item.price * qty,
+    })),
+    (name) => {
+      swapPickedOurs.delete(name);
+      renderOurs({ searched: isSearching() });
+      renderSummary();
+    },
+    () => {
+      swapPickedOurs.clear();
+      renderOurs({ searched: isSearching() });
+      renderSummary();
+    }
+  );
+}
+
 // ---- Підсумок ----
 function pickedMineItems() {
   return swapMine.filter((it) => swapPickedMine.has(it.assetId));
@@ -334,6 +407,7 @@ function pickedOursItems() {
 
 function renderSummary() {
   saveSwap();
+  renderChosen();
   const mine = pickedMineItems();
   const ours = pickedOursItems();
   const mineSum = mine.reduce((sum, it) => sum + it.price, 0);
