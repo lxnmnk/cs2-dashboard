@@ -60,11 +60,17 @@ function buildHoldingsIndex(rawTrades, inventory) {
     // утверждаем и работаем как раньше. Пустой список — инвентарь есть, но
     // предметов с таким названием в нём нет, и это уже содержательный ответ.
     const floats = inventory ? invFloats.get(name) || [] : null;
-    const { held, gone, unknown } = tradeFloats.splitByInventory(positions, floats);
+    // Предмет в трейд-бане Skinbux в инвентаре не показывает — "его там нет"
+    // про такую позицию не значит ничего. Продать её тоже было нельзя,
+    // поэтому в очереди на закрытие она последняя.
+    const locked = inventory ? positions.filter((p) => p.isLocked === true) : [];
+    const free = inventory ? positions.filter((p) => p.isLocked !== true) : positions;
+    const { held, gone, unknown } = tradeFloats.splitByInventory(free, floats);
     index.set(name, [
       ...gone.map((position) => ({ position, matchedBy: "float" })),
       ...unknown.map((position) => ({ position, matchedBy: "fifo" })),
       ...held.map((position) => ({ position, matchedBy: "held" })),
+      ...locked.map((position) => ({ position, matchedBy: "locked" })),
     ]);
   }
   return index;

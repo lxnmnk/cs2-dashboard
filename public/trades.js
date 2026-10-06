@@ -1118,9 +1118,17 @@ function renderInventoryCheck(data) {
   goneIds = new Set(gone.map((r) => r.id));
   renderHolding(lastTrades.filter((t) => t.status === "holding")); // подсветить строки в Holdings
 
-  inventoryCheckStatus.textContent = `${data.gone} gone, ${data.here} still there, ${data.unclear} unclear · ${data.inventoryCount} item(s) in the inventory`;
+  inventoryCheckStatus.textContent =
+    `${data.gone} gone, ${data.here} still there, ${data.unclear} unclear, ${data.locked} in trade ban · ${data.inventoryCount} item(s) in the inventory`;
 
   const notes = [];
+  if (data.locked) {
+    // Skinbux отдаёт только то, что можно обменять сейчас: заблокированных
+    // предметов в его инвентаре нет вовсе, поэтому мы их не проверяем.
+    notes.push(
+      `${data.locked} position(s) for ${fmtMoney(data.lockedSum)} are under trade protection — Skinbux does not show locked items, so they are not checked.`
+    );
+  }
   if (data.floatsFilled) notes.push(`Float filled in from the inventory for ${data.floatsFilled} position(s).`);
   if (unclear.length) {
     notes.push(
@@ -1130,7 +1138,7 @@ function renderInventoryCheck(data) {
 
   inventoryCheckPreview.style.display = "block";
   if (!gone.length) {
-    inventoryCheckPreview.innerHTML = `<p>Everything in Holdings is still in your inventory.</p>${
+    inventoryCheckPreview.innerHTML = `<p>Everything we could check is still in your inventory.</p>${
       notes.length ? `<p class="na">${notes.map(escapeHtml).join(" ")}</p>` : ""
     }`;
     return;

@@ -19,11 +19,23 @@
 // Так "по флоту выбирается тот скин, который продал", хотя сама площадка float
 // продажи и не сообщает.
 //
+// ⚠️ Чего в этом инвентаре нет: предметов в трейд-бане. Skinbux отдаёт только
+// то, что можно обменять прямо сейчас — проверено на живом аккаунте, 64 из 64
+// предметов пришли с tradable: true, ни одного заблокированного. Поэтому
+// позиция под защитой сделки выглядит отсюда "исчезнувшей", хотя она на месте.
+// Трейд-бан мы знаем сами (trades.js: customUnlockAt из CSFloat или дата
+// покупки + 7 дней), и такие позиции в сверку не берём вовсе.
+//
 // Допуск сравнения: float приходит с полной точностью double из обоих
 // источников, поэтому сравниваем жёстко. 1e-6 — только на случай, если
 // где-то по пути число округлили до шестого знака; два разных предмета одного
 // скина так близко не встают.
 const FLOAT_EPS = 1e-6;
+
+/** Предмет в трейд-бане: инвентарь Skinbux его не показывает, судить по нему нельзя. */
+function isLockedPosition(trade) {
+  return trade.isLocked === true;
+}
 
 function sameFloat(a, b) {
   if (a == null || b == null) return false;
@@ -113,9 +125,13 @@ function planFill(rawTrades, inventory) {
   const assignments = [];
   const ambiguous = [];
 
-  for (const [name, positions] of byName) {
+  for (const [name, all] of byName) {
     const floats = invFloats.get(name);
     if (!floats?.length) continue;
+    // Заблокированной позиции float из инвентаря не принадлежит: её предмета
+    // там нет, и свободный float — от какого-то другого.
+    const positions = all.filter((p) => !isLockedPosition(p));
+    if (!positions.length) continue;
     const { unknown, unclaimed } = splitByInventory(positions, floats);
     if (!unknown.length || !unclaimed.length) continue;
 
@@ -161,8 +177,14 @@ function checkHoldings(rawTrades, inventory) {
   }
 
   const rows = [];
-  for (const [name, positions] of byName) {
-    positions.sort((a, b) => new Date(a.buyDate) - new Date(b.buyDate));
+  for (const [name, all] of byName) {
+    all.sort((a, b) => new Date(a.buyDate) - new Date(b.buyDate));
+    // Заблокированных в инвентаре нет по определению — ни судить о них, ни
+    // считать их в сравнении количеств нельзя.
+    const positions = all.filter((p) => !isLockedPosition(p));
+    for (const p of all.filter(isLockedPosition)) rows.push({ ...rowOf(p), status: "locked" });
+    if (!positions.length) continue;
+
     const { held, gone, unknown } = splitByInventory(positions, invFloats.get(name) || []);
     // Предметы с таким названием, которые ещё лежат в инвентаре и не закреплены
     // ни за одной позицией по float: только они могут оказаться "теми самыми".
@@ -191,6 +213,9 @@ function checkHoldings(rawTrades, inventory) {
     here: count("here"),
     unclear: count("unclear"),
     unclearSum: sum("unclear"),
+    // Под защитой сделки: инвентарь их не видит, поэтому мы о них молчим.
+    locked: count("locked"),
+    lockedSum: sum("locked"),
   };
 }
 

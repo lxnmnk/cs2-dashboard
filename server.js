@@ -1483,7 +1483,9 @@ app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
     // Заодно дополняем float'ы позиций, где их не вписывали руками (youpin,
     // cs.money): в предпросмотре это видно сразу, а записываем только при
     // подтверждении — dryRun ничего не меняет.
-    const rawTrades = trades.listRawTrades(req.session.username);
+    // С расчётными полями: isLocked говорит, что предмета нет в инвентаре не
+    // потому, что он продан, а потому, что он под защитой сделки.
+    const rawTrades = trades.listTrades({ owner: req.session.username, rows: cache.rows, config });
     const fill = tradeFloats.planFill(rawTrades, inventory);
     const plan = skinbuxSalesImport.planImport({
       transactions,
@@ -1617,9 +1619,10 @@ app.post("/api/trades/inventory-check", requireSiteOwner, async (req, res) => {
       skinbuxSales.OWNER_STEAM_ID,
       { force: true }
     );
-    // Заодно дополняем float'ы там, где это однозначно: чем их больше, тем
-    // меньше позиций попадёт в "непонятно".
-    const rawTrades = trades.listRawTrades(req.session.username);
+    // Сделки берём с расчётными полями: нужен isLocked. Предметы в трейд-бане
+    // Skinbux в инвентаре не показывает вовсе, и без этой пометки все свежие
+    // покупки с CSFloat выглядели бы проданными.
+    const rawTrades = trades.listTrades({ owner: req.session.username, rows: cache.rows, config });
     const fill = tradeFloats.planFill(rawTrades, inventory);
     const filled = trades.setFloatMany(req.session.username, fill.assignments);
 
