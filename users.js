@@ -21,10 +21,19 @@ function saveUsers(users) {
   fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
-async function createUser(username, password) {
+// Роли. По умолчанию (null) — обычная учётка панели: свой трекер сделок,
+// арбитраж, цены. "investor" — только страница капитала и ничего больше:
+// такой человек видит, сколько стоит бизнес и какая часть его, но не видит
+// ни сделок, ни цен, ни клиентов. Проверяется на сервере, а не спрятанными
+// ссылками в меню.
+const ROLES = new Set([null, "investor"]);
+
+async function createUser(username, password, role = null) {
   const normalized = username.trim().toLowerCase();
   if (!normalized) throw new Error("Имя пользователя не может быть пустым");
   if (!password || password.length < 8) throw new Error("Пароль должен быть не короче 8 символов");
+  const normalizedRole = role || null;
+  if (!ROLES.has(normalizedRole)) throw new Error(`Неизвестная роль "${role}"`);
 
   const users = loadUsers();
   if (users.some((u) => u.username === normalized)) {
@@ -32,9 +41,15 @@ async function createUser(username, password) {
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  users.push({ username: normalized, passwordHash, createdAt: new Date().toISOString() });
+  users.push({ username: normalized, passwordHash, role: normalizedRole, createdAt: new Date().toISOString() });
   saveUsers(users);
   return normalized;
+}
+
+/** Роль учётки: null у обычной, "investor" у инвестора, null если нет такой. */
+function roleOf(username) {
+  const normalized = (username || "").trim().toLowerCase();
+  return loadUsers().find((u) => u.username === normalized)?.role || null;
 }
 
 /**
@@ -57,4 +72,4 @@ function userExists(username) {
   return loadUsers().some((u) => u.username === normalized);
 }
 
-module.exports = { createUser, verifyUser, userExists };
+module.exports = { createUser, verifyUser, userExists, roleOf, ROLES };

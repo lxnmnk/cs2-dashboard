@@ -50,6 +50,28 @@
     </div>
   </section>
 
+  <!-- Прибыль за выбранный отрезок. Собирается из дневной истории: период
+       закрывается сам раз в сутки, поэтому любой диапазон складывается из
+       готовых дней, а не пересчитывается задним числом. -->
+  <div class="section-title-row">
+    <div class="section-title">Прибыль за период</div>
+    <div class="period-tabs" id="capitalPeriodTabs">
+      <button class="period-tab" data-days="7">7д</button>
+      <button class="period-tab" data-days="14">2нед</button>
+      <button class="period-tab active" data-days="30">1мес</button>
+      <button class="period-tab" data-days="90">3мес</button>
+      <button class="period-tab" data-days="180">6мес</button>
+      <button class="period-tab" data-days="365">1год</button>
+      <button class="period-tab" data-days="custom">Свой</button>
+    </div>
+  </div>
+  <div id="capitalCustomRange" class="custom-range" style="display:none;">
+    <label>С <input type="date" id="capitalFromDate" /></label>
+    <label>По <input type="date" id="capitalToDate" /></label>
+  </div>
+  <section class="summary-cards" id="capitalProfitCards"></section>
+  <p class="card-hint" id="capitalProfitHint"></p>
+
   <div class="section-title">Участники <span class="section-hint">доля считается от банка на начало периода</span></div>
   <section class="capital-people">
     <table class="trades-table">

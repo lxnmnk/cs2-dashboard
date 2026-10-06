@@ -232,6 +232,18 @@ app.use((req, res, next) => {
   return res.redirect("/login.html");
 });
 
+// Инвестору — только капитал. Стоит сразу после входа и ДО всех роутов и
+// express.static, поэтому закрывает и страницы, и файлы, и API разом.
+app.use((req, res, next) => {
+  if (!isInvestor(req)) return next();
+  // Публичные страницы сайта инвестору так же открыты, как любому гостю, —
+  // запрет касается внутренней панели, а не витрины.
+  if (PUBLIC_PATHS.has(req.path)) return next();
+  if (INVESTOR_PATHS.has(req.path)) return next();
+  if (req.path.startsWith("/api/")) return res.status(403).json({ ok: false, error: "Доступна только страница капитала" });
+  return res.redirect("/capital");
+});
+
 // В /mytrades сидит не только владелец сайта — у друзей свои учётки со своим
 // трекером сделок. Всё, что касается бизнеса целиком (цены для клиентов,
 // продажи клиентов, выплаты), доступно только владельцу — и на сервере, а не
@@ -245,6 +257,35 @@ function round2(n) {
 function requireSiteOwner(req, res, next) {
   if (req.session?.username === SITE_OWNER) return next();
   res.status(403).json({ ok: false, error: "Только для владельца сайта" });
+}
+
+// ---- Инвесторы ----
+// Учётка с ролью "investor" видит ровно одну страницу — капитал. Ни сделок,
+// ни цен, ни клиентов: человек вложил деньги и смотрит, сколько стоит бизнес
+// и какая часть его. Запрет серверный, а не спрятанные ссылки в меню: иначе
+// /mytrades открылся бы прямым адресом.
+const INVESTOR_PATHS = new Set([
+  "/capital",
+  "/capital.html",
+  "/capital.js",
+  "/api/capital",
+  "/api/capital/history",
+  "/api/me",
+  "/api/logout",
+  // Оформление страницы: без него она приедет голым текстом.
+  "/style.css",
+  "/favicon.svg",
+  "/bg-map.jpg",
+  "/auth-ui.js",
+]);
+
+function isInvestor(req) {
+  return !!req.session?.username && users.roleOf(req.session.username) === "investor";
+}
+
+function requireCapitalAccess(req, res, next) {
+  if (req.session?.username === SITE_OWNER || isInvestor(req)) return next();
+  res.status(403).json({ ok: false, error: "Нет доступа" });
 }
 
 app.post("/api/login", async (req, res) => {
@@ -262,13 +303,17 @@ app.post("/api/logout", (req, res) => {
 });
 
 app.get("/api/me", (req, res) => {
-  res.json({ username: req.session.username, isSiteOwner: req.session.username === SITE_OWNER });
+  res.json({
+    username: req.session.username,
+    isSiteOwner: req.session.username === SITE_OWNER,
+    role: users.roleOf(req.session.username),
+  });
 });
 
 // Страница капитала — только владельцу. Стоит ДО express.static: public/
 // раздаётся любому вошедшему в панель (там есть аккаунты друзей), и без
 // этой проверки файл открылся бы по прямому адресу в обход роута /capital.
-app.get(["/capital.html", "/capital.js"], requireSiteOwner, (req, res) => {
+app.get(["/capital.html", "/capital.js"], requireCapitalAccess, (req, res) => {
   res.sendFile(path.join(__dirname, "public", req.path.slice(1)));
 });
 
@@ -1361,32 +1406,73 @@ app.post("/api/trades", (req, res) => {
 // ---- Капитал и прибыль инвесторов (capital.js, capitalBank.js) ----
 // Вся страница /capital и её роуты — только для владельца: тут балансы
 // инвесторов и личные траты, чужим аккаунтам в панели этого видеть незачем.
-app.get("/capital", requireSiteOwner, (req, res) => {
+app.get("/capital", requireCapitalAccess, (req, res) => {
   res.sendFile(path.join(__dirname, "public", "capital.html"));
 });
 
 // Банк на сейчас + предварительный расчёт периода. refresh=1 — перечитать
 // инвентарь Steam мимо кеша.
-app.get("/api/capital", requireSiteOwner, async (req, res) => {
+app.get("/api/capital", requireCapitalAccess, async (req, res) => {
   try {
     const state = capital.load();
     const bank = await capitalBank.collectBank({
       state,
       rows: cache.rows,
       config,
-      owner: req.session.username,
+      // Банк — это бизнес владельца, а не того, кто смотрит страницу: у
+      // инвестора своего трекера сделок нет, и инвентарь посчитался бы нулём.
+      owner: SITE_OWNER,
       refresh: req.query.refresh === "1",
     });
+    const preview = capital.previewPeriod(state, bank.total);
+
+    if (isInvestor(req)) {
+      // Инвестору — банк, доли и история прибыли. Личные траты владельца в
+      // расчёте участвуют (из-за них падает банк), но суммы и записи о них
+      // чужих денег не касаются и наружу не идут.
+      return res.json({
+        ok: true,
+        investor: true,
+        state: {
+          participants: state.participants,
+          managerFeePct: state.managerFeePct,
+          periods: state.periods.slice(-12).map(({ movements, personalSpend, personalIncome, ...p }) => p),
+        },
+        bank,
+        preview: {
+          openingTotal: preview.openingTotal,
+          bankTotal: preview.bankTotal,
+          profit: preview.profit,
+          investorsProfit: preview.investorsProfit,
+          managerFeePct: preview.managerFeePct,
+          closingTotal: preview.closingTotal,
+          mismatch: preview.mismatch,
+          rows: preview.rows.map(({ personalSpend, personalIncome, ...r }) => r),
+        },
+        pricesReady: cache.rows.length > 0,
+      });
+    }
+
     res.json({
       ok: true,
       state: { ...state, periods: state.periods.slice(-12) },
       bank,
-      preview: capital.previewPeriod(state, bank.total),
+      preview,
       pricesReady: cache.rows.length > 0,
     });
   } catch (err) {
     console.error("[capital] Ошибка:", err.message);
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Прибыль за выбранный отрезок — по дневной истории закрытий. Доступна и
+// инвестору: ради неё всё и затевалось.
+app.get("/api/capital/history", requireCapitalAccess, (req, res) => {
+  try {
+    res.json({ ok: true, ...capital.profitBetween({ from: req.query.from, to: req.query.to }) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
   }
 });
 
@@ -1728,6 +1814,59 @@ function parseNullableFloat(value, fallback) {
   return Number.isNaN(n) ? null : n;
 }
 
+// ---- Ежедневное закрытие периода ----
+// Инвестор выбирает отрезок календарём и хочет увидеть прибыль за него. Для
+// этого история должна писаться сама, каждый день: из редких закрытий руками
+// отрезок "с 29 сентября по 6 октября" не собрать.
+//
+// Считает то же самое, что кнопка "Закрыть период", поэтому расхождений между
+// автоматикой и ручным закрытием быть не может — это буквально один вызов.
+const CAPITAL_CLOSE_HOUR = 0; // местное время сервера
+const CAPITAL_CLOSE_MINUTE = 5;
+
+async function runDailyCapitalClose() {
+  try {
+    const state = capital.load();
+    if (!state.participants.length) return; // участники ещё не заведены
+
+    const today = new Date().toDateString();
+    const last = state.periods[state.periods.length - 1];
+    if (last && new Date(last.closedAt).toDateString() === today) return; // за сегодня уже есть
+
+    const bank = await capitalBank.collectBank({ state, rows: cache.rows, config, owner: SITE_OWNER });
+    // Банк с недочитанными балансами занижен, и разница легла бы в убыток
+    // периода, который потом разошёлся бы по людям. Лучше пропустить день:
+    // завтрашний период просто посчитает за двое суток.
+    if (bank.errors.length) {
+      console.warn("[capital] Автозакрытие пропущено:", bank.errors.join(" | "));
+      return;
+    }
+    if (!cache.rows.length) {
+      console.warn("[capital] Автозакрытие пропущено: цены ещё не загружены");
+      return;
+    }
+
+    const period = capital.closePeriod(bank.total, bank, { note: "авто" });
+    console.log(`[capital] Период закрыт: банк $${period.bankTotal}, прибыль $${period.profit}`);
+  } catch (err) {
+    // Чаще всего это "балансы не сходятся с банком" — расчёт не записан, и
+    // разбираться с этим надо руками, а не молча.
+    console.error("[capital] Автозакрытие не удалось:", err.message);
+  }
+}
+
+function scheduleDailyCapitalClose() {
+  const next = new Date();
+  next.setHours(CAPITAL_CLOSE_HOUR, CAPITAL_CLOSE_MINUTE, 0, 0);
+  if (next <= new Date()) next.setDate(next.getDate() + 1);
+
+  setTimeout(() => {
+    runDailyCapitalClose();
+    setInterval(runDailyCapitalClose, 24 * 60 * 60 * 1000);
+  }, next - new Date());
+  console.log(`[capital] Следующее автозакрытие периода: ${next.toLocaleString()}`);
+}
+
 app.listen(PORT, async () => {
   console.log(`CS2 price dashboard: http://localhost:${PORT}`);
   await refreshPrices(); // первая загрузка сразу при старте
@@ -1739,6 +1878,8 @@ app.listen(PORT, async () => {
     const scanIntervalMs = (config.csfloatBidScan.intervalHours || 12) * 60 * 60 * 1000;
     setInterval(runScheduledCsfloatBidScan, scanIntervalMs);
   }
+
+  scheduleDailyCapitalClose();
 
   startTelegramArbBot(() => cache.rows, config);
 });

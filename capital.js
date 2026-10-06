@@ -296,9 +296,57 @@ function closePeriod(bankTotal, bankBreakdown, { note } = {}) {
   return period;
 }
 
+/**
+ * Прибыль каждого участника за произвольный отрезок — то, что инвестор
+ * выбирает календариком. Складывается из уже закрытых периодов: раз в сутки
+ * период закрывается сам (server.js), поэтому дни в истории есть всегда.
+ *
+ * Берём периоды, закрытые внутри [from, to], и суммируем по каждому его долю
+ * прибыли. Взносы и выводы в сумму не идут: это не заработок, а движение
+ * собственных денег.
+ */
+function profitBetween({ from, to } = {}) {
+  const state = load();
+  const fromMs = from ? new Date(from).getTime() : -Infinity;
+  // Конец дня включительно: выбрав "по 7 октября", человек ждёт, что седьмое
+  // войдёт целиком.
+  const toMs = to ? new Date(to).getTime() + 86400000 - 1 : Infinity;
+
+  const periods = state.periods.filter((p) => {
+    const at = new Date(p.closedAt).getTime();
+    return at >= fromMs && at <= toMs;
+  });
+
+  const byId = new Map(state.participants.map((p) => [p.id, { id: p.id, name: p.name, isManager: p.isManager, profit: 0 }]));
+  let total = 0;
+  for (const period of periods) {
+    total = round2(total + period.profit);
+    for (const row of period.rows || []) {
+      const acc = byId.get(row.id);
+      if (acc) acc.profit = round2(acc.profit + (Number(row.profit) || 0));
+    }
+  }
+
+  const days = periods.length;
+  return {
+    from: from || null,
+    to: to || null,
+    days,
+    periods: periods.length,
+    profit: total,
+    perDay: days ? round2(total / days) : 0,
+    rows: [...byId.values()],
+    // Крайние точки отрезка — чтобы на странице было видно, за что именно
+    // посчитано, если история начинается позже выбранной даты.
+    firstAt: periods[0]?.closedAt || null,
+    lastAt: periods[periods.length - 1]?.closedAt || null,
+  };
+}
+
 module.exports = {
   load,
   save,
+  profitBetween,
   setParticipants,
   setManual,
   setSettings,

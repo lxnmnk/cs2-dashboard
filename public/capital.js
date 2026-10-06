@@ -62,12 +62,114 @@ function render() {
 
   renderBankCards(bank, preview);
   renderBankTable(bank);
-  renderManual(state);
   renderPeople(preview);
+  renderHistory(state);
+  loadProfitRange();
+
+  // Инвестору — только смотреть: формы, движения денег и закрытие периода
+  // ему не отдаёт и сервер, но и показывать их незачем.
+  if (data.investor) {
+    hideOwnerOnlyBlocks();
+    return;
+  }
+  renderManual(state);
   renderSetup(state);
   renderMovements(state, preview);
-  renderHistory(state);
 }
+
+// ---- Режим инвестора ----
+// Человек вложил деньги и смотрит, сколько стоит бизнес и какая часть его.
+// Остальные вкладки ему закрыты на сервере, здесь просто убираем из виду всё,
+// чем он всё равно не может воспользоваться.
+function hideOwnerOnlyBlocks() {
+  document.querySelectorAll('.subnav a[href="/arbitrage"], .subnav a[href="/mytrades"]').forEach((a) => a.remove());
+  document.getElementById("setupBlock")?.remove();
+
+  // Разделы без своего контейнера: заголовок плюс всё до следующего заголовка.
+  for (const title of document.querySelectorAll(".section-title")) {
+    const text = title.textContent.trim();
+    if (!/^(Движения|Закрыть период)/.test(text)) continue;
+    const doomed = [title];
+    for (let el = title.nextElementSibling; el; el = el.nextElementSibling) {
+      if (el.classList.contains("section-title") || el.classList.contains("section-title-row")) break;
+      doomed.push(el);
+    }
+    doomed.forEach((el) => el.remove());
+  }
+  document.querySelector(".capital-manual")?.remove();
+}
+
+// ---- Прибыль за выбранный отрезок ----
+// Складывается из дневных закрытий на сервере: раз в сутки период закрывается
+// сам, и любой диапазон — это сумма готовых дней. Пересчитывать задним числом
+// нечего и нельзя: доли на каждый день были свои.
+let profitDays = 30;
+let profitMode = "days"; // "days" | "custom"
+
+function profitRangeParams() {
+  if (profitMode === "custom") {
+    const from = document.getElementById("capitalFromDate").value;
+    const to = document.getElementById("capitalToDate").value;
+    if (!from || !to) return null;
+    return { from, to };
+  }
+  const to = new Date();
+  const from = new Date(to.getTime() - profitDays * 86400000);
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
+
+async function loadProfitRange() {
+  const params = profitRangeParams();
+  const cards = document.getElementById("capitalProfitCards");
+  const hint = document.getElementById("capitalProfitHint");
+  if (!params) {
+    cards.innerHTML = "";
+    hint.textContent = "Выбери обе даты";
+    return;
+  }
+
+  let range;
+  try {
+    range = await api(`/api/capital/history?from=${params.from}&to=${params.to}`);
+  } catch (err) {
+    cards.innerHTML = "";
+    hint.textContent = `Не удалось посчитать за период: ${err.message}`;
+    return;
+  }
+
+  const cls = (v) => (v >= 0 ? "profit" : "loss");
+  const tiles = [
+    [`Прибыль за период`, money(range.profit), cls(range.profit)],
+    ...range.rows.map((r) => [r.name + (r.isManager ? " (управляющий)" : ""), money(r.profit), cls(r.profit)]),
+    ["В среднем за день", money(range.perDay), cls(range.perDay)],
+  ];
+  cards.innerHTML = tiles
+    .map(
+      ([label, value, c]) =>
+        `<div class="summary-card"><div class="label">${escapeHtml(label)}</div><div class="value ${c}">${value}</div></div>`
+    )
+    .join("");
+
+  hint.textContent = range.periods
+    ? `Посчитано по ${range.periods} дневным расчётам: с ${fmtDate(range.firstAt)} по ${fmtDate(range.lastAt)}.`
+    : "За этот отрезок расчётов ещё нет — история копится по одному дню, первый появится после ближайшей полуночи.";
+}
+
+document.getElementById("capitalPeriodTabs")?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".period-tab");
+  if (!btn) return;
+  document.querySelectorAll("#capitalPeriodTabs .period-tab").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  const value = btn.dataset.days;
+  profitMode = value === "custom" ? "custom" : "days";
+  if (profitMode === "days") profitDays = Number(value);
+  document.getElementById("capitalCustomRange").style.display = profitMode === "custom" ? "" : "none";
+  loadProfitRange();
+});
+
+document.getElementById("capitalFromDate")?.addEventListener("change", loadProfitRange);
+document.getElementById("capitalToDate")?.addEventListener("change", loadProfitRange);
 
 function renderBankCards(bank, preview) {
   const cards = [
