@@ -72,7 +72,6 @@ function render() {
     hideOwnerOnlyBlocks();
     return;
   }
-  renderManual(state);
   renderSetup(state);
   renderMovements(state, preview);
 }
@@ -96,7 +95,6 @@ function hideOwnerOnlyBlocks() {
     }
     doomed.forEach((el) => el.remove());
   }
-  document.querySelector(".capital-manual")?.remove();
 }
 
 // ---- Прибыль за выбранный отрезок ----
@@ -189,24 +187,15 @@ function renderBankCards(bank, preview) {
 function renderBankTable(bank) {
   const inv = bank.inventory;
   const rows = [
-    ["Позиции из My Trades, можно продать", inv.tradable.value, `${inv.tradable.count} шт · лучший bid минус комиссия`],
-    ["Позиции в трейд-бане", inv.locked.value, `${inv.locked.count} шт · по цене покупки`],
-    ...(inv.noMarketPrice.count
-      ? [["Позиции без рыночной цены", inv.noMarketPrice.value, `${inv.noMarketPrice.count} шт · по цене покупки`]]
-      : []),
-    ["Баланс CSFloat", bank.csfloat.value, bank.csfloat.source === "api" ? "из API" : bank.csfloat.source === "manual" ? "вписан руками" : "не прочитан"],
+    // Всё ровно как в My Trades: скины по цене покупки одной строкой, балансы
+    // площадок целиком — вместе с холдом и заморозкой.
     [
-      "Баланс Skinbux",
-      bank.skinbux.value,
-      bank.skinbux.source === "api"
-        ? `из API · доступно ${money(bank.skinbux.available)} · в холде ${money(bank.skinbux.pending)}`
-        : bank.skinbux.source === "manual"
-          ? "вписан руками"
-          : "не прочитан",
+      "Скины",
+      inv.total,
+      `${inv.count} шт · из My Trades, по цене покупки${inv.locked ? ` · ${inv.locked} в трейд-бане` : ""} · по рынку сейчас ${money(inv.marketValue)}`,
     ],
-    ["Баланс Youpin", bank.youpin, "вручную"],
-    ["Крипта / кеш", bank.cash, "вручную"],
-    ["Переплата за флот", bank.overpay, "вручную"],
+    ...bank.money.map((m) => [m.title, m.value, m.note]),
+    ...(bank.owedToMe ? [["Мне должны", bank.owedToMe, "из списка в My Trades"]] : []),
     ["Итого активы", bank.assets, ""],
     ["Долг клиентам: выплаты", -bank.liabilities.payout, "балансы клиентов на сайте"],
     ["Долг клиентам: trade-баланс", -bank.liabilities.tradeCredit, "должны скинами"],
@@ -228,18 +217,6 @@ function renderBankTable(bank) {
       </tr>`;
     })
     .join("");
-}
-
-function renderManual(state) {
-  const set = (id, value) => {
-    const el = document.getElementById(id);
-    if (document.activeElement !== el) el.value = value ?? "";
-  };
-  set("manualYoupin", state.manual.youpin);
-  set("manualSkinbux", state.manual.skinbux);
-  set("manualCash", state.manual.cash);
-  set("manualOverpay", state.manual.overpay);
-  set("manualCsfloat", state.manual.csfloat);
 }
 
 function renderPeople(preview) {
@@ -286,6 +263,7 @@ function drawSetupRows() {
     .map(
       (p, i) => `<tr>
         <td><input data-field="name" data-i="${i}" type="text" value="${escapeHtml(p.name)}" /></td>
+        <td><input data-field="login" data-i="${i}" type="text" placeholder="логин на сайте" value="${escapeHtml(p.login || "")}" /></td>
         <td><input data-field="balance" data-i="${i}" type="number" step="0.01" value="${p.balance ?? 0}" /></td>
         <td><input data-field="isManager" data-i="${i}" type="radio" name="manager" ${p.isManager ? "checked" : ""} /></td>
         <td><button class="btn-small btn-secondary" data-remove="${i}">Убрать</button></td>
@@ -366,32 +344,6 @@ function renderHistory(state) {
 // ---- Действия ----
 
 document.getElementById("refreshBtn").addEventListener("click", () => load({ refresh: true }));
-
-document.getElementById("manualSaveBtn").addEventListener("click", async () => {
-  const value = (id) => {
-    const raw = document.getElementById(id).value;
-    return raw === "" ? null : Number(raw);
-  };
-  try {
-    await api("/api/capital/manual", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        youpin: value("manualYoupin") ?? 0,
-        skinbux: value("manualSkinbux") ?? 0,
-        cash: value("manualCash") ?? 0,
-        overpay: value("manualOverpay") ?? 0,
-        csfloat: value("manualCsfloat"),
-      }),
-    });
-    document.getElementById("manualStatus").textContent = "сохранено";
-    setTimeout(() => (document.getElementById("manualStatus").textContent = ""), 2000);
-    await load();
-  } catch (err) {
-    showError(`Не сохранилось: ${err.message}`);
-  }
-});
-
 document.getElementById("settingsSaveBtn").addEventListener("click", async () => {
   try {
     await api("/api/capital/settings", {

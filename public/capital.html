@@ -37,17 +37,6 @@
       <tbody id="bankBody"></tbody>
     </table>
 
-    <div class="capital-manual">
-      <h3>Вписать руками</h3>
-      <p class="card-hint">Пустые CSFloat и Skinbux берутся из их API (у Skinbux — вместе с холдом). Число в поле перебивает API.</p>
-      <label>Youpin (优品) $ <input id="manualYoupin" type="number" step="0.01" /></label>
-      <label>Skinbux $ <input id="manualSkinbux" type="number" step="0.01" placeholder="из API" /></label>
-      <label>Крипта / кеш $ <input id="manualCash" type="number" step="0.01" /></label>
-      <label>Переплата за флот $ <input id="manualOverpay" type="number" step="0.01" /></label>
-      <label>CSFloat вручную $ <input id="manualCsfloat" type="number" step="0.01" placeholder="из API" /></label>
-      <button id="manualSaveBtn" class="btn-small">Сохранить</button>
-      <span id="manualStatus" class="field-hint"></span>
-    </div>
   </section>
 
   <!-- Прибыль за выбранный отрезок. Собирается из дневной истории: период
@@ -96,7 +85,7 @@
       <button id="settingsSaveBtn" class="btn-small btn-secondary">Сохранить настройки</button>
     </div>
     <table class="trades-table">
-      <thead><tr><th>Имя</th><th>Баланс $</th><th>Управляющий</th><th></th></tr></thead>
+      <thead><tr><th>Имя</th><th>Логин на сайте</th><th>Баланс $</th><th>Управляющий</th><th></th></tr></thead>
       <tbody id="setupBody"></tbody>
     </table>
     <button id="addPersonBtn" class="btn-small btn-secondary">Добавить участника</button>

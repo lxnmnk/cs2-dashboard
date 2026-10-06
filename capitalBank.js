@@ -14,7 +14,6 @@
 const { fetchInventory } = require("./steamInventory");
 const trades = require("./trades");
 const skinbuxSales = require("./skinbuxSales");
-const { fetchBalance } = require("./csfloatAccount");
 const skinbuxAccount = require("./skinbuxAccount");
 
 function round2(n) {
@@ -49,37 +48,21 @@ function instantSellValue(marketHashName, rows, sourcesConfig) {
  * вообще и к бизнесу отношения не имеют.
  */
 function valueTracker({ owner, rows, config }) {
-  const result = {
-    tradable: { count: 0, value: 0 },
-    locked: { count: 0, value: 0 },
-    // Предмет без цены в снапшоте: в банк идёт по цене покупки, но мы это
-    // показываем — значит, оценка у него не рыночная.
-    noMarketPrice: { count: 0, value: 0, names: [] },
-    total: 0,
-  };
+  const result = { count: 0, locked: 0, total: 0, marketValue: 0 };
 
   for (const trade of trades.listTrades({ owner, rows, config })) {
     if (trade.status !== "holding") continue;
+    result.count++;
+    if (trade.isLocked) result.locked++;
+    result.total = round2(result.total + trade.buyPrice);
 
-    if (trade.isLocked) {
-      // В трейд-бане — по цене покупки: продать нельзя, переоценивать нечего.
-      result.locked.count++;
-      result.locked.value = round2(result.locked.value + trade.buyPrice);
-      continue;
-    }
-
+    // Сколько это стоит по рынку — только справочно, рядом со строкой. В банк
+    // идёт цена покупки: так же считает карточка "Skins in Steam" в My Trades,
+    // и два экрана не должны показывать разные числа за одно и то же.
     const bid = (trade.sellOptions || []).filter((o) => o.side === "bid")[0];
-    if (!bid) {
-      result.noMarketPrice.count++;
-      result.noMarketPrice.value = round2(result.noMarketPrice.value + trade.buyPrice);
-      if (result.noMarketPrice.names.length < 20) result.noMarketPrice.names.push(trade.marketHashName);
-      continue;
-    }
-    result.tradable.count++;
-    result.tradable.value = round2(result.tradable.value + bid.price);
+    result.marketValue = round2(result.marketValue + (bid ? bid.price : trade.buyPrice));
   }
 
-  result.total = round2(result.tradable.value + result.locked.value + result.noMarketPrice.value);
   return result;
 }
 
@@ -160,11 +143,58 @@ function clientLiabilities(transactions = []) {
 }
 
 /**
- * Полный банк на сейчас. Всё, что можно узнать само, узнаётся само;
- * остальное (Youpin, Skinbux, крипта, переплата за флот) берётся из
- * вписанных руками значений (capital.json -> manual).
+ * Полный банк на сейчас — ровно из тех же чисел, что видно во вкладке
+ * My Trades, строка в строку.
+ *
+ * Балансы площадок берём целиком: доступное плюс холд плюс заморозка. Деньги
+ * в холде никуда не денутся, просто придут позже, а бизнес ими владеет уже
+ * сейчас. Отдельных ручных полей для Youpin, крипты и прочего больше нет:
+ * где число правится карандашом в My Trades, там оно и живёт, иначе одно и то
+ * же приходилось бы держать в двух местах и они разъезжались.
+ *
+ * Скины — одной строкой по цене покупки, как карточка "Skins in Steam".
+ * Долги (клиентам и друзьям) вычитаются: это чужие деньги.
  */
-async function collectBank({ state, rows, config, owner, refresh = false }) {
+
+// Карточки My Trades, которые в банк не идут: steam — это скины, они уже
+// посчитаны отдельной строкой по трекеру, и сложить их ещё раз значило бы
+// удвоить инвентарь.
+const BANK_SKIP_SOURCES = new Set(["steam"]);
+
+const SOURCE_TITLES = {
+  csfloat: "CSFloat",
+  youpin: "Youpin898",
+  buff: "Buff163",
+  skinbux: "Skinbux",
+  csmoney: "CS.Money",
+  crypto: "Крипта",
+};
+
+function sourceTitle(source) {
+  return SOURCE_TITLES[source] || source.charAt(0).toUpperCase() + source.slice(1);
+}
+
+/** Карточка площадки -> строка банка: сколько там всего наших денег. */
+function balanceRows(balances) {
+  const rows = [];
+  for (const [source, b] of Object.entries(balances || {})) {
+    if (BANK_SKIP_SOURCES.has(source)) continue;
+    const active = Number(b.active) || 0;
+    const hold = Number(b.hold) || 0;
+    const frozen = Number(b.frozen) || 0;
+    const value = round2(active + hold + frozen);
+    if (!value) continue;
+
+    const notes = [];
+    if (hold) notes.push(`в холде ${hold.toFixed(2)}`);
+    if (frozen) notes.push(`заморожено ${frozen.toFixed(2)}`);
+    if (b.source === "api") notes.push("из API");
+    rows.push({ source, title: sourceTitle(source), value, active, hold, frozen, note: notes.join(" · ") });
+  }
+  return rows.sort((a, b) => b.value - a.value);
+}
+
+async function collectBank({ state, rows, config, owner, balances = {}, owedToMe = 0, refresh = false }) {
   const errors = [];
 
   // Инвентарь считаем по трекеру сделок, а Steam используем только для
@@ -178,32 +208,6 @@ async function collectBank({ state, rows, config, owner, refresh = false }) {
     errors.push(`Сверка с инвентарём Steam не вышла: ${err.message}`);
   }
 
-  // Баланс CSFloat отдаёт API, но если ключа нет или ответ не разобрали —
-  // значение можно вписать руками, и оно имеет приоритет.
-  let csfloat = { value: state.manual.csfloat ?? 0, source: state.manual.csfloat != null ? "manual" : "api" };
-  if (state.manual.csfloat == null) {
-    try {
-      const live = await fetchBalance(process.env.CSFLOAT_API_KEY);
-      csfloat = { value: live.total, source: "api", available: live.available, pending: live.pending };
-    } catch (err) {
-      csfloat = { value: 0, source: "error" };
-      errors.push(`Баланс CSFloat: ${err.message}`);
-    }
-  }
-
-  // Skinbux отдаёт и доступное, и то, что ещё в холде (7 дней после обмена).
-  // В банк идёт всё: холд никуда не денется, просто придёт позже.
-  let skinbux = { value: state.manual.skinbux ?? 0, source: "manual", available: null, pending: null };
-  if (state.manual.skinbux == null) {
-    try {
-      const balance = await skinbuxAccount.fetchBalance(process.env.SKINBUX_API_KEY);
-      skinbux = { value: balance.total, source: "api", available: balance.available, pending: balance.pending };
-    } catch (err) {
-      skinbux = { value: 0, source: "error", available: null, pending: null };
-      errors.push(`Баланс Skinbux: ${err.message}`);
-    }
-  }
-
   // Список транзакций нужен только ради долга друзьям (сумма, которая реально
   // пришла за их предметы). Не ответил — считаем по нашей записи из журнала и
   // не роняем весь банк из-за этого.
@@ -214,19 +218,24 @@ async function collectBank({ state, rows, config, owner, refresh = false }) {
     errors.push(`Транзакции Skinbux (нужны для долга друзьям): ${err.message}`);
   }
 
+  const money = balanceRows(balances);
+  for (const row of money) {
+    if (row.source === "csfloat" && balances.csfloat?.source === "error") {
+      errors.push(`Баланс CSFloat не прочитан: ${balances.csfloat.error || "нет ответа"}`);
+    }
+  }
+
   const liabilities = clientLiabilities(transactions);
-  const assets = round2(
-    inventory.total + csfloat.value + skinbux.value + state.manual.youpin + state.manual.cash + state.manual.overpay
-  );
+  const moneyTotal = round2(money.reduce((sum, r) => sum + r.value, 0));
+  const debtsToUs = round2(owedToMe);
+  const assets = round2(inventory.total + moneyTotal + debtsToUs);
 
   return {
     inventory,
     untracked,
-    csfloat,
-    youpin: state.manual.youpin,
-    skinbux,
-    cash: state.manual.cash,
-    overpay: state.manual.overpay,
+    money,
+    moneyTotal,
+    owedToMe: debtsToUs,
     liabilities,
     assets,
     total: round2(assets - liabilities.total),

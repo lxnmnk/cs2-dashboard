@@ -1432,6 +1432,10 @@ app.get("/api/capital", requireCapitalAccess, async (req, res) => {
       // Банк — это бизнес владельца, а не того, кто смотрит страницу: у
       // инвестора своего трекера сделок нет, и инвентарь посчитался бы нулём.
       owner: SITE_OWNER,
+      // Те же самые карточки, что в My Trades: один источник чисел на два
+      // экрана, иначе они рано или поздно разойдутся.
+      balances: await balancesFor(SITE_OWNER),
+      owedToMe: debts.totalOwed(SITE_OWNER).total,
       refresh: req.query.refresh === "1",
     });
     const preview = capital.previewPeriod(state, bank.total);
@@ -1489,15 +1493,6 @@ app.get("/api/capital/history", requireCapitalAccess, (req, res) => {
 app.post("/api/capital/participants", requireSiteOwner, (req, res) => {
   try {
     capital.setParticipants(req.body?.participants);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(400).json({ ok: false, error: err.message });
-  }
-});
-
-app.post("/api/capital/manual", requireSiteOwner, (req, res) => {
-  try {
-    capital.setManual(req.body || {});
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
@@ -1843,7 +1838,14 @@ async function runDailyCapitalClose() {
     const last = state.periods[state.periods.length - 1];
     if (last && new Date(last.closedAt).toDateString() === today) return; // за сегодня уже есть
 
-    const bank = await capitalBank.collectBank({ state, rows: cache.rows, config, owner: SITE_OWNER });
+    const bank = await capitalBank.collectBank({
+      state,
+      rows: cache.rows,
+      config,
+      owner: SITE_OWNER,
+      balances: await balancesFor(SITE_OWNER),
+      owedToMe: debts.totalOwed(SITE_OWNER).total,
+    });
     // Банк с недочитанными балансами занижен, и разница легла бы в убыток
     // периода, который потом разошёлся бы по людям. Лучше пропустить день:
     // завтрашний период просто посчитает за двое суток.

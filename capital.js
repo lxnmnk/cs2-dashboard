@@ -45,9 +45,6 @@ const DEFAULTS = {
   // Сколько прибыли инвестора забирает управляющий, в процентах.
   managerFeePct: 50,
   participants: [],
-  // Балансы, которые площадки не отдают по API — вписываются руками.
-  // null у csfloat и skinbux означает "берём из API их аккаунтов".
-  manual: { youpin: 0, skinbux: null, cash: 0, overpay: 0, csfloat: null },
   movements: [],
   periods: [],
 };
@@ -62,7 +59,6 @@ function load() {
   return {
     ...DEFAULTS,
     ...saved,
-    manual: { ...DEFAULTS.manual, ...(saved.manual || {}) },
     participants: saved.participants || [],
     movements: saved.movements || [],
     periods: saved.periods || [],
@@ -92,6 +88,9 @@ function setParticipants(list) {
     return {
       id: p.id || crypto.randomUUID(),
       name,
+      // Учётка инвестора на сайте: по ней он видит на странице свою строку
+      // ("твоя доля"), а не угадывает себя в списке. Необязательно.
+      login: String(p.login || "").trim().toLowerCase() || null,
       // Управляющий получает остаток прибыли и несёт личные траты.
       isManager: !!p.isManager,
       balance: round2(balance),
@@ -100,23 +99,6 @@ function setParticipants(list) {
 
   if (state.participants.filter((p) => p.isManager).length !== 1) {
     throw new Error("Управляющий должен быть ровно один");
-  }
-  return save(state);
-}
-
-function setManual(patch) {
-  const state = load();
-  for (const key of Object.keys(state.manual)) {
-    if (patch?.[key] === undefined) continue;
-    const raw = patch[key];
-    // Пустое поле у csfloat/skinbux значит "спросить их API", у остальных ноль.
-    if (raw === null || raw === "") {
-      state.manual[key] = key === "csfloat" || key === "skinbux" ? null : 0;
-      continue;
-    }
-    const value = Number(raw);
-    if (!Number.isFinite(value)) throw new Error(`"${key}" должен быть числом`);
-    state.manual[key] = round2(value);
   }
   return save(state);
 }
@@ -348,7 +330,6 @@ module.exports = {
   save,
   profitBetween,
   setParticipants,
-  setManual,
   setSettings,
   addMovement,
   deleteMovement,
