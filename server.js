@@ -33,6 +33,7 @@ const skinbuxSales = require("./skinbuxSales");
 const csfloatPurchases = require("./csfloatPurchases");
 const skinbuxSalesImport = require("./skinbuxSalesImport");
 const tradeFloats = require("./tradeFloats");
+const debts = require("./debts");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
@@ -1604,6 +1605,40 @@ app.post("/api/trades/:id/buy-date", (req, res) => {
   try {
     const trade = trades.setBuyDate(req.params.id, req.session.username, (req.body || {}).buyDate);
     res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ---- Долги в нашу сторону (debts.js) ----
+// Единственные деньги, которых не видно ниоткуда: ни площадки, ни инвентарь
+// про них не знают. Поэтому запись ручная, у каждого аккаунта панели своя.
+app.get("/api/debts", (req, res) => {
+  res.json({ ok: true, debts: debts.list(req.session.username), ...debts.totalOwed(req.session.username) });
+});
+
+app.post("/api/debts", (req, res) => {
+  try {
+    const debt = debts.add({ ...req.body, owner: req.session.username });
+    res.json({ ok: true, debt, ...debts.totalOwed(req.session.username) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/debts/:id/repaid", (req, res) => {
+  try {
+    const debt = debts.setRepaid(req.params.id, req.session.username, req.body?.repaid !== false);
+    res.json({ ok: true, debt, ...debts.totalOwed(req.session.username) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.delete("/api/debts/:id", (req, res) => {
+  try {
+    debts.remove(req.params.id, req.session.username);
+    res.json({ ok: true, ...debts.totalOwed(req.session.username) });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }

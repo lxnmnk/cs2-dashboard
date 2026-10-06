@@ -617,6 +617,10 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
    правки не должна отрываться от него на новую строку. */
 .float-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+/* Возвращённый долг: строку оставляем для истории, но приглушаем — долгом
+   она больше не считается и в карточку не идёт. */
+tr.debt-repaid { opacity: 0.5; }
+
 /* Позиция, которой уже нет в инвентаре: продана мимо сайта и ждёт, пока
    впишут цену и дату. Подсветка держится до перезагрузки страницы. */
 tr.row-gone { background: rgba(224, 96, 90, 0.08); }

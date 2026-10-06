@@ -158,6 +158,38 @@
     <div class="summary-card"><div class="label">Loading...</div></div>
   </section>
 
+  <!-- Долги в нашу сторону: ни площадки, ни инвентарь о них не знают, поэтому
+       список ведётся руками. Карточка с итогом стоит в общем ряду балансов. -->
+  <div class="section-title" id="debtsTitle">Owed to me</div>
+  <div id="debtsSection">
+    <section class="trade-form">
+      <label>Who owes
+        <input id="debtWhoInput" type="text" maxlength="60" placeholder="name" list="debtWhoList" />
+        <datalist id="debtWhoList"></datalist>
+      </label>
+      <label>Amount $
+        <input id="debtAmountInput" type="number" step="0.01" min="0" />
+      </label>
+      <label>Since
+        <input id="debtDateInput" type="date" />
+      </label>
+      <label>What for
+        <input id="debtNoteInput" type="text" maxlength="200" placeholder="e.g. gave a knife, pays later" />
+      </label>
+      <button id="debtAddBtn">Add</button>
+    </section>
+    <div class="table-card">
+      <table id="debtsTable">
+        <thead>
+          <tr><th>Who</th><th>Amount</th><th>Since</th><th>What for</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody id="debtsBody">
+          <tr><td colspan="6" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- Только для владельца сайта: друзья с учётками в /mytrades это не видят (показывает trades.js по /api/me) -->
   <div id="siteOwnerSections" style="display:none;">
     <div class="section-title">Client Sales <span class="section-hint">skins people sold you through the site — profit is what Skinbux pays us minus what we owe the client; your own and TARHUN's accounts are not shown</span></div>

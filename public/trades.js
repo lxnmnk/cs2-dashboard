@@ -1627,7 +1627,123 @@ async function loadBalances() {
 
 function renderAllBalanceCards() {
   renderBalances(lastBalances);
+  renderDebtsCard();
 }
+
+// ---- Долги в нашу сторону ----
+// Деньги, которых не видно ниоткуда: площадки о них не знают, в инвентаре их
+// нет, в трекере тоже. Отдал скин под обещание заплатить — сумма вышла из
+// оборота, но не пропала. Ведётся руками, иначе в капитале её просто нет.
+let lastDebts = { debts: [], total: 0, count: 0 };
+
+async function loadDebts() {
+  const res = await fetch("/api/debts");
+  lastDebts = await res.json();
+  renderDebts();
+  renderDebtsCard();
+}
+
+// Карточка живёт в общем ряду балансов, который перерисовывается целиком и
+// своими данными, поэтому пересобираем её отдельно — и обязательно убирая
+// прежнюю, иначе после каждого обновления в ряду копилась ещё одна.
+function renderDebtsCard() {
+  const container = document.getElementById("balancesCards");
+  if (!container) return;
+  container.querySelector("#debtsCard")?.remove();
+  container.insertAdjacentHTML(
+    "beforeend",
+    `<div class="summary-card" id="debtsCard">
+      <div class="label">Owed to me</div>
+      <div class="value">${fmtMoney(lastDebts.total || 0)}</div>
+      <div class="balance-extra">${lastDebts.count || 0} unpaid · hand-entered, see the list below</div>
+    </div>`
+  );
+}
+
+function renderDebts() {
+  const body = document.getElementById("debtsBody");
+  if (!body) return;
+
+  // Подсказка в поле "кто должен": обычно это одни и те же люди.
+  const names = [...new Set((lastDebts.debts || []).map((d) => d.who))];
+  document.getElementById("debtWhoList").innerHTML = names
+    .map((n) => `<option value="${escapeHtml(n)}"></option>`)
+    .join("");
+
+  if (!lastDebts.debts?.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-state">Nobody owes you anything — or nothing is written down yet</td></tr>';
+    return;
+  }
+
+  body.innerHTML = lastDebts.debts
+    .map(
+      (d) => `<tr${d.repaidAt ? ' class="debt-repaid"' : ""}>
+        <td>${escapeHtml(d.who)}</td>
+        <td>${fmtMoney(d.amount)}</td>
+        <td>${fmtDate(d.date)}</td>
+        <td>${escapeHtml(d.note || "")}</td>
+        <td>${d.repaidAt ? `<span class="na">paid back ${fmtDate(d.repaidAt)}</span>` : "<b>owes</b>"}</td>
+        <td>
+          <button class="btn-small btn-secondary" data-action="debt-toggle" data-id="${d.id}" data-repaid="${!!d.repaidAt}">${
+            d.repaidAt ? "Still owes" : "Paid back"
+          }</button>
+          <button class="btn-small btn-danger" data-action="debt-delete" data-id="${d.id}">Delete</button>
+        </td>
+      </tr>`
+    )
+    .join("");
+
+  body.querySelectorAll("[data-action='debt-toggle']").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await debtRequest(`/api/debts/${btn.dataset.id}/repaid`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ repaid: btn.dataset.repaid !== "true" }),
+      });
+    });
+  });
+  body.querySelectorAll("[data-action='debt-delete']").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this record?")) return;
+      await debtRequest(`/api/debts/${btn.dataset.id}`, { method: "DELETE" });
+    });
+  });
+}
+
+async function debtRequest(url, options) {
+  const res = await fetch(url, options);
+  const data = await res.json();
+  if (!data.ok) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `Could not save: ${data.error}`;
+    return false;
+  }
+  errorBox.style.display = "none";
+  await loadDebts();
+  return true;
+}
+
+document.getElementById("debtAddBtn")?.addEventListener("click", async () => {
+  const who = document.getElementById("debtWhoInput").value.trim();
+  const amount = parseFloat(document.getElementById("debtAmountInput").value);
+  if (!who) return alert("Type who owes you");
+  if (!amount || amount <= 0) return alert("Enter the amount");
+
+  const dateRaw = document.getElementById("debtDateInput").value;
+  const ok = await debtRequest("/api/debts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      who,
+      amount,
+      note: document.getElementById("debtNoteInput").value.trim(),
+      date: dateRaw ? new Date(dateRaw).toISOString() : null,
+    }),
+  });
+  if (!ok) return;
+  document.getElementById("debtAmountInput").value = "";
+  document.getElementById("debtNoteInput").value = "";
+});
 
 function balanceEditBtn(source, field, current) {
   return `<button class="btn-small btn-secondary balance-edit-btn" data-action="edit-balance" data-source="${source}" data-field="${field}" data-current="${current}" title="Edit this number by hand">✎</button>`;
@@ -2029,6 +2145,7 @@ async function dropOverride(marketHashName) {
 
 document.getElementById("buyDateInput").value = nowForDatetimeLocal();
 loadTrades();
+loadDebts();
 setInterval(loadTrades, 60 * 1000);
 
 // Ручные цены и продажи клиентов — только у владельца сайта; у друзей эти
