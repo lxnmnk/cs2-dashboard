@@ -536,6 +536,17 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 .modal-trade-total b { color: var(--text); }
 .modal-trade-actions { display: flex; gap: 8px; }
 
+/* Строка, которая не попадёт в сумму: предмет не выбран из подсказки или не
+   вписана цена. Без этого недозаполненная строка молча выпадала из итога. */
+.modal-trade-row.incomplete input[type="text"],
+.modal-trade-row.incomplete input[type="number"] { border-color: var(--red); }
+.modal-trade-warning {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--red);
+}
+
 .btn-small {
   padding: 4px 10px;
   font-size: 12px;

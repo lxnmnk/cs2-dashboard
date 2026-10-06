@@ -332,6 +332,10 @@ function createModalTradeRow(source = "catalog") {
   }
 
   priceInput.addEventListener("input", updateModalTradeTotal);
+  // Набранное руками название — ещё не выбранный предмет: пересчитываем, чтобы
+  // предупреждение появилось сразу, а не после правки цены.
+  searchInput.addEventListener("input", updateModalTradeTotal);
+  searchInput.addEventListener("blur", () => setTimeout(updateModalTradeTotal, 150)); // клик по подсказке успевает пройти
 
   removeBtn.addEventListener("click", () => {
     row.remove();
@@ -375,6 +379,7 @@ function renderHoldingsAutocomplete(row, holdings) {
       row.selectedItem = { marketHashName: t.marketHashName, name: t.name, wear: t.wear, holdingId: t.id, buyPrice: t.buyPrice };
       row.querySelector(".modal-trade-item-search").value = `${t.name} (${t.wear})`;
       listEl.classList.remove("open");
+      updateModalTradeTotal();
     });
   });
 }
@@ -399,6 +404,7 @@ function renderRowAutocomplete(row, items) {
       row.selectedItem = items[i];
       row.querySelector(".modal-trade-item-search").value = `${items[i].name} (${items[i].wear})`;
       listEl.classList.remove("open");
+      updateModalTradeTotal();
     });
   });
 }
@@ -414,12 +420,42 @@ function collectModalTradeRows(containerId) {
     .filter((r) => r.item && Number.isFinite(r.price) && r.price > 0);
 }
 
+/**
+ * Строки, которые в сумму не попадут: предмет не выбран из подсказки (набрать
+ * название мало — нужен клик) или не вписана цена. Молча выкидывать их нельзя:
+ * итог тогда выходит неверным, а понять почему — никак.
+ */
+function findIncompleteTradeRows(containerId) {
+  const kind = containerId === "modalTradeGivenItems" ? "also gave" : "received";
+  const problems = [];
+  for (const row of document.querySelectorAll(`#${containerId} .modal-trade-row`)) {
+    const typed = row.querySelector(".modal-trade-item-search").value.trim();
+    const price = parseFloat(row.querySelector(".modal-trade-item-price").value);
+    const hasPrice = Number.isFinite(price) && price > 0;
+    const complete = row.selectedItem && hasPrice;
+    row.classList.toggle("incomplete", !!(typed || hasPrice) && !complete);
+    if (complete || (!typed && !hasPrice)) continue; // пустая строка — просто ещё не заполнена
+
+    if (!row.selectedItem && !hasPrice) problems.push(`${kind}: "${typed}" — pick it from the list and enter a value`);
+    else if (!row.selectedItem) problems.push(`${kind}: "${typed}" — pick the item from the dropdown list`);
+    else problems.push(`${kind}: ${row.selectedItem.name} — enter a value`);
+  }
+  return problems;
+}
+
 function updateModalTradeTotal() {
   const receivedTotal = collectModalTradeRows("modalTradeItems").reduce((sum, r) => sum + r.price, 0);
   const givenTotal = collectModalTradeRows("modalTradeGivenItems").reduce((sum, r) => sum + r.price, 0);
   document.getElementById("modalTradeReceivedTotal").textContent = fmtMoney(receivedTotal);
   document.getElementById("modalTradeGivenTotal").textContent = fmtMoney(givenTotal);
   document.getElementById("modalTradeNetTotal").textContent = fmtMoney(round2(receivedTotal - givenTotal));
+
+  const problems = [...findIncompleteTradeRows("modalTradeItems"), ...findIncompleteTradeRows("modalTradeGivenItems")];
+  const warningEl = document.getElementById("modalTradeWarning");
+  warningEl.style.display = problems.length ? "block" : "none";
+  warningEl.innerHTML = problems.length
+    ? `⚠ ${problems.length} row(s) not counted — ${problems.map(escapeHtml).join("; ")}`
+    : "";
 }
 
 function showModalTradeForm() {
@@ -456,6 +492,14 @@ document.getElementById("modalTradeConfirmBtn").addEventListener("click", async 
 
   if (!receivedItems.length) {
     alert("Add at least one received item with a name and value");
+    return;
+  }
+
+  // Недозаполненная строка раньше просто выпадала из суммы, и сделка
+  // записывалась не на те деньги. Теперь говорим прямо, чего не хватает.
+  const problems = [...findIncompleteTradeRows("modalTradeItems"), ...findIncompleteTradeRows("modalTradeGivenItems")];
+  if (problems.length) {
+    alert(`These rows are not counted yet:\n\n${problems.join("\n")}`);
     return;
   }
 

@@ -353,6 +353,9 @@
             Received: <b id="modalTradeReceivedTotal">$0.00</b> · Also gave: <b id="modalTradeGivenTotal">$0.00</b>
             · Recorded sale price: <b id="modalTradeNetTotal">$0.00</b>
           </span>
+          <!-- Строка без выбранного предмета или без цены в суммы не попадает —
+               раньше это было видно только по неверному итогу. -->
+          <span id="modalTradeWarning" class="modal-trade-warning" style="display:none;"></span>
         </div>
 
         <div class="modal-trade-actions">
