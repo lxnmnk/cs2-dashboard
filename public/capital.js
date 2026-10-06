@@ -108,6 +108,12 @@ function renderBankTable(bank) {
     ["Итого активы", bank.assets, ""],
     ["Долг клиентам: выплаты", -bank.liabilities.payout, "балансы клиентов на сайте"],
     ["Долг клиентам: trade-баланс", -bank.liabilities.tradeCredit, "должны скинами"],
+    // Деньги за продажи друзей через наш аккаунт: пришли к нам, но не наши.
+    ...Object.entries(bank.liabilities.partners || {}).map(([name, amount]) => [
+      `Долг ${name}`,
+      -amount,
+      "продажи через наш аккаунт, ещё не возвращены",
+    ]),
     ["Банк", bank.total, "из него считается прибыль"],
   ];
   document.getElementById("bankBody").innerHTML = rows

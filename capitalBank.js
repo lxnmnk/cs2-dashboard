@@ -114,26 +114,49 @@ function untrackedSteamItems(items, { owner, rows, sourcesConfig }) {
 }
 
 /**
- * Сколько мы должны клиентам сайта: непогашенные балансы из их продаж.
+ * Сколько мы должны: клиентам сайта — непогашенные балансы из их продаж,
+ * друзьям — всё, что пришло за их предметы и ещё не возвращено.
  *
  * Баланс Skinbux — общий котёл: там и наша доля, и деньги клиентов, которые
  * мы им ещё не выплатили. Вычитаем именно долги, а не урезаем строку Skinbux,
  * чтобы было видно обе величины по отдельности.
  *
- * Продажи с наших собственных аккаунтов (см. skinbuxSales.OWN_STEAM_IDS) —
- * не долг: это наши же деньги, просто проданные через свой сайт.
+ * Продажи с моего собственного аккаунта — не долг: это мои же деньги, просто
+ * проданные через свой сайт. А вот продажи друга (PARTNER_STEAM_IDS) — долг:
+ * деньги пришли к нам, но принадлежат ему. Раньше они проходили как "наши" и
+ * ушли бы инвесторам в прибыль.
  */
-function clientLiabilities() {
+function clientLiabilities(transactions = []) {
+  // Транзакция Skinbux по id записи журнала: нужна для долга партнёру — ему
+  // возвращается всё, что пришло за его предметы, а не наша запись totalPrice
+  // (в ней сидела бы скидка, которой с друга мы не берём). Так же считает
+  // раскладка холда в трекере, и те числа уже сверены вручную.
+  const txById = new Map((transactions || []).map((t) => [String(t.id), t]));
+
   let payout = 0; // обычные продажи: должны деньгами
   let tradeCredit = 0; // сторона клиента в обмене: должны скинами
+  const partners = {}; // друзья, продающие через наш аккаунт: имя -> сколько должны
+  let partnersTotal = 0;
+
   for (const sale of skinbuxSales.loadAll()) {
     if (sale.paidAt) continue;
-    if (skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId))) continue;
+    if (String(sale.steamId) === skinbuxSales.OWNER_STEAM_ID) continue;
     if (sale.status !== "hold" && sale.status !== "completed") continue;
+
+    const partner = skinbuxSales.PARTNER_STEAM_IDS[String(sale.steamId)];
+    if (partner) {
+      const tx = txById.get(String(sale.id));
+      const amount = tx ? round2((Number(tx.price) || 0) / 100) : round2(sale.totalPrice);
+      partners[partner] = round2((partners[partner] || 0) + amount);
+      partnersTotal = round2(partnersTotal + amount);
+      continue;
+    }
+
     if (sale.kind === "trade") tradeCredit = round2(tradeCredit + sale.totalPrice);
     else payout = round2(payout + sale.totalPrice);
   }
-  return { payout, tradeCredit, total: round2(payout + tradeCredit) };
+
+  return { payout, tradeCredit, partners, partnersTotal, total: round2(payout + tradeCredit + partnersTotal) };
 }
 
 /**
@@ -181,7 +204,17 @@ async function collectBank({ state, rows, config, owner, refresh = false }) {
     }
   }
 
-  const liabilities = clientLiabilities();
+  // Список транзакций нужен только ради долга друзьям (сумма, которая реально
+  // пришла за их предметы). Не ответил — считаем по нашей записи из журнала и
+  // не роняем весь банк из-за этого.
+  let transactions = [];
+  try {
+    transactions = await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY);
+  } catch (err) {
+    errors.push(`Транзакции Skinbux (нужны для долга друзьям): ${err.message}`);
+  }
+
+  const liabilities = clientLiabilities(transactions);
   const assets = round2(
     inventory.total + csfloat.value + skinbux.value + state.manual.youpin + state.manual.cash + state.manual.overpay
   );
