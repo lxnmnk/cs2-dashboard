@@ -225,7 +225,30 @@ async function collectBank({ state, rows, config, owner, balances = {}, owedToMe
     }
   }
 
+  // Чужие деньги физически лежат на Skinbux: клиентам мы ещё не выплатили, а
+  // деньги друга за его продажи просто пришли на наш счёт. Поэтому вычитаем
+  // их прямо из этой строки, а не отдельной строкой внизу: в банк должно идти
+  // то, что на Skinbux действительно наше.
   const liabilities = clientLiabilities(transactions);
+  const skinbux = money.find((m) => m.source === "skinbux");
+  let leftover = liabilities.total;
+  if (skinbux && leftover) {
+    const gross = skinbux.value;
+    const subtracted = Math.min(gross, leftover);
+    skinbux.gross = gross;
+    skinbux.deducted = round2(subtracted);
+    skinbux.value = round2(gross - subtracted);
+    leftover = round2(leftover - subtracted);
+    const parts = [`всего ${gross.toFixed(2)}`];
+    if (liabilities.payout || liabilities.tradeCredit) {
+      parts.push(`клиентам ${round2(liabilities.payout + liabilities.tradeCredit).toFixed(2)}`);
+    }
+    for (const [name, amount] of Object.entries(liabilities.partners || {})) parts.push(`${name} ${amount.toFixed(2)}`);
+    skinbux.note = `минус чужое: ${parts.join(" · ")}`;
+    // Для инвестора то же самое, но без имён.
+    skinbux.publicNote = `за вычетом чужих денег (${liabilities.total.toFixed(2)} из ${gross.toFixed(2)})`;
+  }
+
   const moneyTotal = round2(money.reduce((sum, r) => sum + r.value, 0));
   const debtsToUs = round2(owedToMe);
   const assets = round2(inventory.total + moneyTotal + debtsToUs);
@@ -237,8 +260,11 @@ async function collectBank({ state, rows, config, owner, balances = {}, owedToMe
     moneyTotal,
     owedToMe: debtsToUs,
     liabilities,
+    // Чужих денег оказалось больше, чем лежит на Skinbux: остаток вычитаем из
+    // банка целиком — отдавать его всё равно придётся.
+    leftoverDebt: leftover,
     assets,
-    total: round2(assets - liabilities.total),
+    total: round2(assets - leftover),
     collectedAt: new Date().toISOString(),
     errors,
   };

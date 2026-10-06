@@ -1441,18 +1441,36 @@ app.get("/api/capital", requireCapitalAccess, async (req, res) => {
     const preview = capital.previewPeriod(state, bank.total);
 
     if (isInvestor(req)) {
+      // Банк инвестору — с разбивкой по площадкам, но без нашей кухни: ни
+      // сверки с инвентарём Steam, ни чьих-то имён в долгах. Чужие деньги на
+      // счетах (клиентские выплаты и расчёты с партнёрами) идут одной
+      // безымянной строкой — иначе сумма не сходилась бы с банком.
+      const you = state.participants.find((p) => p.login && p.login === req.session.username) || null;
+      const investorBank = {
+        inventory: bank.inventory,
+        money: bank.money,
+        moneyTotal: bank.moneyTotal,
+        owedToMe: bank.owedToMe,
+        liabilities: { total: bank.liabilities.total },
+        leftoverDebt: bank.leftoverDebt,
+        assets: bank.assets,
+        total: bank.total,
+        collectedAt: bank.collectedAt,
+        errors: [],
+      };
       // Инвестору — банк, доли и история прибыли. Личные траты владельца в
       // расчёте участвуют (из-за них падает банк), но суммы и записи о них
       // чужих денег не касаются и наружу не идут.
       return res.json({
         ok: true,
         investor: true,
+        you: you ? { id: you.id, name: you.name } : null,
         state: {
           participants: state.participants,
           managerFeePct: state.managerFeePct,
           periods: state.periods.slice(-12).map(({ movements, personalSpend, personalIncome, ...p }) => p),
         },
-        bank,
+        bank: investorBank,
         preview: {
           openingTotal: preview.openingTotal,
           bankTotal: preview.bankTotal,

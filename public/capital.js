@@ -52,8 +52,9 @@ function render() {
   const problems = [...bank.errors];
   if (!pricesReady) problems.push("Цены ещё не загрузились — инвентарь посчитан не полностью");
   // Банк считается по трекеру, поэтому предмет, которого там нет, в банк не
-  // попадёт. Молчать об этом нельзя — это потерянные деньги.
-  if (bank.untracked.count) {
+  // попадёт. Молчать об этом нельзя — это потерянные деньги. Инвестору этой
+  // сверки не отдаём: чинить её всё равно нам.
+  if (bank.untracked?.count) {
     problems.push(
       `В инвентаре Steam ${bank.untracked.count} предмет(ов) на ${money(bank.untracked.value)}, которых нет в My Trades — в банк они не вошли: ${bank.untracked.names.slice(0, 3).join(", ")}`
     );
@@ -170,12 +171,25 @@ document.getElementById("capitalFromDate")?.addEventListener("change", loadProfi
 document.getElementById("capitalToDate")?.addEventListener("change", loadProfitRange);
 
 function renderBankCards(bank, preview) {
-  const cards = [
-    ["Банк (за вычетом долгов)", money(bank.total), ""],
-    ["Прибыль периода", money(preview.profit), preview.profit >= 0 ? "profit" : "loss"],
-    ["Инвесторам из неё", money(preview.investorsProfit), ""],
-    ["Долг клиентам", money(bank.liabilities.total), bank.liabilities.total ? "loss" : ""],
-  ];
+  // У инвестора наверху стоит то, ради чего он сюда заходит: сколько стоит
+  // бизнес и сколько в нём его. Остальное — кухня управляющего.
+  const mine = data.you ? preview.rows.find((r) => r.id === data.you.id) : null;
+  const cards = data.investor
+    ? [
+        ["Стоимость бизнеса", money(bank.total), ""],
+        ...(mine
+          ? [
+              ["Твоя доля", percent(mine.share), ""],
+              ["Твои деньги в деле", money(mine.closing), ""],
+            ]
+          : []),
+      ]
+    : [
+        ["Банк (за вычетом долгов)", money(bank.total), ""],
+        ["Прибыль периода", money(preview.profit), preview.profit >= 0 ? "profit" : "loss"],
+        ["Инвесторам из неё", money(preview.investorsProfit), ""],
+        ["Чужих денег вычтено", money(bank.liabilities.total), bank.liabilities.total ? "loss" : ""],
+      ];
   document.getElementById("bankCards").innerHTML = cards
     .map(
       ([label, value, cls]) =>
@@ -194,17 +208,13 @@ function renderBankTable(bank) {
       inv.total,
       `${inv.count} шт · из My Trades, по цене покупки${inv.locked ? ` · ${inv.locked} в трейд-бане` : ""} · по рынку сейчас ${money(inv.marketValue)}`,
     ],
-    ...bank.money.map((m) => [m.title, m.value, m.note]),
+    // Чужие деньги уже вычтены из строки Skinbux — там они и лежат. Имена в
+    // пояснении видит только владелец.
+    ...bank.money.map((m) => [m.title, m.value, (data.investor ? m.publicNote : m.note) || m.note || ""]),
     ...(bank.owedToMe ? [["Мне должны", bank.owedToMe, "из списка в My Trades"]] : []),
-    ["Итого активы", bank.assets, ""],
-    ["Долг клиентам: выплаты", -bank.liabilities.payout, "балансы клиентов на сайте"],
-    ["Долг клиентам: trade-баланс", -bank.liabilities.tradeCredit, "должны скинами"],
-    // Деньги за продажи друзей через наш аккаунт: пришли к нам, но не наши.
-    ...Object.entries(bank.liabilities.partners || {}).map(([name, amount]) => [
-      `Долг ${name}`,
-      -amount,
-      "продажи через наш аккаунт, ещё не возвращены",
-    ]),
+    ...(bank.leftoverDebt
+      ? [["Ещё не выплачено", -bank.leftoverDebt, "чужих денег больше, чем лежит на Skinbux"]]
+      : []),
     ["Банк", bank.total, "из него считается прибыль"],
   ];
   document.getElementById("bankBody").innerHTML = rows
@@ -223,8 +233,10 @@ function renderPeople(preview) {
   document.getElementById("peopleBody").innerHTML = preview.rows.length
     ? preview.rows
         .map(
-          (r) => `<tr>
-            <td>${escapeHtml(r.name)}${r.isManager ? ' <span class="na">(управляющий)</span>' : ""}</td>
+          (r) => `<tr${data.you && r.id === data.you.id ? ' class="row-total"' : ""}>
+            <td>${escapeHtml(r.name)}${r.isManager ? ' <span class="na">(управляющий)</span>' : ""}${
+              data.you && r.id === data.you.id ? ' <span class="na">— это ты</span>' : ""
+            }</td>
             <td>${money(r.opening)}</td>
             <td>${percent(r.share)}</td>
             <td>${r.deposited ? money(r.deposited) : '<span class="na">—</span>'}</td>
@@ -235,6 +247,12 @@ function renderPeople(preview) {
         )
         .join("")
     : '<tr><td colspan="7" class="empty-row">Участники ещё не заведены — открой блок настроек ниже.</td></tr>';
+
+  if (data.investor) {
+    document.getElementById("peopleHint").textContent =
+      `Доля считается от банка на начало периода. Из прибыли инвестору идёт его доля × ${100 - preview.managerFeePct}%, остальное управляющему.`;
+    return;
+  }
 
   const parts = [
     `Прибыль периода ${money(preview.profit)} = банк ${money(preview.bankTotal)} − было ${money(preview.openingTotal)}`,
