@@ -260,7 +260,10 @@ async function runOursSearch() {
   const seq = ++oursSearchSeq;
 
   swapOursGrid.innerHTML = `<p class="swap-empty">${swapEscape(SWAP_T.searchingLabel)}</p>`;
-  const data = await fetch(`/api/public/trade-search?q=${encodeURIComponent(query)}`)
+  // Фільтри йдуть на сервер разом із запитом: відповідь обрізається до
+  // найдорожчої верхівки збігів, тож відбирати по ціні й якості треба там.
+  const params = new URLSearchParams({ q: query, ...swapOursFilters.params() });
+  const data = await fetch(`/api/public/trade-search?${params}`)
     .then((r) => r.json())
     .catch(() => ({ ok: false, items: [] }));
 

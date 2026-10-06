@@ -967,16 +967,68 @@ app.get("/api/public/trade-catalog", async (req, res) => {
 // Пошук по ВСЬОМУ каталогу цін для розділу Trade: вітрина показує популярне,
 // але дістати ми можемо будь-який скін, тому за назвою шукаємо серед усіх
 // предметів зі знайомою ціною, а не лише серед списку вітрини.
+// Фильтры панели (public/item-filters.js) должны отработать здесь, до того как
+// ответ обрежется до двух десятков самых дорогих совпадений. Иначе получается
+// так: на "m9" в прайсе сотни предметов, в верхушку попадают ножи от $1400, и
+// фильтр "до $750" на клиенте не оставляет ничего — человек видит "ничего не
+// нашли", хотя дешёвые M9 в прайсе есть.
+const WEAR_BY_CODE = {
+  FN: "Factory New",
+  MW: "Minimal Wear",
+  FT: "Field-Tested",
+  WW: "Well-Worn",
+  BS: "Battle-Scarred",
+};
+
+function parseSearchFilters(query) {
+  const num = (v) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  const set = (v) =>
+    new Set(
+      String(v || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    );
+  return { min: num(query.min), max: num(query.max), wears: set(query.wear), special: set(query.special) };
+}
+
+function matchesSearchFilters(marketHashName, wear, price, filters) {
+  if (filters.min != null && !(price >= filters.min)) return false;
+  if (filters.max != null && !(price <= filters.max)) return false;
+
+  if (filters.wears.size) {
+    const ok = [...filters.wears].some((code) => WEAR_BY_CODE[code] && (wear || "").startsWith(WEAR_BY_CODE[code]));
+    if (!ok) return false;
+  }
+
+  if (filters.special.size) {
+    const isStatTrak = marketHashName.includes("StatTrak™");
+    const isSouvenir = marketHashName.startsWith("Souvenir ");
+    const ok =
+      (filters.special.has("stattrak") && isStatTrak) ||
+      (filters.special.has("souvenir") && isSouvenir) ||
+      (filters.special.has("normal") && !isStatTrak && !isSouvenir);
+    if (!ok) return false;
+  }
+
+  return true;
+}
+
 app.get("/api/public/trade-search", async (req, res) => {
   const q = (req.query.q || "").trim();
   if (q.length < 2) return res.json({ ok: true, items: [] });
 
+  const filters = parseSearchFilters(req.query);
   const matches = [];
   for (const row of cache.rows) {
     if (!matchesSearchQuery(row.marketHashName, q)) continue;
     const quote = computeBuyQuote(row, { markup: pricingSettings.get().tradeMarkup });
     if (!quote.ok) continue;
     const { baseName, wear } = parseItemName(row.marketHashName);
+    if (!matchesSearchFilters(row.marketHashName, wear, quote.price, filters)) continue;
     matches.push({ marketHashName: row.marketHashName, name: baseName, wear, price: quote.price, searchAlt: localizedAlt(row.marketHashName) });
   }
 

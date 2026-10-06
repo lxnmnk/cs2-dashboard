@@ -207,5 +207,18 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
     );
   }
 
-  return { apply: (items) => items.filter(matches) };
+  // Поточні фільтри у вигляді параметрів запиту. Потрібні там, де список
+  // приходить із сервера обрізаним (пошук по каталогу цін): звужувати треба
+  // до обрізання, інакше з відповіді на "m9" — а це самі дорогі ножі —
+  // фільтр "до $750" не лишає нічого, хоча дешеві M9 в прайсі є.
+  function params() {
+    const out = {};
+    if (state.min != null) out.min = state.min;
+    if (state.max != null) out.max = state.max;
+    if (state.wears.size) out.wear = [...state.wears].join(",");
+    if (state.special.size) out.special = [...state.special].join(",");
+    return out;
+  }
+
+  return { apply: (items) => items.filter(matches), params };
 }
