@@ -1607,6 +1607,37 @@ app.post("/api/trades/:id/buy-date", (req, res) => {
   }
 });
 
+// Сверка открытых позиций с инвентарём: чего уже нет на аккаунте (продано
+// мимо Skinbux — на Youpin, прямым трейдом). Ничего не закрывает: цену и дату
+// продажи владелец вписывает сам, мы только показываем, что искать.
+app.post("/api/trades/inventory-check", requireSiteOwner, async (req, res) => {
+  try {
+    const inventory = await skinbuxInventory.fetchUserInventory(
+      process.env.SKINBUX_API_KEY,
+      skinbuxSales.OWNER_STEAM_ID,
+      { force: true }
+    );
+    // Заодно дополняем float'ы там, где это однозначно: чем их больше, тем
+    // меньше позиций попадёт в "непонятно".
+    const rawTrades = trades.listRawTrades(req.session.username);
+    const fill = tradeFloats.planFill(rawTrades, inventory);
+    const filled = trades.setFloatMany(req.session.username, fill.assignments);
+
+    const report = tradeFloats.checkHoldings(tradeFloats.applyFillInMemory(rawTrades, fill.assignments), inventory);
+    res.json({
+      ok: true,
+      ...report,
+      floatsFilled: filled,
+      inventoryCount: inventory.length,
+      inventoryWithFloat: inventory.filter((i) => i.float != null).length,
+      checkedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error("[inventory-check] Ошибка:", err.message);
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 // float предмета руками: пустая строка — стереть. Пригождается там, где float
 // не приходит сам (youpin, cs.money) и подтянуть из инвентаря однозначно
 // нельзя — например, когда одинаковых скинов на аккаунте несколько.

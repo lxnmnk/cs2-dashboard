@@ -617,6 +617,20 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
    правки не должна отрываться от него на новую строку. */
 .float-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
 
+/* Позиция, которой уже нет в инвентаре: продана мимо сайта и ждёт, пока
+   впишут цену и дату. Подсветка держится до перезагрузки страницы. */
+tr.row-gone { background: rgba(224, 96, 90, 0.08); }
+.gone-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  border-radius: 999px;
+  color: var(--red);
+  border: 1px solid var(--red);
+  white-space: nowrap;
+}
+
 /* Страница "Капитал и прибыль": слева разбивка банка, справа поля, которые
    площадки не отдают по API и приходится вписывать руками. */
 .capital-split {

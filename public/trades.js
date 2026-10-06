@@ -1079,6 +1079,91 @@ function renderSkinbuxPreview(plan) {
   });
 }
 
+// ---- Сверка с инвентарём: чего уже нет ----
+// Импорт продаж закрывает только то, что продано через Skinbux. Проданное на
+// Youpin или отданное в трейде из инвентаря просто исчезает, и позиция висит
+// открытой. Здесь мы такие позиции показываем и подсвечиваем в таблице, а цену
+// и дату продажи ты вписываешь сам — гадать за тебя тут нечего.
+const inventoryCheckBtn = document.getElementById("inventoryCheckBtn");
+const inventoryCheckStatus = document.getElementById("inventoryCheckStatus");
+const inventoryCheckPreview = document.getElementById("inventoryCheckPreview");
+let goneIds = new Set(); // позиции, которых нет в инвентаре — подсвечиваем в Holdings
+
+inventoryCheckBtn?.addEventListener("click", async () => {
+  inventoryCheckBtn.disabled = true;
+  inventoryCheckStatus.textContent = "Reading your inventory...";
+  let data;
+  try {
+    const res = await fetch("/api/trades/inventory-check", { method: "POST" });
+    data = await res.json();
+  } catch (err) {
+    data = { ok: false, error: err.message };
+  }
+  inventoryCheckBtn.disabled = false;
+
+  if (!data.ok) {
+    inventoryCheckStatus.textContent = "";
+    inventoryCheckPreview.style.display = "none";
+    errorBox.style.display = "block";
+    errorBox.textContent = `Inventory check failed: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  renderInventoryCheck(data);
+});
+
+function renderInventoryCheck(data) {
+  const gone = data.rows.filter((r) => r.status === "gone");
+  const unclear = data.rows.filter((r) => r.status === "unclear");
+  goneIds = new Set(gone.map((r) => r.id));
+  renderHolding(lastTrades.filter((t) => t.status === "holding")); // подсветить строки в Holdings
+
+  inventoryCheckStatus.textContent = `${data.gone} gone, ${data.here} still there, ${data.unclear} unclear · ${data.inventoryCount} item(s) in the inventory`;
+
+  const notes = [];
+  if (data.floatsFilled) notes.push(`Float filled in from the inventory for ${data.floatsFilled} position(s).`);
+  if (unclear.length) {
+    notes.push(
+      `${unclear.length} position(s) can't be judged: the float is unknown and identical skins are still in the inventory. Type the float in the Holdings table and run this again.`
+    );
+  }
+
+  inventoryCheckPreview.style.display = "block";
+  if (!gone.length) {
+    inventoryCheckPreview.innerHTML = `<p>Everything in Holdings is still in your inventory.</p>${
+      notes.length ? `<p class="na">${notes.map(escapeHtml).join(" ")}</p>` : ""
+    }`;
+    return;
+  }
+
+  inventoryCheckPreview.innerHTML = `
+    <p><b>${gone.length}</b> position(s) for ${fmtMoney(data.goneSum)} are no longer in your inventory — looks sold. Fill in the price and date yourself.</p>
+    ${notes.length ? `<p class="na">${notes.map(escapeHtml).join(" ")}</p>` : ""}
+    <table class="trades-table">
+      <thead><tr><th>Item</th><th>Float</th><th>Bought</th><th>How we know</th><th></th></tr></thead>
+      <tbody>
+        ${gone
+          .map(
+            (r) => `<tr>
+              <td>${escapeHtml(r.name || r.marketHashName)} <span class="na">${escapeHtml(r.wear || "")}</span></td>
+              <td>${r.floatValue != null ? r.floatValue.toFixed(6) : '<span class="na">—</span>'}</td>
+              <td>${sourceLabel(r.buySource)} · ${fmtMoney(r.buyPrice)} · ${fmtDate(r.buyDate)}</td>
+              <td class="na">${r.reason === "float" ? "its float is gone from the inventory" : "no item with this name left in the inventory"}</td>
+              <td><button class="btn-small" data-action="sell-gone" data-id="${r.id}">Mark as sold</button></td>
+            </tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>`;
+
+  inventoryCheckPreview.querySelectorAll("[data-action='sell-gone']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const trade = lastTrades.find((t) => t.id === btn.dataset.id);
+      if (trade) openTradeModal(trade);
+    });
+  });
+}
+
 // Парсит "MM/DD/YYYY HH:MM" (то, что показывает prompt-хинт из toLocaleString("en-US"))
 // в ISO-строку. Возвращает null, если формат не совпал.
 function parseUsDateTime(input) {
@@ -1253,10 +1338,16 @@ function renderHolding(rows) {
         : `<span class="lock-badge unlocked" title="Unlocked: ${fmtDate(r.unlockAt)}">✅ sellable</span>`;
       const checked = selectedIds.has(r.id) ? "checked" : "";
 
+      // Сверка с инвентарём отметила позицию как исчезнувшую — предмета на
+      // аккаунте нет, строку видно сразу, без поиска по списку.
+      const gone = goneIds.has(r.id);
+
       return `
-        <tr data-row-key="${r.id}">
+        <tr data-row-key="${r.id}"${gone ? ' class="row-gone"' : ""}>
           <td><input type="checkbox" class="row-select" data-id="${r.id}" ${checked} /></td>
-          <td>${escapeHtml(r.name)}</td>
+          <td>${escapeHtml(r.name)}${
+            gone ? ' <span class="gone-badge" title="Not in your inventory any more — looks sold">not in inventory</span>' : ""
+          }</td>
           <td>${escapeHtml(r.wear)}</td>
           <td class="float-cell">${floatCell(r)}</td>
           <td>${sourceLabel(r.buySource)}</td>

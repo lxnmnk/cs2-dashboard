@@ -144,6 +144,15 @@
   </section>
   <div id="skinbuxImportPreview" class="csfloat-import-preview" style="display:none;"></div>
 
+  <!-- Продажи мимо Skinbux (Youpin, прямой трейд) нигде не отмечаются, а
+       предмет из инвентаря исчезает. Эта кнопка показывает такие позиции —
+       закрывает их владелец сам, вписав цену и дату. -->
+  <section class="trade-form csfloat-import">
+    <button id="inventoryCheckBtn" class="btn-small btn-secondary" type="button">What's gone from my inventory</button>
+    <span id="inventoryCheckStatus" class="field-hint"></span>
+  </section>
+  <div id="inventoryCheckPreview" class="csfloat-import-preview" style="display:none;"></div>
+
   <div class="section-title">Balances <span class="section-hint">money from sales, estimated from your sale history — not a real account balance</span></div>
   <section class="summary-cards" id="balancesCards">
     <div class="summary-card"><div class="label">Loading...</div></div>

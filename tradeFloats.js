@@ -130,10 +130,100 @@ function planFill(rawTrades, inventory) {
   return { assignments, ambiguous };
 }
 
+/**
+ * Сверка открытых позиций с инвентарём: чего уже нет на аккаунте.
+ *
+ * Зачем отдельно от импорта продаж: импорт закрывает только то, что продано
+ * через Skinbux. Предмет, проданный на Youpin или отданный в прямом трейде,
+ * из инвентаря исчезает молча, и позиция висит открытой, завышая и "вложено",
+ * и банк. Здесь мы ничего не закрываем сами — только показываем, чего нет,
+ * а цену и дату продажи владелец вписывает руками.
+ *
+ * Как решается судьба каждой позиции:
+ *   here    — float позиции нашёлся в инвентаре, предмет на месте;
+ *   gone    — float известен и в инвентаре его нет; либо float неизвестен, но
+ *             предметов с таким названием в инвентаре не осталось вовсе;
+ *   unclear — float неизвестен, а предметы с таким названием ещё есть, и
+ *             какой именно из одинаковых ушёл — не скажет никто. missing в
+ *             строке говорит, скольких из них не хватает (0 — похоже, все на
+ *             месте). Лечится вписанным руками float'ом.
+ */
+function checkHoldings(rawTrades, inventory) {
+  const invFloats = floatsByName(inventory);
+  const invCounts = countsByName(inventory);
+
+  const byName = new Map();
+  for (const trade of rawTrades) {
+    if (trade.status !== "holding") continue;
+    const list = byName.get(trade.marketHashName) || [];
+    list.push(trade);
+    byName.set(trade.marketHashName, list);
+  }
+
+  const rows = [];
+  for (const [name, positions] of byName) {
+    positions.sort((a, b) => new Date(a.buyDate) - new Date(b.buyDate));
+    const { held, gone, unknown } = splitByInventory(positions, invFloats.get(name) || []);
+    // Предметы с таким названием, которые ещё лежат в инвентаре и не закреплены
+    // ни за одной позицией по float: только они могут оказаться "теми самыми".
+    const unmatchedInv = Math.max(0, (invCounts.get(name) || 0) - held.length);
+
+    for (const p of held) rows.push({ ...rowOf(p), status: "here" });
+    for (const p of gone) rows.push({ ...rowOf(p), status: "gone", reason: "float" });
+
+    if (!unknown.length) continue;
+    if (unmatchedInv === 0) {
+      // Предметов с таким названием в инвентаре не осталось — ушли все.
+      for (const p of unknown) rows.push({ ...rowOf(p), status: "gone", reason: "name" });
+    } else {
+      const missing = Math.max(0, unknown.length - unmatchedInv);
+      for (const p of unknown) rows.push({ ...rowOf(p), status: "unclear", missing, sameName: unknown.length });
+    }
+  }
+
+  const count = (status) => rows.filter((r) => r.status === status).length;
+  const sum = (status) =>
+    round2(rows.filter((r) => r.status === status).reduce((acc, r) => acc + (Number(r.buyPrice) || 0), 0));
+  return {
+    rows,
+    gone: count("gone"),
+    goneSum: sum("gone"),
+    here: count("here"),
+    unclear: count("unclear"),
+    unclearSum: sum("unclear"),
+  };
+}
+
+function rowOf(trade) {
+  return {
+    id: trade.id,
+    marketHashName: trade.marketHashName,
+    name: trade.name,
+    wear: trade.wear,
+    buyPrice: round2(trade.buyPrice),
+    buyDate: trade.buyDate,
+    buySource: trade.buySource,
+    floatValue: trade.floatValue ?? null,
+  };
+}
+
+function round2(n) {
+  return Math.round((Number(n) || 0) * 100) / 100;
+}
+
 /** Проставляет найденные float'ы в копии списка — для предпросмотра, без записи. */
 function applyFillInMemory(rawTrades, assignments) {
   const byId = new Map(assignments.map((a) => [a.id, a.floatValue]));
   return rawTrades.map((t) => (byId.has(t.id) ? { ...t, floatValue: byId.get(t.id) } : t));
 }
 
-module.exports = { FLOAT_EPS, sameFloat, floatsByName, countsByName, splitByInventory, planFill, applyFillInMemory };
+module.exports = {
+  FLOAT_EPS,
+  sameFloat,
+  floatsByName,
+  countsByName,
+  splitByInventory,
+  planFill,
+  applyFillInMemory,
+  checkHoldings,
+};
