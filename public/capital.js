@@ -246,11 +246,16 @@ function renderPeople(preview) {
           </tr>`
         )
         .join("")
-    : '<tr><td colspan="7" class="empty-row">Участники ещё не заведены — открой блок настроек ниже.</td></tr>';
+    : `<tr><td colspan="7" class="empty-row">${
+        data.investor
+          ? "Доли ещё не распределены — расчёт начнётся, когда управляющий их заведёт."
+          : "Участники ещё не заведены — открой блок настроек ниже."
+      }</td></tr>`;
 
   if (data.investor) {
-    document.getElementById("peopleHint").textContent =
-      `Доля считается от банка на начало периода. Из прибыли инвестору идёт его доля × ${100 - preview.managerFeePct}%, остальное управляющему.`;
+    document.getElementById("peopleHint").textContent = preview.rows.length
+      ? `Доля считается от банка на начало периода. Из прибыли инвестору идёт его доля × ${100 - preview.managerFeePct}%, остальное управляющему.`
+      : "";
     return;
   }
 
@@ -356,7 +361,11 @@ function renderHistory(state) {
           </tr>`
         )
         .join("")
-    : '<tr><td colspan="5" class="empty-row">Ещё ни одного закрытого периода.</td></tr>';
+    : `<tr><td colspan="5" class="empty-row">${
+        data.investor
+          ? "Первый расчёт появится после ближайшей полуночи — дальше по одному за каждый день."
+          : "Ещё ни одного закрытого периода."
+      }</td></tr>`;
 }
 
 // ---- Действия ----
