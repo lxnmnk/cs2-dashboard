@@ -17,5 +17,7 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
     return;
   }
 
-  window.location.href = "/arbitrage";
+  // Инвестору вся панель закрыта сервером, и "/arbitrage" всё равно отбросил
+  // бы его на капитал — ведём сразу туда, без лишнего прыжка.
+  window.location.href = data.role === "investor" ? "/capital" : "/arbitrage";
 });

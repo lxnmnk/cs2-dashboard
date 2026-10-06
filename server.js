@@ -295,7 +295,7 @@ app.post("/api/login", async (req, res) => {
     return res.status(401).json({ ok: false, error: "Неверный логин или пароль" });
   }
   req.session.username = verified;
-  res.json({ ok: true, username: verified });
+  res.json({ ok: true, username: verified, role: users.roleOf(verified) });
 });
 
 app.post("/api/logout", (req, res) => {
@@ -1108,7 +1108,11 @@ app.get("/api/public/my-skins", async (req, res) => {
 // Свои аккаунты в "Продажах клиентов" не показываем: продажи с них — это не
 // клиенты, а наши собственные сделки, и они только путают прибыль по клиентам.
 // Список общий с расчётом банка (capitalBank.js), поэтому лежит в skinbuxSales.
-const CLIENT_SALES_HIDDEN_STEAM_IDS = skinbuxSales.OWN_STEAM_IDS;
+// Свои собственные продажи в списке клиентских не показываем — это не клиент,
+// а мы сами. А вот продажи друга через наш аккаунт показываем: за них мы ему
+// должны, и пока в панели не было строки "вернул", долг копился без конца и
+// в банке выходил втрое больше настоящего.
+const CLIENT_SALES_HIDDEN_STEAM_IDS = new Set([skinbuxSales.OWNER_STEAM_ID]);
 
 app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
   const clientSales = () => skinbuxSales.loadAll().filter((s) => !CLIENT_SALES_HIDDEN_STEAM_IDS.has(String(s.steamId)));
@@ -1127,16 +1131,22 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
         return sum;
       }, 0);
 
+      // Продажа друга: деньги принадлежат ему целиком, нашей маржи тут нет,
+      // и в сводку по клиентам она идти не должна.
+      const partner = skinbuxSales.PARTNER_STEAM_IDS[String(sale.steamId)] || null;
+
       return {
         id: sale.id,
         steamId: sale.steamId,
-        customerName: sale.customerName,
+        customerName: partner || sale.customerName,
+        partner,
         // Записи до появи обміну — це завжди звичайний викуп.
         kind: sale.kind || "sell",
         items: (sale.items || []).map((it) => it.name),
-        totalPrice: sale.totalPrice,
+        // Другу возвращаем всё, что пришло за его предметы.
+        totalPrice: partner ? Math.round(skinbuxTotal * 100) / 100 : sale.totalPrice,
         skinbuxTotal: Math.round(skinbuxTotal * 100) / 100,
-        profit: Math.round((skinbuxTotal - sale.totalPrice) * 100) / 100,
+        profit: partner ? 0 : Math.round((skinbuxTotal - sale.totalPrice) * 100) / 100,
         status: sale.status,
         paidAt: sale.paidAt || null,
         unlockAt: skinbuxSales.unlockAtOf(sale),

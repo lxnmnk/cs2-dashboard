@@ -1944,9 +1944,14 @@ async function loadClientSales() {
       // Ручная сделка из трекера (Bought On: gaben.market): деньги клиенту
       // отданы сразу при покупке, поэтому кнопки выплаты у неё нет.
       const isManual = s.kind === "manual";
+      // Продажа друга через наш аккаунт: деньги целиком его, нашей маржи нет,
+      // и "выплачено" здесь значит "вернул ему". Пока не отмечено, сумма
+      // считается долгом в банке на /capital.
+      const isPartner = !!s.partner;
       let status;
       if (isManual) status = s.status === "completed" ? "manual · sold on Skinbux" : "manual · in stock";
-      else if (s.paidAt) status = isTrade ? `skins given ${fmtDate(s.paidAt)}` : `paid ${fmtDate(s.paidAt)}`;
+      else if (s.paidAt) status = isPartner ? `returned ${fmtDate(s.paidAt)}` : isTrade ? `skins given ${fmtDate(s.paidAt)}` : `paid ${fmtDate(s.paidAt)}`;
+      else if (isPartner && (s.status === "hold" || s.status === "completed")) status = "we owe it back";
       else if (isTrade && (s.status === "hold" || s.status === "completed")) status = "trade balance — owes him skins";
       else if (s.status === "hold" && s.unlockAt) status = `on hold until ${fmtDate(s.unlockAt)}`;
       else if (s.status === "completed") status = "released — client can withdraw";
@@ -1954,7 +1959,7 @@ async function loadClientSales() {
 
       let action = "";
       if (canPay) {
-        action = `<button class="btn-small btn-secondary" data-action="mark-paid" data-id="${s.id}" data-status="${escapeHtml(s.status)}" data-kind="${escapeHtml(s.kind || "sell")}">${isTrade ? "Skins given" : "Mark paid"}</button>`;
+        action = `<button class="btn-small btn-secondary" data-action="mark-paid" data-id="${s.id}" data-status="${escapeHtml(s.status)}" data-kind="${escapeHtml(s.kind || "sell")}">${isPartner ? "Returned" : isTrade ? "Skins given" : "Mark paid"}</button>`;
       } else if (s.paidAt) {
         action = `<button class="btn-small btn-secondary" data-action="unmark-paid" data-id="${s.id}">Undo</button>`;
       }
@@ -1965,7 +1970,7 @@ async function loadClientSales() {
       return `
         <tr>
           <td>${fmtDate(s.createdAt)}</td>
-          <td>#${escapeHtml(String(s.id))}${isTrade ? ' <span class="na">trade</span>' : ""}${isManual ? ' <span class="na">manual</span>' : ""}</td>
+          <td>#${escapeHtml(String(s.id))}${isTrade ? ' <span class="na">trade</span>' : ""}${isManual ? ' <span class="na">manual</span>' : ""}${isPartner ? ` <span class="na">${escapeHtml(s.partner)}</span>` : ""}</td>
           <td>${
             s.steamId
               ? `<a href="https://steamcommunity.com/profiles/${escapeHtml(s.steamId)}" target="_blank">${escapeHtml(s.customerName || s.steamId)}</a>`
