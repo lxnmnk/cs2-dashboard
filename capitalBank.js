@@ -97,49 +97,25 @@ function untrackedSteamItems(items, { owner, rows, sourcesConfig }) {
 }
 
 /**
- * Сколько мы должны: клиентам сайта — непогашенные балансы из их продаж,
- * друзьям — всё, что пришло за их предметы и ещё не возвращено.
+ * Сколько из денег на Skinbux не наши — по той же раскладке, что показывает
+ * карточка Skinbux в My Trades (skinbuxAccount.splitHold).
  *
- * Баланс Skinbux — общий котёл: там и наша доля, и деньги клиентов, которые
- * мы им ещё не выплатили. Вычитаем именно долги, а не урезаем строку Skinbux,
- * чтобы было видно обе величины по отдельности.
+ * Раскладка смотрит на деньги, которые лежат на счету сейчас, и делит их на
+ * три части: мои, друга и клиентские. Именно это и надо вычесть: клиенту мы
+ * должны его выплату, другу — всю сумму за его предметы, а маржа с клиентской
+ * продажи остаётся нам.
  *
- * Продажи с моего собственного аккаунта — не долг: это мои же деньги, просто
- * проданные через свой сайт. А вот продажи друга (PARTNER_STEAM_IDS) — долг:
- * деньги пришли к нам, но принадлежат ему. Раньше они проходили как "наши" и
- * ушли бы инвесторам в прибыль.
+ * Чего делать нельзя (пробовали, вышло неверно): складывать все записи
+ * журнала без отметки "выплачено" за всю историю. Там лежит и то, что давно
+ * вернули не отметив, и долг друга раздувался до $4845 при настоящих $310.
  */
-function clientLiabilities(transactions = []) {
-  // Транзакция Skinbux по id записи журнала: нужна для долга партнёру — ему
-  // возвращается всё, что пришло за его предметы, а не наша запись totalPrice
-  // (в ней сидела бы скидка, которой с друга мы не берём). Так же считает
-  // раскладка холда в трекере, и те числа уже сверены вручную.
-  const txById = new Map((transactions || []).map((t) => [String(t.id), t]));
+function holdLiabilities(split) {
+  if (!split) return { payout: 0, tradeCredit: 0, partners: {}, partnersTotal: 0, total: 0 };
 
-  let payout = 0; // обычные продажи: должны деньгами
-  let tradeCredit = 0; // сторона клиента в обмене: должны скинами
-  const partners = {}; // друзья, продающие через наш аккаунт: имя -> сколько должны
-  let partnersTotal = 0;
-
-  for (const sale of skinbuxSales.loadAll()) {
-    if (sale.paidAt) continue;
-    if (String(sale.steamId) === skinbuxSales.OWNER_STEAM_ID) continue;
-    if (sale.status !== "hold" && sale.status !== "completed") continue;
-
-    const partner = skinbuxSales.PARTNER_STEAM_IDS[String(sale.steamId)];
-    if (partner) {
-      const tx = txById.get(String(sale.id));
-      const amount = tx ? round2((Number(tx.price) || 0) / 100) : round2(sale.totalPrice);
-      partners[partner] = round2((partners[partner] || 0) + amount);
-      partnersTotal = round2(partnersTotal + amount);
-      continue;
-    }
-
-    if (sale.kind === "trade") tradeCredit = round2(tradeCredit + sale.totalPrice);
-    else payout = round2(payout + sale.totalPrice);
-  }
-
-  return { payout, tradeCredit, partners, partnersTotal, total: round2(payout + tradeCredit + partnersTotal) };
+  const partners = { ...(split.partners || {}) };
+  const partnersTotal = round2(Object.values(partners).reduce((sum, v) => sum + v, 0));
+  const payout = round2(split.clients?.payout || 0);
+  return { payout, tradeCredit: 0, partners, partnersTotal, total: round2(payout + partnersTotal) };
 }
 
 /**
@@ -208,16 +184,6 @@ async function collectBank({ state, rows, config, owner, balances = {}, owedToMe
     errors.push(`Сверка с инвентарём Steam не вышла: ${err.message}`);
   }
 
-  // Список транзакций нужен только ради долга друзьям (сумма, которая реально
-  // пришла за их предметы). Не ответил — считаем по нашей записи из журнала и
-  // не роняем весь банк из-за этого.
-  let transactions = [];
-  try {
-    transactions = await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY);
-  } catch (err) {
-    errors.push(`Транзакции Skinbux (нужны для долга друзьям): ${err.message}`);
-  }
-
   const money = balanceRows(balances);
   for (const row of money) {
     if (row.source === "csfloat" && balances.csfloat?.source === "error") {
@@ -226,10 +192,15 @@ async function collectBank({ state, rows, config, owner, balances = {}, owedToMe
   }
 
   // Чужие деньги физически лежат на Skinbux: клиентам мы ещё не выплатили, а
-  // деньги друга за его продажи просто пришли на наш счёт. Поэтому вычитаем
-  // их прямо из этой строки, а не отдельной строкой внизу: в банк должно идти
-  // то, что на Skinbux действительно наше.
-  const liabilities = clientLiabilities(transactions);
+  // деньги друга за его продажи просто пришли на наш счёт. Вычитаем их прямо
+  // из этой строки — в банк должно идти то, что на Skinbux действительно наше.
+  //
+  // Берём ровно ту раскладку, что показывает карточка Skinbux в My Trades
+  // (skinbuxAccount.splitHold): она смотрит на деньги, которые лежат на счету
+  // сейчас. Считать долг иначе — сложением всех незакрытых записей журнала за
+  // всю историю — нельзя: там и давно возвращённое, и долг друга вырастал до
+  // $4845 вместо настоящих $310.
+  const liabilities = holdLiabilities(balances.skinbux?.holdSplit);
   const skinbux = money.find((m) => m.source === "skinbux");
   let leftover = liabilities.total;
   if (skinbux && leftover) {
@@ -270,4 +241,4 @@ async function collectBank({ state, rows, config, owner, balances = {}, owedToMe
   };
 }
 
-module.exports = { collectBank, valueTracker, untrackedSteamItems, clientLiabilities, instantSellValue };
+module.exports = { collectBank, valueTracker, untrackedSteamItems, holdLiabilities, instantSellValue };
