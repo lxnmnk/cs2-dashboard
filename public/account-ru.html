@@ -247,7 +247,11 @@
           document.getElementById("inventoryCard").style.display = "block";
           document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
           document.getElementById("accountPillName").textContent = data.customer.displayName;
-          document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
+          // Поле посилання на обмін переїхало у профіль. Тут лише підказка,
+          // і тільки тим, у кого посилання ще немає: без нього продати не вийде.
+          if (!data.customer.tradeUrl) {
+            document.getElementById("tradeUrlMissing").style.display = "block";
+          }
           // Саме стрілка: ім'я loadInventory має шукатись, коли скрипт уже
           // виконано, а не в момент відповіді — інакше ReferenceError і порожній інвентар.
           whenScriptsReady(() => loadInventory());

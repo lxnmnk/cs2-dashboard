@@ -221,29 +221,16 @@
       priceChanged: "Ціна щойно змінилась — ми оновили кошик за новими цінами. Перевір суму й натисни «Продати автоматично» ще раз.",
     };
 
-    // account-inventory.js подключён ниже: если ответ придёт раньше, чем
-    // браузер его выполнит, прямой вызов loadInventory() упадёт.
-    function whenScriptsReady(fn) {
-      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, { once: true });
-      else fn();
-    }
-
+    // Шапка: аватар і кнопка виходу. Усе інше на цій сторінці малює
+    // profile.js, тому ініціалізації інвентаря тут немає — вона й ламала
+    // сторінку, звертаючись до елементів, яких тут ніколи не було.
     fetch("/api/account/me")
       .then((r) => r.json())
       .then((data) => {
-        if (data.customer) {
-          window.ACCOUNT_CUSTOMER = data.customer;
-          document.getElementById("accountPill").style.display = "flex";
-          document.getElementById("inventoryCard").style.display = "block";
-          document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
-          document.getElementById("accountPillName").textContent = data.customer.displayName;
-          document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
-          // Саме стрілка: ім'я loadInventory має шукатись, коли скрипт уже
-          // виконано, а не в момент відповіді — інакше ReferenceError і порожній інвентар.
-          whenScriptsReady(() => loadInventory());
-        } else {
-          document.getElementById("loggedOutCard").style.display = "block";
-        }
+        if (!data.customer) return;
+        document.getElementById("accountPill").style.display = "flex";
+        document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
+        document.getElementById("accountPillName").textContent = data.customer.displayName;
       });
 
     document.getElementById("logoutBtn")?.addEventListener("click", () => {
