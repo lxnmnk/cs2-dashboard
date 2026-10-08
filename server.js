@@ -246,12 +246,26 @@ const PUBLIC_PATHS = new Set([
   "/api/webhooks/skinbux",
 ]);
 
+// Сторінки внутрішньої панелі: тільки з них незалогіненого шлемо на вхід.
+const PANEL_PATHS = new Set([
+  "/mytrades",
+  "/arbitrage",
+  "/capital",
+  "/index.html",
+  "/trades.html",
+  "/capital.html",
+]);
+
 app.use((req, res, next) => {
   if (PUBLIC_PATHS.has(req.path)) return next();
   if (req.path.startsWith("/uploads/")) return next(); // скриншоты предметов — публичные файлы
   if (req.session?.username) return next();
   if (req.path.startsWith("/api/")) return res.status(401).json({ error: "Не авторизован" });
-  return res.redirect("/login.html");
+  // Форма входу — для нас, а не для клієнтів. Людина, що відкрила мертве
+  // партнерське посилання чи просто помилилась в адресі, має потрапити на
+  // головну сайту, а не на логін персоналу. На логін ведуть тільки сторінки
+  // самої панелі.
+  return res.redirect(PANEL_PATHS.has(req.path) ? "/login.html" : "/");
 });
 
 // Инвестору — только капитал. Стоит сразу после входа и ДО всех роутов и
