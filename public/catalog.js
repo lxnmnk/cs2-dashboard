@@ -15,7 +15,11 @@ const statusEl = document.getElementById("catalogStatus");
 const pager = document.getElementById("catalogPager");
 const pageLabel = document.getElementById("catalogPageLabel");
 
-const state = { q: "", category: "", sort: "price_desc", min: "", max: "", wear: new Set(), special: "", page: 1 };
+const state = { q: "", category: "", sort: "price_desc", min: "", max: "", wear: new Set(), special: "", page: 1, weapons: new Set() };
+
+// Списки зброї приходять із першою відповіддю каталогу: вкладка "Ножі"
+// розкривається переліком ножів, і там можна обрати конкретні.
+let weaponsByCategory = null;
 
 // Кошик переживає перезавантаження: людина може піти порівняти ціни й
 // повернутись, і втрачати вибране на цьому не повинна.
@@ -72,6 +76,7 @@ async function loadCatalog() {
   if (state.min) params.set("min", state.min);
   if (state.max) params.set("max", state.max);
   if (state.wear.size) params.set("wear", [...state.wear].join(","));
+  if (state.weapons.size) params.set("weapon", [...state.weapons].join(","));
   if (state.special) params.set("special", state.special);
 
   let data;
@@ -82,6 +87,11 @@ async function loadCatalog() {
   }
   // Поки відповідь ішла, людина могла змінити фільтр — тоді ця вже не потрібна.
   if (seq !== loadSeq) return;
+
+  if (data.weapons && !weaponsByCategory) {
+    weaponsByCategory = data.weapons;
+    buildCategoryMenus();
+  }
 
   if (!data.ok || !data.items.length) {
     grid.innerHTML = "";
@@ -204,14 +214,76 @@ document.getElementById("catalogSort").addEventListener("change", (e) => {
   loadCatalog();
 });
 
+// ---- Вкладки категорій і випадайки зі зброєю ----
+// Клік по вкладці перемикає категорію; якщо всередині є конкретна зброя —
+// під вкладкою розкривається список, де можна лишити тільки потрібне.
+function buildCategoryMenus() {
+  document.querySelectorAll(".catalog-tab").forEach((tab) => {
+    const category = tab.dataset.category;
+    const list = weaponsByCategory[category];
+    if (!list?.length) return;
+
+    tab.classList.add("has-menu");
+    const menu = document.createElement("div");
+    menu.className = "catalog-menu";
+    menu.innerHTML = `
+      <label class="catalog-menu-all"><input type="checkbox" data-all="1" /> ${esc(C.selectAll || "Select all")}</label>
+      ${list.map((w) => `<label><input type="checkbox" value="${esc(w)}" /> ${esc(w)}</label>`).join("")}`;
+    tab.parentElement.insertBefore(menu, tab.nextSibling);
+    tab.menu = menu;
+
+    menu.addEventListener("change", (e) => {
+      const box = e.target;
+      if (box.dataset.all) {
+        menu.querySelectorAll('input[value]').forEach((b) => (b.checked = box.checked));
+      }
+      // Вибрана зброя має сенс лише разом зі своєю категорією.
+      state.category = category;
+      state.weapons = new Set([...menu.querySelectorAll("input[value]:checked")].map((b) => b.value));
+      state.page = 1;
+      markActiveTab(tab);
+      loadCatalog();
+    });
+  });
+}
+
+function markActiveTab(tab) {
+  document.querySelectorAll(".catalog-tab").forEach((t) => t.classList.remove("active"));
+  tab.classList.add("active");
+}
+
+function closeMenus(except) {
+  document.querySelectorAll(".catalog-menu.open").forEach((m) => {
+    if (m !== except) m.classList.remove("open");
+  });
+}
+
 document.querySelectorAll(".catalog-tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".catalog-tab").forEach((t) => t.classList.remove("active"));
-    tab.classList.add("active");
+  tab.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const switching = state.category !== (tab.dataset.category || "");
+    markActiveTab(tab);
     state.category = tab.dataset.category || "";
+    // Переходиш в іншу категорію — вибрана зброя попередньої більше не діє.
+    if (switching) {
+      state.weapons.clear();
+      document.querySelectorAll(".catalog-menu input").forEach((b) => (b.checked = false));
+    }
     state.page = 1;
+
+    if (tab.menu) {
+      const open = !tab.menu.classList.contains("open");
+      closeMenus(tab.menu);
+      tab.menu.classList.toggle("open", open);
+    } else {
+      closeMenus();
+    }
     loadCatalog();
   });
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.closest(".catalog-menu")) closeMenus();
 });
 
 for (const id of ["catalogMin", "catalogMax"]) {
@@ -245,6 +317,8 @@ document.querySelectorAll('input[name="special"]').forEach((radio) => {
 document.getElementById("catalogReset").addEventListener("click", () => {
   state.q = state.min = state.max = state.special = "";
   state.wear.clear();
+  state.weapons.clear();
+  document.querySelectorAll(".catalog-menu input").forEach((b) => (b.checked = false));
   state.page = 1;
   document.getElementById("catalogSearch").value = "";
   document.getElementById("catalogMin").value = "";

@@ -99,4 +99,19 @@ const CATEGORY_ORDER = [
   "shotgun", "machinegun", "sticker", "charm", "agent", "case", "other",
 ];
 
-module.exports = { categoryOf, CATEGORY_ORDER, WEAPONS };
+/**
+ * Сама зброя з назви: "StatTrak™ AK-47 | Redline (FT)" -> "AK-47". Потрібна
+ * для фільтра всередині категорії — коли в каталозі обирають не всі ножі, а
+ * конкретно Karambit і Butterfly.
+ */
+function weaponOf(marketHashName) {
+  let part = String(marketHashName || "").split(" | ")[0].trim();
+  for (let i = 0; i < 3; i++) {
+    const stripped = part.replace(/^(★|StatTrak™|Souvenir)\s+/, "");
+    if (stripped === part) break;
+    part = stripped;
+  }
+  return part;
+}
+
+module.exports = { categoryOf, weaponOf, CATEGORY_ORDER, WEAPONS };

@@ -35,7 +35,7 @@ const skinbuxSalesImport = require("./skinbuxSalesImport");
 const tradeFloats = require("./tradeFloats");
 const debts = require("./debts");
 const promoCodes = require("./promoCodes");
-const { categoryOf, CATEGORY_ORDER } = require("./itemCategory");
+const { categoryOf, weaponOf, CATEGORY_ORDER, WEAPONS } = require("./itemCategory");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
@@ -1136,6 +1136,9 @@ function isLiquid(row, ourPrice) {
 function catalogItems(query) {
   const q = String(query.q || "").trim();
   const category = String(query.category || "").trim();
+  // Конкретна зброя всередині категорії: у фільтрі можна обрати не всі ножі,
+  // а тільки Karambit і Butterfly.
+  const weapons = new Set(String(query.weapon || "").split(",").filter(Boolean));
   const wears = new Set(String(query.wear || "").split(",").filter(Boolean));
   const special = String(query.special || "").trim();
   const min = parseFloat(query.min);
@@ -1147,6 +1150,7 @@ function catalogItems(query) {
     const name = row.marketHashName;
     if (q && !matchesSearchQuery(name, q)) continue;
     if (category && categoryOf(name) !== category) continue;
+    if (weapons.size && !weapons.has(weaponOf(name))) continue;
 
     const { baseName, wear } = parseItemName(name);
     if (wears.size && !wears.has(WEAR_BY_CODE_REVERSE[wear] || "")) continue;
@@ -1200,6 +1204,9 @@ app.get("/api/public/catalog", async (req, res) => {
     pages: Math.max(1, Math.ceil(all.length / CATALOG_PAGE_SIZE)),
     total: all.length,
     categories: CATEGORY_ORDER,
+    // Списки зброї для випадайок у вкладках — беремо звідти ж, звідки
+    // визначаємо категорію, щоб вони не розійшлись.
+    weapons: WEAPONS,
   });
 });
 
