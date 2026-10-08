@@ -562,6 +562,10 @@ app.post("/api/account/trade-url", (req, res) => {
 //                       гроші лягають у холд і потім виводяться;
 //   tradeMode = true  — розділ Trade, сторона клієнта: беремо за Skinbux − 3%,
 //                       гроші лягають у trade-баланс (skinbuxSales kind).
+// Куди людина хоче отримати гроші. Список закритий: усе, що прийшло з
+// браузера і не збіглося, зберігаємо як null, а не записуємо в журнал чуже.
+const PAYOUT_METHODS = new Set(["card", "crypto"]);
+
 async function sellCustomerItems(req, res, { tradeMode }) {
   const customer = req.session.customer;
   if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
@@ -656,6 +660,9 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       botSteamId: result.steamId,
       botProfile: result.profileDetails,
       kind: tradeMode ? "trade" : "sell",
+      // Спосіб виплати — те, що людина обрала в кошику. Виплачуємо руками,
+      // тож це просто підказка власнику, куди слати гроші.
+      payoutMethod: PAYOUT_METHODS.has(String(req.body?.payoutMethod)) ? String(req.body.payoutMethod) : null,
     });
 
     res.json({ ok: true, totalPrice, ...result });

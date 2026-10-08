@@ -106,19 +106,29 @@
 
       <aside class="inventory-side">
       <div id="cartSection" class="cart-sidebar">
-        <h3>Кошик</h3>
-        <div id="cartList" class="cart-list"></div>
-        <div class="cart-total-row">
-          <span>Разом</span>
-          <span id="cartTotal" class="cart-total">$0.00</span>
+        <p id="cartPickedLine" class="cart-picked"></p>
+        <div id="cartTotal" class="cart-amount">$0.00</div>
+
+        <div id="payoutBlock" class="payout-block">
+          <h4>Як отримати гроші</h4>
+          <div class="payout-methods">
+            <button class="payout-method active" type="button" data-method="card">Картка UA</button>
+            <button class="payout-method" type="button" data-method="crypto">Крипта</button>
+          </div>
+          <p id="payoutDateLine" class="payout-date"></p>
         </div>
+
+        <div class="cart-total-row">
+          <span id="toBePaidLabel">До виплати</span>
+          <span id="cartPayout" class="cart-total">$0.00</span>
+        </div>
+        <p id="cartEmptyLine" class="cart-empty"></p>
         <p id="sellStatus" class="card-hint"></p>
         <div class="cart-actions">
           <button id="sellAutoBtn" class="btn-gold" type="button">Продати автоматично</button>
           <button id="cartClearBtn" class="btn-clear" type="button">Очистити список</button>
         </div>
       </div>
-      <aside id="filtersPanel" class="filters-panel"></aside>
       </aside>
     </div>
   </section>
@@ -179,6 +189,13 @@
       levelLabel: "Рівень",
       registeredLabel: "Акаунт створено",
       openProfile: "Профіль у Steam",
+      cartPicked: "{n} предмет(ів) на суму",
+      payoutMethodTitle: "Як отримати гроші",
+      payoutCard: "Картка UA",
+      payoutCrypto: "Крипта",
+      payoutDateLine: "Гроші будуть: після {date}",
+      payoutHint: "Поки триває холд Steam — 7 днів після обміну",
+      toBePaidLabel: "До виплати",
       cartEmpty: "Обери предмети зліва — вони з'являться тут",
       sortPriceDesc: "Спочатку дорогі",
       sortPriceAsc: "Спочатку дешеві",

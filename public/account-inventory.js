@@ -40,7 +40,22 @@ const inventoryLoadingEl = document.getElementById("inventoryLoading");
 const inventoryPrivateEl = document.getElementById("inventoryPrivate");
 const inventoryEmptyEl = document.getElementById("inventoryEmpty");
 const cartSection = document.getElementById("cartSection");
-const cartList = document.getElementById("cartList");
+const cartPickedLine = document.getElementById("cartPickedLine");
+const cartPayout = document.getElementById("cartPayout");
+const cartEmptyLine = document.getElementById("cartEmptyLine");
+const payoutBlock = document.getElementById("payoutBlock");
+const payoutDateLine = document.getElementById("payoutDateLine");
+
+// Куди слати гроші. Виплату власник робить руками, тож це підказка для нього
+// в панелі, а не автоматичний переказ.
+let payoutMethod = "card";
+document.querySelectorAll(".payout-method").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".payout-method").forEach((b) => b.classList.remove("active"));
+    btn.classList.add("active");
+    payoutMethod = btn.dataset.method;
+  });
+});
 const cartTotal = document.getElementById("cartTotal");
 const sellAutoBtn = document.getElementById("sellAutoBtn");
 const sellStatusEl = document.getElementById("sellStatus");
@@ -55,14 +70,24 @@ const sellResultTitle = document.getElementById("sellResultTitle");
 
 const MAX_RETRIES = 3;
 
-// Фільтри тільки звужують показане: те, що вже в кошику, з нього не зникає,
-// навіть якщо предмет випав з поточної вибірки.
-const filters = createItemFilters({
-  mount: document.getElementById("filtersPanel"),
-  labels: window.ACCOUNT_CONFIG,
-  showSearch: false, // поле пошуку стоїть над сіткою, див. inventorySearch
-  onChange: () => renderInventoryList(),
-});
+// Панелі фільтрів тут немає: ціна, якість і StatTrak на власному інвентарі
+// нікому не потрібні — людині треба знайти конкретний скін. Лишився пошук над
+// сіткою, він розуміє російську й українську (item-aliases.js). Пошук тільки
+// звужує показане: те, що вже в кошику, з нього не зникає.
+let searchQuery = "";
+const filters = {
+  apply: (items) => {
+    if (!searchQuery) return items;
+    return items.filter((it) => {
+      const text = `${it.marketHashName} ${it.searchAlt || ""}`;
+      return window.matchesQuery ? window.matchesQuery(text, searchQuery) : text.toLowerCase().includes(searchQuery);
+    });
+  },
+  setQuery: (value) => {
+    searchQuery = String(value || "").trim().toLowerCase();
+    renderInventoryList();
+  },
+};
 
 let inventoryItems = [];
 let inventoryRetries = 0;
@@ -152,6 +177,7 @@ sellAutoBtn?.addEventListener("click", async () => {
     body: JSON.stringify({
       assetIds: cart.map((it) => it.assetId),
       expectedPrices: Object.fromEntries(cart.map((it) => [it.assetId, it.price])),
+      payoutMethod,
     }),
   });
   const data = await res.json();
@@ -295,6 +321,36 @@ async function loadInventory({ refresh = false } = {}) {
   renderInventoryList();
 }
 
+// ---- Картка предмета ----
+// Зверху — якість і float, бо саме за ними впізнають конкретний екземпляр:
+// два однакові ножі відрізняються тільки цим числом. Назву ріжемо на дві
+// частини ("★ Karambit" / "Case Hardened"): так зброя й сам скін читаються
+// з одного погляду, а довга назва не переносилась у три рядки.
+const WEAR_CODES = {
+  "Factory New": "FN",
+  "Minimal Wear": "MW",
+  "Field-Tested": "FT",
+  "Well-Worn": "WW",
+  "Battle-Scarred": "BS",
+};
+
+function itemTopHtml(it) {
+  const code = WEAR_CODES[it.wear] || "";
+  const parts = [];
+  if (code) parts.push(`<span class="wear-code wear-${code}">${code}</span>`);
+  // float з точністю до чотирьох знаків: далі цифри вже нічого не вирішують
+  // ні для ціни, ні для впізнавання.
+  if (it.float != null) parts.push(`<span class="item-float">${Number(it.float).toFixed(4)}</span>`);
+  if (it.phase) parts.push(`<span class="item-phase">${escapeHtml(it.phase)}</span>`);
+  return parts.length ? `<div class="inventory-card-top">${parts.join('<span class="dot">·</span>')}</div>` : "";
+}
+
+function itemNameHtml(it) {
+  const [weapon, skin] = String(it.name || it.marketHashName).split(" | ");
+  if (!skin) return `<span class="item-skin">${escapeHtml(weapon)}</span>`;
+  return `<span class="item-weapon">${escapeHtml(weapon)}</span><span class="item-skin">${escapeHtml(skin)}</span>`;
+}
+
 function renderInventoryList() {
   if (!inventoryItems.length) {
     inventoryEmptyEl.style.display = "block";
@@ -312,13 +368,15 @@ function renderInventoryList() {
   inventoryListEl.innerHTML = visible
     .map((it) => {
       const img = it.icon ? `<img class="inventory-card-img" src="${escapeHtml(it.icon)}" alt="" />` : "";
-      const nameHtml = `${escapeHtml(it.name)}${it.wear ? `<br><span class="cart-item-price" style="font-size:11px;color:var(--muted);font-weight:400;">${escapeHtml(it.wear)}</span>` : ""}`;
+      const nameHtml = itemNameHtml(it);
+      const topHtml = itemTopHtml(it);
 
       // Предмет у трейд-бані показуємо, але продати його не можна, поки Steam
       // його не відпустить — раніше такі просто зникали зі списку.
       if (!it.tradable) {
         return `
           <div class="inventory-card">
+            ${topHtml}
             ${img}
             <div class="inventory-card-name">${nameHtml}</div>
             <span class="lock-tag locked">🔒 ${escapeHtml(it.tradableAfter || tradeLockedLabel)}</span>
@@ -331,6 +389,7 @@ function renderInventoryList() {
       if (it.sellAccept === false) {
         return `
           <div class="inventory-card">
+            ${topHtml}
             ${img}
             <div class="inventory-card-name">${nameHtml}</div>
             <span class="inventory-card-na">${escapeHtml(unavailableLabel)}</span>
@@ -340,6 +399,7 @@ function renderInventoryList() {
       if (it.price == null) {
         return `
           <div class="inventory-card">
+            ${topHtml}
             ${img}
             <div class="inventory-card-name">${nameHtml}</div>
             <span class="inventory-card-na">${priceUnknown}</span>
@@ -352,6 +412,7 @@ function renderInventoryList() {
       return `
         <div class="inventory-card selectable${added ? " selected" : ""}" data-asset="${escapeHtml(it.assetId)}" role="button" tabindex="0">
           ${added ? `<span class="inventory-card-check">✓</span>` : ""}
+          ${topHtml}
           ${img}
           <div class="inventory-card-name">${nameHtml}</div>
           <span class="inventory-card-price">$${it.price.toFixed(2)}</span>
@@ -460,33 +521,25 @@ function removeItem(assetId) {
 
 function renderCart() {
   saveCart();
-  // Кошик видно завжди, навіть порожній: так одразу зрозуміло, куди
-  // потрапляють вибрані предмети і скільки за них дадуть.
   const sellBtn = document.getElementById("sellAutoBtn");
-  if (sellBtn) sellBtn.disabled = !cart.length;
-  if (!cart.length) {
-    cartList.innerHTML = `<p class="cart-empty">${escapeHtml(CFG.cartEmpty || "")}</p>`;
-    cartTotal.textContent = "$0.00";
-    return;
-  }
-
-  cartList.innerHTML = cart
-    .map(
-      (it) => `
-        <div class="cart-item">
-          <span class="cart-item-name">${escapeHtml(it.marketHashName)}</span>
-          <span class="cart-item-price">$${it.price.toFixed(2)}</span>
-          <button class="cart-item-remove" type="button" data-asset="${escapeHtml(it.assetId)}" title="${escapeHtml(removeLabel)}">✕</button>
-        </div>`
-    )
-    .join("");
-
-  cartList.querySelectorAll(".cart-item-remove").forEach((btn) => {
-    btn.addEventListener("click", () => removeItem(btn.getAttribute("data-asset")));
-  });
-
   const total = cart.reduce((sum, it) => sum + it.price, 0);
+
+  // Назв предметів у кошику більше немає: вони вже видно на картках, а тут
+  // потрібна тільки сума і те, як і коли людина отримає гроші. Прибрати
+  // предмет — повторним кліком по його картці.
+  cartPickedLine.textContent = (CFG.cartPicked || "").replace("{n}", cart.length);
   cartTotal.textContent = `$${total.toFixed(2)}`;
+  cartPayout.textContent = `$${total.toFixed(2)}`;
+  cartEmptyLine.textContent = cart.length ? "" : CFG.cartEmpty || "";
+  payoutBlock.style.display = cart.length ? "block" : "none";
+  if (sellBtn) sellBtn.disabled = !cart.length;
+
+  // Дата виплати: гроші приходять після холду Steam — 7 днів від обміну.
+  const unlock = new Date(Date.now() + 7 * 86400000);
+  payoutDateLine.innerHTML = `${escapeHtml(
+    (CFG.payoutDateLine || "").replace("{date}", unlock.toLocaleDateString(CFG.dateLocale || "uk-UA"))
+  )}<span class="payout-hint">${escapeHtml(CFG.payoutHint || "")}</span>`;
+
   sellStatusEl.textContent = "";
 }
 

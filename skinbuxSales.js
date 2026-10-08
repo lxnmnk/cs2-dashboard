@@ -40,13 +40,17 @@ function saveAll(sales) {
 // kind — звичайний викуп ("sell") чи сторона клієнта в обміні ("trade").
 // Від нього залежить, у який баланс ляжуть гроші (див. computeBalance) і що
 // означає "виплачено": у викупі — переказали гроші, в обміні — віддали скіни.
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind }) {
+// payoutMethod — як людина хоче отримати гроші (картка / крипта). Ми не
+// переказуємо автоматично, виплату робить власник руками, і без цього поля
+// доводилось щоразу перепитувати в Telegram.
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod }) {
   const sales = loadAll();
   sales.push({
     id,
     steamId,
     customerName,
     kind: kind === "trade" ? "trade" : "sell",
+    payoutMethod: payoutMethod || null,
     items,
     totalPrice,
     offerId,

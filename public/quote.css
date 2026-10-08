@@ -444,6 +444,30 @@ a { color: var(--gold); }
   flex-direction: column;
   gap: 6px;
 }
+/* Верхній рядок картки: якість і float — за ними впізнають конкретний
+   екземпляр, два однакові ножі відрізняються тільки цим. */
+.inventory-card-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.inventory-card-top .dot { opacity: 0.5; }
+.wear-code { font-weight: 700; letter-spacing: 0.02em; }
+.wear-FN { color: #4caf7d; }
+.wear-MW { color: #7cb342; }
+.wear-FT { color: #d7a84e; }
+.wear-WW { color: #e08a4e; }
+.wear-BS { color: #e0605a; }
+.item-phase { color: var(--gold); }
+
+/* Назва у два рядки: зброя дрібним, сам скін — основним. */
+.inventory-card-name { display: flex; flex-direction: column; gap: 1px; }
+.item-weapon { font-size: 11px; color: var(--muted); font-weight: 400; }
+.item-skin { font-size: 13px; color: var(--text); font-weight: 600; line-height: 1.25; }
+
 .inventory-card-img {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -1106,6 +1130,36 @@ a.sender-line { color: var(--gold); }
 }
 .inventory-side .filters-panel { width: 100%; }
 .cart-empty { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* Кошик без списку назв: скільки предметів, сума, куди і коли прийдуть гроші.
+   Прибрати предмет — повторним кліком по картці, тому хрестиків тут немає. */
+.cart-picked { margin: 0 0 2px; font-size: 12px; color: var(--muted); }
+.cart-amount { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+.payout-block h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 500; }
+.payout-methods { display: flex; gap: 8px; margin-bottom: 10px; }
+.payout-method {
+  flex: 1;
+  padding: 9px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.payout-method:hover { border-color: var(--gold-line); }
+.payout-method.active { border-color: var(--gold); background: var(--gold-soft); color: var(--gold); }
+.payout-date {
+  margin: 0 0 14px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  font-size: 12px;
+  color: var(--gold);
+}
+.payout-hint { display: block; margin-top: 2px; color: var(--muted); }
 
 /* Картка вибирається кліком по собі, без окремої кнопки. */
 .inventory-card.selectable { cursor: pointer; position: relative; transition: border-color .12s, transform .12s; }
