@@ -1699,10 +1699,13 @@ a.sender-line { color: var(--gold); }
 
 /* Вкладки категорій: у рядок із прокруткою, щоб на вузькому екрані вони не
    ламали сітку. */
+/* Вкладки переносяться рядками, а не прокручуються: контейнер з overflow
+   обрізав випадайку зі зброєю — вона відкривалась, але її не було видно. */
 .catalog-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
-  overflow-x: auto;
+  overflow: visible;
   padding-bottom: 10px;
   margin-bottom: 16px;
   border-bottom: 1px solid var(--border);
