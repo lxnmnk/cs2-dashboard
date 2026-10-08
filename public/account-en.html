@@ -76,10 +76,14 @@
         <h2>Your CS2 inventory</h2>
         <p class="card-hint">Price — what we're ready to pay right now for each item, most expensive first. Pulled straight from your Steam inventory, nothing to search for.</p>
 
+        <!-- Панель над сіткою: оновити, сортування і вибір усього одразу.
+             Клік по картці додає предмет у кошик — окремої кнопки на кожній
+             картці більше немає, це зайвий клік на кожному предметі. -->
         <div class="inventory-head">
-
-          <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Re-read the inventory from Steam">🔄 Refresh</button>
-
+          <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Re-read the inventory from Steam">🔄</button>
+          <select id="inventorySort" class="inventory-sort"></select>
+          <button id="selectAllBtn" class="btn-small" type="button"></button>
+          <span id="selectionSummary" class="inventory-selection"></span>
         </div>
 
         <p id="inventoryLoading" class="card-hint">Loading inventory...</p>
@@ -172,6 +176,12 @@
       levelLabel: "Level",
       registeredLabel: "Account created",
       openProfile: "Steam profile",
+      sortPriceDesc: "Most expensive",
+      sortPriceAsc: "Cheapest first",
+      sortName: "By name",
+      selectAllLabel: "Select all",
+      clearSelectionLabel: "Clear selection",
+      selectedSummary: "Selected: {n} for ${sum}",
       priceUnknown: "price unknown",
       addLabel: "Sell",
       addedLabel: "Added ✓",

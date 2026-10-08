@@ -302,7 +302,7 @@ function renderInventoryList() {
   }
   inventoryEmptyEl.style.display = "none";
 
-  const visible = filters.apply(inventoryItems);
+  const visible = [...filters.apply(inventoryItems)].sort(SORTS[sortKey].cmp);
   if (!visible.length) {
     inventoryListEl.innerHTML = `<p class="filters-empty">${escapeHtml(nothingFound)}</p>`;
     return;
@@ -345,20 +345,92 @@ function renderInventoryList() {
           </div>`;
       }
 
+      // Вибір — кліком по самій картці: кнопка на кожному предметі була
+      // зайвим кліком, а при продажу десятка предметів — десятьма.
       const added = cart.some((c) => c.assetId === it.assetId);
       return `
-        <div class="inventory-card">
+        <div class="inventory-card selectable${added ? " selected" : ""}" data-asset="${escapeHtml(it.assetId)}" role="button" tabindex="0">
+          ${added ? `<span class="inventory-card-check">✓</span>` : ""}
           ${img}
           <div class="inventory-card-name">${nameHtml}</div>
           <span class="inventory-card-price">$${it.price.toFixed(2)}</span>
-          <button class="skin-item-add" type="button" data-asset="${escapeHtml(it.assetId)}" ${added ? "disabled" : ""}>${added ? addedLabel : addLabel}</button>
         </div>`;
     })
     .join("");
 
-  inventoryListEl.querySelectorAll("[data-asset]").forEach((btn) => {
-    btn.addEventListener("click", () => addItem(btn.getAttribute("data-asset")));
+  inventoryListEl.querySelectorAll("[data-asset]").forEach((card) => {
+    const toggle = () => toggleItem(card.getAttribute("data-asset"));
+    card.addEventListener("click", toggle);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
   });
+  renderSelectionControls(visible);
+}
+
+// ---- Панель над сіткою: сортування, вибір усього, підсумок вибраного ----
+const sortEl = document.getElementById("inventorySort");
+const selectAllBtn = document.getElementById("selectAllBtn");
+const selectionSummaryEl = document.getElementById("selectionSummary");
+
+const SORTS = {
+  priceDesc: { label: CFG.sortPriceDesc, cmp: (a, b) => (b.price ?? -1) - (a.price ?? -1) },
+  priceAsc: { label: CFG.sortPriceAsc, cmp: (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity) },
+  name: { label: CFG.sortName, cmp: (a, b) => a.marketHashName.localeCompare(b.marketHashName) },
+};
+let sortKey = "priceDesc";
+
+if (sortEl) {
+  sortEl.innerHTML = Object.entries(SORTS)
+    .map(([key, s]) => `<option value="${key}">${escapeHtml(s.label)}</option>`)
+    .join("");
+  sortEl.addEventListener("change", () => {
+    sortKey = sortEl.value;
+    renderInventoryList();
+  });
+}
+
+/** Предмет можна покласти в кошик: не в трейд-бані, приймається, з ціною. */
+function isSellable(it) {
+  return it.tradable && it.sellAccept !== false && it.price != null;
+}
+
+function renderSelectionControls(visible) {
+  if (!selectAllBtn) return;
+  const sellable = visible.filter(isSellable);
+  const allPicked = sellable.length > 0 && sellable.every((it) => cart.some((c) => c.assetId === it.assetId));
+
+  selectAllBtn.textContent = allPicked ? CFG.clearSelectionLabel : CFG.selectAllLabel;
+  selectAllBtn.disabled = !sellable.length;
+  selectAllBtn.onclick = () => {
+    if (allPicked) {
+      // Знімаємо вибір лише з того, що зараз видно: відфільтроване з кошика
+      // не прибираємо, інакше людина б губила вибір, змінивши фільтр.
+      const ids = new Set(sellable.map((it) => it.assetId));
+      cart = cart.filter((c) => !ids.has(c.assetId));
+    } else {
+      for (const it of sellable) {
+        if (!cart.some((c) => c.assetId === it.assetId)) {
+          cart.push({ assetId: it.assetId, marketHashName: it.marketHashName, price: it.price });
+        }
+      }
+    }
+    renderInventoryList();
+    renderCart();
+  };
+
+  const sum = cart.reduce((acc, it) => acc + it.price, 0);
+  selectionSummaryEl.textContent = cart.length
+    ? (CFG.selectedSummary || "").replace("{n}", cart.length).replace("{sum}", sum.toFixed(2))
+    : "";
+}
+
+function toggleItem(assetId) {
+  if (cart.some((c) => c.assetId === assetId)) removeItem(assetId);
+  else addItem(assetId);
 }
 
 // Кожен фізичний предмет (assetId) можна додати в кошик лише один раз —

@@ -76,10 +76,14 @@
         <h2>Твой инвентарь CS2</h2>
         <p class="card-hint">Цена — сколько мы готовы заплатить прямо сейчас за каждый предмет, от самого дорогого. Тянем прямо из твоего Steam-инвентаря, ничего искать не нужно.</p>
 
+        <!-- Панель над сіткою: оновити, сортування і вибір усього одразу.
+             Клік по картці додає предмет у кошик — окремої кнопки на кожній
+             картці більше немає, це зайвий клік на кожному предметі. -->
         <div class="inventory-head">
-
-          <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Перечитать инвентарь из Steam">🔄 Обновить</button>
-
+          <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Перечитать инвентарь из Steam">🔄</button>
+          <select id="inventorySort" class="inventory-sort"></select>
+          <button id="selectAllBtn" class="btn-small" type="button"></button>
+          <span id="selectionSummary" class="inventory-selection"></span>
         </div>
 
         <p id="inventoryLoading" class="card-hint">Загружаю инвентарь...</p>
@@ -172,6 +176,12 @@
       levelLabel: "Уровень",
       registeredLabel: "Аккаунт создан",
       openProfile: "Профиль в Steam",
+      sortPriceDesc: "Сначала дорогие",
+      sortPriceAsc: "Сначала дешёвые",
+      sortName: "По названию",
+      selectAllLabel: "Выбрать все",
+      clearSelectionLabel: "Снять выбор",
+      selectedSummary: "Выбрано: {n} на ${sum}",
       priceUnknown: "цена неизвестна",
       addLabel: "Продать",
       addedLabel: "Добавлено ✓",

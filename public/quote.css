@@ -1067,10 +1067,42 @@ a.sender-line { color: var(--gold); }
 .deal-offer-link { display: inline-block; margin-top: 8px; font-size: 13px; }
 
 /* Кнопка "Оновити інвентар" — праворуч над сіткою предметів */
+/* Панель над сіткою інвентаря: оновити, сортування, вибір усього і підсумок. */
 .inventory-head {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 10px;
+}
+.inventory-sort {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.inventory-selection { margin-left: auto; font-size: 13px; color: var(--gold); }
+
+/* Картка вибирається кліком по собі, без окремої кнопки. */
+.inventory-card.selectable { cursor: pointer; position: relative; transition: border-color .12s, transform .12s; }
+.inventory-card.selectable:hover { border-color: var(--gold-line); transform: translateY(-1px); }
+.inventory-card.selected { border-color: var(--gold); background: var(--gold-soft); }
+.inventory-card-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #1a1203;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* ---- Вікно продажу: предмет отримано / обмін скасовано ---- */
