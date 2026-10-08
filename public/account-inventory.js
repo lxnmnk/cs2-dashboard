@@ -7,8 +7,6 @@
 // Локалізація — через window.ACCOUNT_CONFIG (кожна мовна версія сторінки
 // задає свій текст перед підключенням цього файлу, як у quote-common.js).
 const {
-  saveErrorPrefix,
-  savedLabel,
   needTradeUrlFirst,
   pricesLoading,
   steamBusy,
@@ -63,9 +61,9 @@ const cartTotal = document.getElementById("cartTotal");
 const sellAutoBtn = document.getElementById("sellAutoBtn");
 const sellStatusEl = document.getElementById("sellStatus");
 const cartClearBtn = document.getElementById("cartClearBtn");
-const tradeUrlInput = document.getElementById("tradeUrlInput");
-const tradeUrlSaveBtn = document.getElementById("tradeUrlSaveBtn");
-const tradeUrlStatusEl = document.getElementById("tradeUrlStatus");
+// Посилання на обмін редагується у профілі — тут лише нагадування з
+// посиланням туди, і лише коли його ще немає.
+const tradeUrlMissingEl = document.getElementById("tradeUrlMissing");
 const sellResultModal = document.getElementById("sellResultModal");
 const sellResultBody = document.getElementById("sellResultBody");
 
@@ -134,39 +132,11 @@ cartClearBtn?.addEventListener("click", () => {
   renderCart();
 });
 
-const tradeUrlSaveLabel = tradeUrlSaveBtn?.textContent;
-
-tradeUrlSaveBtn?.addEventListener("click", async () => {
-  tradeUrlSaveBtn.disabled = true;
-  tradeUrlStatusEl.textContent = "";
-  tradeUrlStatusEl.classList.remove("field-error");
-
-  const res = await fetch("/api/account/trade-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ tradeUrl: tradeUrlInput.value.trim() }),
-  });
-  const data = await res.json();
-
-  if (!data.ok) {
-    tradeUrlSaveBtn.disabled = false;
-    tradeUrlStatusEl.textContent = `${saveErrorPrefix}${data.error}`;
-    tradeUrlStatusEl.classList.add("field-error");
-    return;
-  }
-
-  window.ACCOUNT_CUSTOMER = data.customer;
-  tradeUrlSaveBtn.textContent = savedLabel;
-  setTimeout(() => {
-    tradeUrlSaveBtn.textContent = tradeUrlSaveLabel;
-    tradeUrlSaveBtn.disabled = false;
-  }, 1500);
-});
-
 sellAutoBtn?.addEventListener("click", async () => {
   if (!cart.length) return;
   if (!window.ACCOUNT_CUSTOMER?.tradeUrl) {
     sellStatusEl.textContent = needTradeUrlFirst;
+    if (tradeUrlMissingEl) tradeUrlMissingEl.style.display = "block";
     return;
   }
 
@@ -253,7 +223,11 @@ const sellOfferModal = createSellOfferModal({
     const date = unlockAt.toLocaleDateString(CFG.dateLocale, { day: "numeric", month: "long" });
     return fillSaleText(CFG.receivedHoldText, { amount, date, days });
   },
-  receivedButton: { label: CFG.myDealsBtn, onClick: () => document.getElementById("accountPillBtn")?.click() },
+  // Вікна "Мої угоди" більше немає — угоди живуть на сторінці профілю.
+  receivedButton: {
+    label: CFG.myDealsBtn,
+    onClick: () => (window.location.href = document.getElementById("accountPillBtn")?.getAttribute("href") || "/profile"),
+  },
   // Предмет пішов, гроші лягли в холд — шапка й інвентар уже застаріли.
   onFinished: () => {
     window.refreshNavBalance?.();

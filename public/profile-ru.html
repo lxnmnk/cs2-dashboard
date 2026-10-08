@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Профиль — gaben.market</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+  <div id="sellResultModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="sellResultTitle">Обмен отправлен</h3>
+        <button id="sellResultClose" class="modal-close" type="button">✕</button>
+      </div>
+      <div id="sellResultBody"></div>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <a class="site-brand" href="/ru">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/ru/buy"><span class="nav-icon">🛒</span> Купить скины</a>
+      <a href="/ru/account"><span class="nav-icon">💰</span> Продать скины</a>
+      <a href="/ru/my-skins"><span class="nav-icon">📦</span> Наши скины</a>
+      <a href="/ru/trade"><span class="nav-icon">🔄</span> Обмен</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/profile">UA</a>
+        <a href="/ru/profile" class="active">RU</a>
+        <a href="/en/profile">EN</a>
+      </div>
+      <div id="navBalance"></div>
+      <div id="accountPill" class="account-pill" style="display:none;">
+        <a id="accountPillBtn" class="account-pill-avatar" href="/ru/profile" title="Мои сделки">
+          <img id="accountPillAvatar" src="" alt="" />
+          <span id="accountPillName"></span>
+        </a>
+        <button id="logoutBtn" class="account-pill-logout" type="button" title="Выйти">⏻</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Твой <span class="accent">профиль</span></h1>
+  </section>
+
+  <section id="profileLoggedOut" class="card" style="display:none;">
+    <p class="card-hint">Войди через Steam, чтобы увидеть профиль.</p>
+    <a class="btn-gold" href="/auth/steam?next=/profile">Войти через Steam</a>
+  </section>
+
+  <!-- Профіль однією сторінкою замість кружка в шапці: хто ти, куди слати
+       обмін, твої угоди і баланс — усе в одному місці. -->
+  <section id="profileCard" class="card" style="display:none;">
+    <div class="profile-head">
+      <img id="profileAvatar" class="profile-avatar" src="" alt="" />
+      <div>
+        <h2 id="profileName"></h2>
+        <p class="card-hint">
+          SteamID: <span id="profileSteamId"></span> ·
+          <a id="profileSteamLink" href="#" target="_blank">Профиль в Steam</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="profile-tabs">
+      <button class="profile-tab active" type="button" data-tab="info">Профиль</button>
+      <button class="profile-tab" type="button" data-tab="deals">Мои сделки</button>
+      <button class="profile-tab" type="button" data-tab="balance">Баланс</button>
+    </div>
+
+    <div class="profile-pane" data-pane="info">
+      <div class="profile-stats">
+        <div class="profile-stat"><span class="profile-stat-value" id="statDeals">0</span><span class="profile-stat-label">Сделок</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="statSkins">0</span><span class="profile-stat-label">Продано скинов</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="statEarned">$0.00</span><span class="profile-stat-label">Заработано</span></div>
+      </div>
+
+      <div class="trade-url-section">
+        <label for="profileTradeUrl">Ссылка на обмен Steam
+          <span class="section-hint">Чтобы бот мог прислать тебе обмен —
+            <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">найти тут</a>
+          </span>
+        </label>
+        <div class="trade-url-row">
+          <input id="profileTradeUrl" type="text" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&amp;token=..." />
+          <button id="profileTradeUrlSave" class="btn-small" type="button">Сохранить</button>
+        </div>
+        <p id="profileTradeUrlStatus" class="card-hint"></p>
+      </div>
+    </div>
+
+    <div class="profile-pane" data-pane="deals" style="display:none;">
+      <p id="profileDealsLoading" class="card-hint">Загружаю...</p>
+      <p id="profileDealsEmpty" class="card-hint" style="display:none;">Пока сделок нет — продай первый скин в кабинете.</p>
+      <div id="profileDealsList" class="deals-list"></div>
+    </div>
+
+    <div class="profile-pane" data-pane="balance" style="display:none;">
+      <div class="profile-stats">
+        <div class="profile-stat"><span class="profile-stat-value" id="balAvailable">$0.00</span><span class="profile-stat-label">Доступно к выплате</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="balHold">$0.00</span><span class="profile-stat-label">В холде</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="balTrade">$0.00</span><span class="profile-stat-label">Trade-баланс</span></div>
+      </div>
+      <p class="card-hint">Выплата — в Telegram, кнопка появится в сделке, когда пройдёт холд Steam.</p>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Связь</h4>
+        <p>Пиши напрямую в Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Отвечаю лично.</p>
+        <p>Отзывы и гаранты — в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Разделы</h4>
+        <p>
+          <a href="/ru/buy">Купить скины</a> · <a href="/ru/account">Продать скины</a> ·
+          <a href="/ru/my-skins">Наши скины</a> · <a href="/ru/sell">Проверить цену</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      Сайт не связан с Valve Corporation, Steam и не является их официальным партнёром.
+      Counter-Strike 2, названия предметов, изображения и товарные знаки принадлежат их владельцам.
+      Все операции с предметами происходят между пользователями напрямую.
+      <br />© 2026 gaben.market. Все права защищены.
+    </p>
+  </footer>
+
+  <script>
+    window.ACCOUNT_CONFIG = {
+      filtersTitle: "Фильтры",
+      resetLabel: "Сбросить",
+      searchPlaceholder: "Поиск по названию...",
+      priceTitle: "Цена",
+      fromLabel: "От",
+      toLabel: "До",
+      wearTitle: "Качество",
+      specialTitle: "Особые",
+      normalLabel: "Обычные",
+      statusTitle: "Наличие",
+      filtersReadyLabel: "Готово к выдаче",
+      filtersLockedLabel: "В трейд-бане",
+      nothingFound: "По этим фильтрам ничего не найдено.",
+      tradeLockedLabel: "в трейд-бане",
+      unavailableLabel: "не принимаем",
+      dateLocale: "ru-RU",
+      saveErrorPrefix: "Ошибка: ",
+      savedLabel: "Сохранено ✓",
+      needTradeUrlFirst: "Сначала сохрани ссылку на обмен Steam выше.",
+      pricesLoading: "Обновляю цены, ещё секунду...",
+      steamBusy: "Steam сейчас ограничивает запросы — пробую ещё раз, подожди немного.",
+      sellFailedPrefix: "Не удалось: ",
+      acceptOnlyVia: "Прими предложение только по этой ссылке:",
+      openOfferBtn: "Открыть обмен в Steam",
+      offerLinkPending: "Ссылка на обмен появится через несколько секунд — обнови страницу и посмотри в «Мои сделки».",
+      scamWarning: "Любой другой обмен с этим предметом — мошенничество. Не принимай предложения, пришедшие не по этой ссылке, даже если предмет и сумма совпадают.",
+      senderTitle: "Кто отправляет обмен",
+      steamIdLabel: "SteamID",
+      levelLabel: "Уровень",
+      registeredLabel: "Аккаунт создан",
+      openProfile: "Профиль в Steam",
+      payoutCardSub: "mono · privat24 · abank",
+      payoutCryptoSub: "USDT · USDC · BTC",
+      itemsRowLabel: "Предметов",
+      feeRowLabel: "Комиссия",
+      feeRowValue: "0% — цена уже конечная",
+      botNote: "Обмен отправляет бот сразу после нажатия — подтверждаешь в Steam",
+      helpNote: "Вопросы — {tg}",
+      cartPicked: "{n} предмет(ов) на сумму",
+      payoutMethodTitle: "Как получить деньги",
+      payoutCard: "Карта UA",
+      payoutCrypto: "Крипта",
+      payoutDateLine: "Деньги будут: после {date}",
+      payoutHint: "Пока идёт холд Steam — 7 дней после обмена",
+      toBePaidLabel: "К выплате",
+      cartEmpty: "Выбери предметы слева — они появятся здесь",
+      sortPriceDesc: "Сначала дорогие",
+      sortPriceAsc: "Сначала дешёвые",
+      sortName: "По названию",
+      selectAllLabel: "Выбрать все",
+      clearSelectionLabel: "Снять выбор",
+      selectedSummary: "Выбрано: {n} на ${sum}",
+      priceUnknown: "цена неизвестна",
+      addLabel: "Продать",
+      addedLabel: "Добавлено ✓",
+      removeLabel: "Убрать",
+      statusLabels: {
+        created: "Ожидает принятия обмена в Steam",
+        pending: "Ожидает принятия обмена в Steam",
+        hold: "Средства в холде",
+        cancelled: "Отменено",
+        reverted: "Отменено (возврат)",
+      },
+      holdUntilPrefix: "Средства в холде до ",
+      holdLabel: "Средства в холде",
+      paidLabel: "Выплачено ✓",
+      unlockedStatus: "✓ Средства разблокированы, можно вывести",
+      telegramWithdrawBtn: "Написать в Telegram для вывода",
+      telegramMessageTemplate: "Привет! Хочу вывести средства за сделку #{id} на сумму ${amount}.",
+      dealLineTemplate: "Сделка #{id} от {date}",
+      waitingForAccept: "⏳ Ждём, пока ты примешь обмен в Steam — это окно обновится само.",
+      receivedTitle: "Предмет получен",
+      receivedLead: "Готово, мы получили твой предмет!",
+      receivedHoldText: "{amount} поступят на баланс {date} — через {days} дней, пока длится холд Steam. До этого они видны в шапке как средства в холде.",
+      receivedAvailableText: "{amount} уже на твоём балансе — можно выводить.",
+      cancelledTitle: "Обмен отменён",
+      cancelledText: "Обмен не состоялся — предмет остался у тебя. Можешь попробовать продать ещё раз.",
+      tradeUrl: "/ru/trade",
+      tradeDealStatus: "🔄 Деньги на trade-балансе — можно забирать наши скины",
+      tradeDealBtn: "К обмену",
+      tradeDealDone: "Обмен завершён ✓",
+      myDealsBtn: "Мои сделки",
+      priceChanged: "Цена только что изменилась — мы обновили корзину по новым ценам. Проверь сумму и нажми «Продать автоматически» ещё раз.",
+    };
+
+    // account-inventory.js подключён ниже: если ответ придёт раньше, чем
+    // браузер его выполнит, прямой вызов loadInventory() упадёт.
+    function whenScriptsReady(fn) {
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, { once: true });
+      else fn();
+    }
+
+    fetch("/api/account/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.customer) {
+          window.ACCOUNT_CUSTOMER = data.customer;
+          document.getElementById("accountPill").style.display = "flex";
+          document.getElementById("inventoryCard").style.display = "block";
+          document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
+          document.getElementById("accountPillName").textContent = data.customer.displayName;
+          document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
+          // Саме стрілка: ім'я loadInventory має шукатись, коли скрипт уже
+          // виконано, а не в момент відповіді — інакше ReferenceError і порожній інвентар.
+          whenScriptsReady(() => loadInventory());
+        } else {
+          document.getElementById("loggedOutCard").style.display = "block";
+        }
+      });
+
+    document.getElementById("logoutBtn")?.addEventListener("click", () => {
+      window.location.href = "/auth/logout?lang=ru";
+    });
+  </script>
+  <script>
+    window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате", holdTitle: "В холде" };
+  </script>
+  <script src="/nav-profile.js"></script>
+  <script src="/item-aliases.js"></script>
+  <script src="/item-filters.js"></script>
+  <script src="/sell-offer-modal.js"></script>
+  <script src="/deal-card.js"></script>
+  <script src="/profile.js"></script>
+</body>
+</html>

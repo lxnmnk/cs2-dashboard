@@ -41,7 +41,9 @@ function refreshNavBalance() {
     .then((data) => {
       if (navProfileEl) {
         navProfileEl.innerHTML = data.customer
-          ? `<a class="nav-profile-user" href="${escapeHtml(NAV_T.accountUrl)}">
+          // Аватар веде у профіль: там і угоди, і баланс, і посилання на
+          // обмін. Адреса — з accountUrl тієї ж мовної версії.
+          ? `<a class="nav-profile-user" href="${escapeHtml((NAV_T.accountUrl || "/account").replace("/account", "/profile"))}">
                <img src="${escapeHtml(data.customer.avatar || "")}" alt="" />
                <span>${escapeHtml(data.customer.displayName)}</span>
              </a>`

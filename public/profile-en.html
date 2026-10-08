@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Profile — gaben.market</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+  <div id="sellResultModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3 id="sellResultTitle">Trade offer sent</h3>
+        <button id="sellResultClose" class="modal-close" type="button">✕</button>
+      </div>
+      <div id="sellResultBody"></div>
+    </div>
+  </div>
+
+  <header class="site-header">
+    <a class="site-brand" href="/en">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/en/buy"><span class="nav-icon">🛒</span> Buy skins</a>
+      <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
+      <a href="/en/my-skins"><span class="nav-icon">📦</span> Our skins</a>
+      <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div class="lang-switch">
+        <a href="/profile">UA</a>
+        <a href="/ru/profile">RU</a>
+        <a href="/en/profile" class="active">EN</a>
+      </div>
+      <div id="navBalance"></div>
+      <div id="accountPill" class="account-pill" style="display:none;">
+        <a id="accountPillBtn" class="account-pill-avatar" href="/en/profile" title="My deals">
+          <img id="accountPillAvatar" src="" alt="" />
+          <span id="accountPillName"></span>
+        </a>
+        <button id="logoutBtn" class="account-pill-logout" type="button" title="Log out">⏻</button>
+      </div>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow">CS2 SKINS TRADE</span>
+    <h1>Your <span class="accent">profile</span></h1>
+  </section>
+
+  <section id="profileLoggedOut" class="card" style="display:none;">
+    <p class="card-hint">Sign in through Steam to see your profile.</p>
+    <a class="btn-gold" href="/auth/steam?next=/profile">Sign in through Steam</a>
+  </section>
+
+  <!-- Профіль однією сторінкою замість кружка в шапці: хто ти, куди слати
+       обмін, твої угоди і баланс — усе в одному місці. -->
+  <section id="profileCard" class="card" style="display:none;">
+    <div class="profile-head">
+      <img id="profileAvatar" class="profile-avatar" src="" alt="" />
+      <div>
+        <h2 id="profileName"></h2>
+        <p class="card-hint">
+          SteamID: <span id="profileSteamId"></span> ·
+          <a id="profileSteamLink" href="#" target="_blank">Steam profile</a>
+        </p>
+      </div>
+    </div>
+
+    <div class="profile-tabs">
+      <button class="profile-tab active" type="button" data-tab="info">Profile</button>
+      <button class="profile-tab" type="button" data-tab="deals">My deals</button>
+      <button class="profile-tab" type="button" data-tab="balance">Balance</button>
+    </div>
+
+    <div class="profile-pane" data-pane="info">
+      <div class="profile-stats">
+        <div class="profile-stat"><span class="profile-stat-value" id="statDeals">0</span><span class="profile-stat-label">Deals</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="statSkins">0</span><span class="profile-stat-label">Skins sold</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="statEarned">$0.00</span><span class="profile-stat-label">Earned</span></div>
+      </div>
+
+      <div class="trade-url-section">
+        <label for="profileTradeUrl">Steam trade URL
+          <span class="section-hint">So the bot can send you the trade —
+            <a href="https://steamcommunity.com/my/tradeoffers/privacy" target="_blank">find it here</a>
+          </span>
+        </label>
+        <div class="trade-url-row">
+          <input id="profileTradeUrl" type="text" placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&amp;token=..." />
+          <button id="profileTradeUrlSave" class="btn-small" type="button">Save</button>
+        </div>
+        <p id="profileTradeUrlStatus" class="card-hint"></p>
+      </div>
+    </div>
+
+    <div class="profile-pane" data-pane="deals" style="display:none;">
+      <p id="profileDealsLoading" class="card-hint">Loading...</p>
+      <p id="profileDealsEmpty" class="card-hint" style="display:none;">No deals yet — sell your first skin in the account.</p>
+      <div id="profileDealsList" class="deals-list"></div>
+    </div>
+
+    <div class="profile-pane" data-pane="balance" style="display:none;">
+      <div class="profile-stats">
+        <div class="profile-stat"><span class="profile-stat-value" id="balAvailable">$0.00</span><span class="profile-stat-label">Available for payout</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="balHold">$0.00</span><span class="profile-stat-label">On hold</span></div>
+        <div class="profile-stat"><span class="profile-stat-value" id="balTrade">$0.00</span><span class="profile-stat-label">Trade balance</span></div>
+      </div>
+      <p class="card-hint">Payouts go through Telegram — the button shows up on a deal once the Steam hold is over.</p>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Contact</h4>
+        <p>Message me directly on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I reply personally.</p>
+        <p>Reviews and guarantors — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Sections</h4>
+        <p>
+          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> ·
+          <a href="/en/my-skins">Our skins</a> · <a href="/en/sell">Check a price</a>
+        </p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      This site is not affiliated with Valve Corporation or Steam and is not an official partner.
+      Counter-Strike 2, item names, images and trademarks belong to their respective owners.
+      All item transfers happen directly between users.
+      <br />© 2026 gaben.market. All rights reserved.
+    </p>
+  </footer>
+
+  <script>
+    window.ACCOUNT_CONFIG = {
+      filtersTitle: "Filters",
+      resetLabel: "Reset",
+      searchPlaceholder: "Search by name...",
+      priceTitle: "Price",
+      fromLabel: "From",
+      toLabel: "To",
+      wearTitle: "Wear",
+      specialTitle: "Special",
+      normalLabel: "Normal",
+      statusTitle: "Availability",
+      filtersReadyLabel: "Ready to deliver",
+      filtersLockedLabel: "Trade-locked",
+      nothingFound: "Nothing matches these filters.",
+      tradeLockedLabel: "trade-locked",
+      unavailableLabel: "not accepted",
+      dateLocale: "en-US",
+      saveErrorPrefix: "Error: ",
+      savedLabel: "Saved ✓",
+      needTradeUrlFirst: "Save your Steam trade URL above first.",
+      pricesLoading: "Refreshing prices, one moment...",
+      steamBusy: "Steam is rate-limiting us right now — retrying, hang on a moment.",
+      sellFailedPrefix: "Failed: ",
+      acceptOnlyVia: "Accept the offer only through this link:",
+      openOfferBtn: "Open the trade in Steam",
+      offerLinkPending: "The trade link appears in a few seconds — refresh the page and check \"My deals\".",
+      scamWarning: "Any other trade with this item is a scam. Don't accept offers that didn't come through this link, even if the item and the amount match.",
+      senderTitle: "Who sends the trade",
+      steamIdLabel: "SteamID",
+      levelLabel: "Level",
+      registeredLabel: "Account created",
+      openProfile: "Steam profile",
+      payoutCardSub: "mono · privat24 · abank",
+      payoutCryptoSub: "USDT · USDC · BTC",
+      itemsRowLabel: "Items",
+      feeRowLabel: "Fee",
+      feeRowValue: "0% — the price is final",
+      botNote: "The bot sends the trade right away — you accept it in Steam",
+      helpNote: "Questions — {tg}",
+      cartPicked: "{n} item(s) for the amount",
+      payoutMethodTitle: "How to get paid",
+      payoutCard: "Card (UA)",
+      payoutCrypto: "Crypto",
+      payoutDateLine: "Payment date: after {date}",
+      payoutHint: "While the Steam hold lasts — 7 days after the trade",
+      toBePaidLabel: "To be paid",
+      cartEmpty: "Pick skins on the left — they show up here",
+      sortPriceDesc: "Most expensive",
+      sortPriceAsc: "Cheapest first",
+      sortName: "By name",
+      selectAllLabel: "Select all",
+      clearSelectionLabel: "Clear selection",
+      selectedSummary: "Selected: {n} for ${sum}",
+      priceUnknown: "price unknown",
+      addLabel: "Sell",
+      addedLabel: "Added ✓",
+      removeLabel: "Remove",
+      statusLabels: {
+        created: "Waiting for you to accept the trade in Steam",
+        pending: "Waiting for you to accept the trade in Steam",
+        hold: "Funds on hold",
+        cancelled: "Cancelled",
+        reverted: "Cancelled (reverted)",
+      },
+      holdUntilPrefix: "Funds on hold until ",
+      holdLabel: "Funds on hold",
+      paidLabel: "Paid out ✓",
+      unlockedStatus: "✓ Funds unlocked, ready to withdraw",
+      telegramWithdrawBtn: "Message Telegram to withdraw",
+      telegramMessageTemplate: "Hi! I want to withdraw funds for deal #{id}, amount ${amount}.",
+      dealLineTemplate: "Deal #{id} from {date}",
+      waitingForAccept: "⏳ Waiting for you to accept the trade in Steam — this window updates by itself.",
+      receivedTitle: "Item received",
+      receivedLead: "Done — we've received your item!",
+      receivedHoldText: "{amount} will land in your balance on {date} — in {days} days, once the Steam trade hold ends. Until then it shows in the header as on hold.",
+      receivedAvailableText: "{amount} is already in your balance — ready to withdraw.",
+      cancelledTitle: "Trade cancelled",
+      cancelledText: "The trade didn't go through — the item is still yours. You can try selling it again.",
+      tradeUrl: "/en/trade",
+      tradeDealStatus: "🔄 Money is on your trade balance — take our skins",
+      tradeDealBtn: "Go to trade",
+      tradeDealDone: "Trade completed ✓",
+      myDealsBtn: "My deals",
+      priceChanged: "The price just changed — we've updated your cart to the new prices. Check the total and press \"Sell automatically\" again.",
+    };
+
+    // account-inventory.js подключён ниже: если ответ придёт раньше, чем
+    // браузер его выполнит, прямой вызов loadInventory() упадёт.
+    function whenScriptsReady(fn) {
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", fn, { once: true });
+      else fn();
+    }
+
+    fetch("/api/account/me")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.customer) {
+          window.ACCOUNT_CUSTOMER = data.customer;
+          document.getElementById("accountPill").style.display = "flex";
+          document.getElementById("inventoryCard").style.display = "block";
+          document.getElementById("accountPillAvatar").src = data.customer.avatar || "";
+          document.getElementById("accountPillName").textContent = data.customer.displayName;
+          document.getElementById("tradeUrlInput").value = data.customer.tradeUrl || "";
+          // Саме стрілка: ім'я loadInventory має шукатись, коли скрипт уже
+          // виконано, а не в момент відповіді — інакше ReferenceError і порожній інвентар.
+          whenScriptsReady(() => loadInventory());
+        } else {
+          document.getElementById("loggedOutCard").style.display = "block";
+        }
+      });
+
+    document.getElementById("logoutBtn")?.addEventListener("click", () => {
+      window.location.href = "/auth/logout?lang=en";
+    });
+  </script>
+  <script>
+    window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw", holdTitle: "On hold" };
+  </script>
+  <script src="/nav-profile.js"></script>
+  <script src="/item-aliases.js"></script>
+  <script src="/item-filters.js"></script>
+  <script src="/sell-offer-modal.js"></script>
+  <script src="/deal-card.js"></script>
+  <script src="/profile.js"></script>
+</body>
+</html>

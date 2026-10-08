@@ -212,6 +212,11 @@ const PUBLIC_PATHS = new Set([
   "/account",
   "/ru/account",
   "/en/account",
+  "/profile",
+  "/ru/profile",
+  "/en/profile",
+  "/profile.js",
+  "/deal-card.js",
   "/auth/steam",
   "/auth/steam/return",
   "/auth/logout",
@@ -385,6 +390,19 @@ for (const [oldPath, newPath] of Object.entries(OLD_PUBLIC_REDIRECTS)) {
 // ---- Личный кабинет клиента (вход через Steam, без паролей) ----
 // Отдельная сессия от внутреннего логина (req.session.customer, не
 // req.session.username) — клиент и владелец сайта не пересекаются.
+// Профіль клієнта: хто ти, посилання на обмін, твої угоди і баланс. Окрема
+// сторінка замість кружка в шапці — туди ж переїхало посилання на обмін зі
+// сторінки продажу.
+app.get("/profile", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "profile.html"));
+});
+app.get("/ru/profile", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "profile-ru.html"));
+});
+app.get("/en/profile", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "profile-en.html"));
+});
+
 app.get("/account", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "account.html"));
 });
