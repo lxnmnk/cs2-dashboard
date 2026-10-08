@@ -2163,7 +2163,86 @@ fetch("/api/me")
     loadOverrides();
     loadClientSales();
     loadPricingSettings();
+    loadPromoCodes();
   });
+
+// ---- Партнёры и промокоды (только владелец) ----
+// Одно слово работает двумя способами: gaben.market/sicarios как ссылка и
+// SICARIOS как промокод в корзине. Клиенту оно даёт бонус к выплате, партнёру
+// — долю нашей маржи с приведённых им людей.
+async function loadPromoCodes() {
+  const body = document.getElementById("promoBody");
+  if (!body) return;
+
+  let data;
+  try {
+    data = await (await fetch("/api/promo-codes")).json();
+  } catch {
+    data = { ok: false };
+  }
+  if (!data.ok) return;
+
+  if (!data.codes.length) {
+    body.innerHTML = '<tr><td colspan="9" class="empty-row">No partners yet — add a code above and give out the link.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = data.codes
+    .map((c) => {
+      const link = `${location.origin}/${c.code}`;
+      return `<tr${c.active ? "" : ' class="debt-repaid"'}>
+        <td><b>${escapeHtml(c.code.toUpperCase())}</b>${c.name ? `<br><span class="na">${escapeHtml(c.name)}</span>` : ""}</td>
+        <td><a href="${escapeHtml(link)}" target="_blank">/${escapeHtml(c.code)}</a> · +${c.bonusPercent}% client</td>
+        <td>${c.clicks || 0}</td>
+        <td>${c.customers}</td>
+        <td>${c.deals}</td>
+        <td>${fmtMoney(c.volume)}</td>
+        <td class="profit">${fmtMoney(c.margin)}</td>
+        <td>${fmtMoney(c.partnerDue)} <span class="na">(${c.partnerPercent}%)</span></td>
+        <td>
+          <button class="btn-small btn-secondary" data-action="promo-edit" data-code="${escapeHtml(c.code)}">Edit</button>
+          <button class="btn-small btn-danger" data-action="promo-delete" data-code="${escapeHtml(c.code)}">Delete</button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  body.querySelectorAll("[data-action='promo-edit']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const c = data.codes.find((x) => x.code === btn.dataset.code);
+      document.getElementById("promoCodeInput").value = c.code;
+      document.getElementById("promoNameInput").value = c.name || "";
+      document.getElementById("promoBonusInput").value = c.bonusPercent;
+      document.getElementById("promoPartnerInput").value = c.partnerPercent;
+    });
+  });
+  body.querySelectorAll("[data-action='promo-delete']").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm(`Delete code ${btn.dataset.code.toUpperCase()}? Deals already made keep their record.`)) return;
+      await fetch(`/api/promo-codes/${encodeURIComponent(btn.dataset.code)}`, { method: "DELETE" });
+      loadPromoCodes();
+    });
+  });
+}
+
+document.getElementById("promoSaveBtn")?.addEventListener("click", async () => {
+  const status = document.getElementById("promoSaveStatus");
+  const res = await fetch("/api/promo-codes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      code: document.getElementById("promoCodeInput").value.trim(),
+      name: document.getElementById("promoNameInput").value.trim(),
+      bonusPercent: Number(document.getElementById("promoBonusInput").value) || 0,
+      partnerPercent: Number(document.getElementById("promoPartnerInput").value) || 0,
+    }),
+  });
+  const data = await res.json();
+  status.textContent = data.ok ? "saved" : data.error;
+  if (!data.ok) return;
+  setTimeout(() => (status.textContent = ""), 2000);
+  loadPromoCodes();
+});
 
 // ---- Проценты (только владелец) ----
 // Покупка: youpin + %; продажа: Skinbux − %; у трейда свои проценты на обе

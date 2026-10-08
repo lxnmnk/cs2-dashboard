@@ -89,6 +89,14 @@
         <p id="cartPickedLine" class="cart-picked"></p>
         <div id="cartTotal" class="cart-amount">$0.00</div>
 
+        <!-- Промокод: хто прийшов за партнерським посиланням, уже має його в
+             сесії, хто почув на стрімі — вводить тут. -->
+        <div class="promo-row">
+          <input id="promoInput" type="text" maxlength="20" placeholder="Промокод" />
+          <button id="promoApplyBtn" class="btn-small" type="button">Применить</button>
+        </div>
+        <p id="promoStatus" class="promo-status"></p>
+
         <div id="payoutBlock" class="payout-block">
           <h4>Как получить деньги</h4>
           <div class="payout-methods">
@@ -184,6 +192,10 @@
       feeRowValue: "0% — цена уже конечная",
       botNote: "Обмен отправляет бот сразу после нажатия — подтверждаешь в Steam",
       helpNote: "Вопросы — {tg}",
+      promoPlaceholder: "Промокод",
+      promoApply: "Применить",
+      promoApplied: "Код {code} — ты получаешь на {n}% больше",
+      promoNotFound: "Такого кода нет",
       cartPicked: "{n} предмет(ов) на сумму",
       payoutMethodTitle: "Как получить деньги",
       payoutCard: "Карта UA",

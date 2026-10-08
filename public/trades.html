@@ -214,6 +214,36 @@
       </table>
     </div>
 
+    <!-- Партнери: одне посилання виду gaben.market/sicarios і той самий код
+         руками в кошику. Тут видно, що з цього вийшло. -->
+    <div class="section-title">Partners &amp; promo codes <span class="section-hint">a link like gaben.market/&lt;code&gt;, the same word works as a promo code in the cart</span></div>
+    <section class="trade-form">
+      <label>Code
+        <input id="promoCodeInput" type="text" maxlength="20" placeholder="sicarios" />
+      </label>
+      <label>Who it is
+        <input id="promoNameInput" type="text" maxlength="80" placeholder="SICARIOS — CS2 team" />
+      </label>
+      <label>Client bonus %
+        <input id="promoBonusInput" type="number" step="0.5" min="0" max="20" placeholder="2" title="How much more the client gets for their skins. Paid out of our margin." />
+      </label>
+      <label>Partner share %
+        <input id="promoPartnerInput" type="number" step="1" min="0" max="100" placeholder="20" title="Their cut of our margin on the clients they bring. Nothing is transferred automatically — this is the number you pay by hand." />
+      </label>
+      <button id="promoSaveBtn">Save</button>
+      <span id="promoSaveStatus" class="field-hint"></span>
+    </section>
+    <div class="table-card">
+      <table id="promoTable">
+        <thead>
+          <tr><th>Code</th><th>Link</th><th>Clicks</th><th>Clients</th><th>Deals</th><th>Volume</th><th>Our margin</th><th>Owe partner</th><th></th></tr>
+        </thead>
+        <tbody id="promoBody">
+          <tr><td colspan="9" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="section-title">Pricing <span class="section-hint">what clients pay and get — changes on the site right away; for a promo set them to 0</span></div>
     <section class="add-trade-form">
       <label>Buy tab: Youpin +, %

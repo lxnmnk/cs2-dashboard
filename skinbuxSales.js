@@ -43,7 +43,9 @@ function saveAll(sales) {
 // payoutMethod — як людина хоче отримати гроші (картка / крипта). Ми не
 // переказуємо автоматично, виплату робить власник руками, і без цього поля
 // доводилось щоразу перепитувати в Telegram.
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod }) {
+// promoCode — хто привів цього клієнта (promoCodes.js). Потрібен, щоб
+// порахувати, скільки партнеру належить за приведених людей.
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, promoCode }) {
   const sales = loadAll();
   sales.push({
     id,
@@ -51,6 +53,7 @@ function record({ id, steamId, customerName, items, totalPrice, offerId, expires
     customerName,
     kind: kind === "trade" ? "trade" : "sell",
     payoutMethod: payoutMethod || null,
+    promoCode: promoCode || null,
     items,
     totalPrice,
     offerId,

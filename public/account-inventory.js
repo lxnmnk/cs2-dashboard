@@ -46,6 +46,55 @@ const payoutDateLine = document.getElementById("payoutDateLine");
 const payoutMethodSub = document.getElementById("payoutMethodSub");
 const cartItemsCount = document.getElementById("cartItemsCount");
 
+// ---- Промокод ----
+// Бонус платиться з нашої маржі, тому ціни після коду інші — і показати їх
+// треба тими самими, що потім порахує сервер. Тому після застосування просто
+// перечитуємо інвентар, а не множимо числа в браузері.
+const promoInput = document.getElementById("promoInput");
+const promoStatus = document.getElementById("promoStatus");
+
+async function showPromo(promo) {
+  if (!promo) {
+    promoStatus.textContent = "";
+    return;
+  }
+  promoInput.value = promo.code.toUpperCase();
+  promoStatus.textContent = (CFG.promoApplied || "")
+    .replace("{code}", promo.code.toUpperCase())
+    .replace("{n}", promo.bonusPercent);
+  promoStatus.classList.remove("field-error");
+}
+
+document.getElementById("promoApplyBtn")?.addEventListener("click", async () => {
+  const code = promoInput.value.trim();
+  let data;
+  try {
+    const res = await fetch("/api/account/promo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    data = await res.json();
+  } catch (err) {
+    data = { ok: false };
+  }
+
+  if (!data.ok) {
+    promoStatus.textContent = CFG.promoNotFound || "";
+    promoStatus.classList.add("field-error");
+    return;
+  }
+  showPromo(data.promo);
+  // Ціни змінились — перечитуємо інвентар і кошик за новими.
+  loadInventory();
+});
+
+// Код міг приїхати з партнерським посиланням ще до входу — показуємо його.
+fetch("/api/account/promo")
+  .then((r) => r.json())
+  .then((d) => showPromo(d.promo))
+  .catch(() => {});
+
 // Куди слати гроші. Виплату власник робить руками, тож це підказка для нього
 // в панелі, а не автоматичний переказ.
 let payoutMethod = "card";

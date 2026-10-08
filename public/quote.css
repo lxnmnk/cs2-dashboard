@@ -1673,3 +1673,21 @@ a.sender-line { color: var(--gold); }
   font-size: 13px;
 }
 .trade-url-missing a { color: var(--gold); }
+
+/* Промокод у кошику: поле і кнопка в один рядок, під ними — що саме дав код. */
+.promo-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.promo-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-transform: uppercase;
+}
+.promo-row input:focus { border-color: var(--gold-line); outline: none; }
+.promo-status { margin: 0 0 12px; font-size: 12px; color: var(--green, #4caf7d); }
+.promo-status.field-error { color: var(--red, #e0605a); }

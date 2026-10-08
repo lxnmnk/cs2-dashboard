@@ -34,6 +34,7 @@ const csfloatPurchases = require("./csfloatPurchases");
 const skinbuxSalesImport = require("./skinbuxSalesImport");
 const tradeFloats = require("./tradeFloats");
 const debts = require("./debts");
+const promoCodes = require("./promoCodes");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
@@ -155,6 +156,21 @@ app.use(
   })
 );
 
+// ---- Партнерські посилання: gaben.market/sicarios ----
+// Ловимо тільки те, що справді є кодом: усе інше йде далі своїм шляхом, тож
+// сторінки й файли ця перевірка не перекриває. Код лягає в сесію (30 днів,
+// стільки ж живе cookie сесії) — людина, що прийшла сьогодні й продала скін
+// за тиждень, усе одно зарахується партнеру.
+app.get(/^\/([a-zA-Z0-9_-]{3,20})$/, (req, res, next) => {
+  const code = req.params[0];
+  const promo = promoCodes.find(code);
+  if (!promo) return next();
+
+  promoCodes.countClick(promo.code);
+  req.session.promo = promo.code;
+  res.redirect("/");
+});
+
 // trade.html/sell-quote.html/buy-quote.html — отдельные публичные страницы
 // для внешних людей (не аккаунтов сайта), см. sellQuote.js/buyQuote.js.
 // Специально не завязаны на остальной интерфейс.
@@ -223,6 +239,7 @@ const PUBLIC_PATHS = new Set([
   "/api/account/me",
   "/api/account/inventory",
   "/api/account/trade-url",
+  "/api/account/promo",
   "/api/account/sell",
   "/api/account/trade-sell",
   "/api/account/sales",
@@ -458,6 +475,23 @@ function priceKeyFor(item) {
 // предмета і свіжіша. Інакше показана клієнту ціна розходилась із тією, з якою
 // Skinbux звіряє продаж: поки прайс-лист відставав, ми пропонували більше, ніж
 // вони платять, і продаж падав (або проходив у мінус).
+/**
+ * Знижка для цього відвідувача з урахуванням промокоду: бонус клієнта ми
+ * платимо зі своєї маржі, тобто просто зменшуємо власну знижку. Одна функція
+ * на показ цін і на сам продаж — інакше в кошику було б одне число, а при
+ * продажу інше.
+ */
+function discountFor(req, { tradeMode = false } = {}) {
+  const settings = pricingSettings.get();
+  const base = tradeMode ? settings.tradeDiscount : settings.sellDiscount;
+  const promo = promoCodes.find(req.session?.promo);
+  if (!promo) return { discount: base, promo: null };
+  // Знижка тут — частка (0.05 = 5%), а бонус коду задається у відсотках.
+  // Без ділення на 100 код з'їдав би всю знижку одразу: клієнт отримував би
+  // повну ціну Skinbux, а ми — нуль.
+  return { discount: Math.max(0, base - promo.bonusPercent / 100), promo };
+}
+
 function quoteForItem(it, opts) {
   const priceKey = priceKeyFor(it);
   const row = cache.rows.find((r) => r.marketHashName === priceKey);
@@ -516,7 +550,7 @@ app.get("/api/account/inventory", async (req, res) => {
         // У розділі Trade предмет клієнта беремо за 97% ціни Skinbux, а не
         // за 95%, як при звичайному викупі: там ми заробляємо ще й на своєму
         // боці обміну.
-        const { quote } = quoteForItem(it, tradeMode ? { discount: pricingSettings.get().tradeDiscount } : undefined);
+        const { quote } = quoteForItem(it, { discount: discountFor(req, { tradeMode }).discount });
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -610,7 +644,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
         throw new Error(`Ми не приймаємо "${it.marketHashName}"`);
       }
 
-      const { row, quote } = quoteForItem(it, tradeMode ? { discount: pricingSettings.get().tradeDiscount } : undefined);
+      const { row, quote } = quoteForItem(it, { discount: discountFor(req, { tradeMode }).discount });
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
       // Клієнт бачив у кошику певну ціну — дешевше за неї не продаємо, а
       // показуємо йому нову (PRICE_CHANGED). Інакше отримав би менше мовчки.
@@ -681,6 +715,8 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       // Спосіб виплати — те, що людина обрала в кошику. Виплачуємо руками,
       // тож це просто підказка власнику, куди слати гроші.
       payoutMethod: PAYOUT_METHODS.has(String(req.body?.payoutMethod)) ? String(req.body.payoutMethod) : null,
+      // Хто привів цього клієнта — за цим рахується звіт по партнерах.
+      promoCode: promoCodes.find(req.session?.promo)?.code || null,
     });
 
     res.json({ ok: true, totalPrice, ...result });
@@ -689,6 +725,50 @@ async function sellCustomerItems(req, res, { tradeMode }) {
     res.status(400).json({ ok: false, error: err.message });
   }
 }
+
+// ---- Промокод у кошику ----
+// Той самий код, що й у посиланні: хто прийшов за посиланням, уже має його в
+// сесії, а хто почув на стрімі — вводить руками. Відповідь каже, який бонус
+// застосовано, щоб кошик одразу перечитав ціни.
+app.get("/api/account/promo", (req, res) => {
+  const promo = promoCodes.find(req.session?.promo);
+  res.json({ ok: true, promo: promo ? { code: promo.code, bonusPercent: promo.bonusPercent } : null });
+});
+
+app.post("/api/account/promo", (req, res) => {
+  const raw = String(req.body?.code || "").trim();
+  if (!raw) {
+    delete req.session.promo;
+    return res.json({ ok: true, promo: null });
+  }
+  const promo = promoCodes.find(raw);
+  if (!promo) return res.status(400).json({ ok: false, error: "PROMO_NOT_FOUND" });
+
+  req.session.promo = promo.code;
+  res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent } });
+});
+
+// ---- Партнери й промокоди (панель власника) ----
+app.get("/api/promo-codes", requireSiteOwner, (req, res) => {
+  res.json({ ok: true, codes: promoCodes.report(skinbuxSales.loadAll()) });
+});
+
+app.post("/api/promo-codes", requireSiteOwner, (req, res) => {
+  try {
+    res.json({ ok: true, code: promoCodes.upsert(req.body || {}) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.delete("/api/promo-codes/:code", requireSiteOwner, (req, res) => {
+  try {
+    promoCodes.remove(req.params.code);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
 
 app.post("/api/account/sell", (req, res) => sellCustomerItems(req, res, { tradeMode: false }));
 app.post("/api/account/trade-sell", (req, res) => sellCustomerItems(req, res, { tradeMode: true }));
