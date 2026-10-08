@@ -1104,6 +1104,35 @@ app.get("/api/public/sell-quote", async (req, res) => {
 // це десятки мегабайт і секунди очікування.
 const CATALOG_PAGE_SIZE = 24;
 
+/**
+ * Чи варто взагалі показувати предмет у каталозі.
+ *
+ * Критерій простий і перевіряється сам собою: на предмет має бути автобай —
+ * тобто хтось на ринку вже готовий його викупити, — і різниця між нашою ціною
+ * й цим автобаєм має бути в межах config.catalog.maxSpread.
+ *
+ * Навіщо: у прайсі повно позицій із цінником, але без ринку — сувенірні стволи
+ * по $154 869, наліпки з однією вигаданою пропозицією. Вони чесно мають ask,
+ * тому в каталог лізли першими за ціною, а купити їх ніхто не купить і
+ * продати назад теж. Автобай відрізняє реальний ринок від намальованого.
+ */
+function bestBidOf(row) {
+  let best = null;
+  for (const price of Object.values(row.prices || {})) {
+    const bid = price?.bid;
+    if (bid == null) continue;
+    if (best == null || bid > best) best = bid;
+  }
+  return best;
+}
+
+function isLiquid(row, ourPrice) {
+  const bid = bestBidOf(row);
+  if (bid == null || !(ourPrice > 0)) return false;
+  const maxSpread = config.catalog?.maxSpread ?? 0.3;
+  return (ourPrice - bid) / ourPrice <= maxSpread;
+}
+
 function catalogItems(query) {
   const q = String(query.q || "").trim();
   const category = String(query.category || "").trim();
@@ -1130,6 +1159,7 @@ function catalogItems(query) {
 
     const quote = computeBuyQuote(row, { markup });
     if (!quote.ok) continue;
+    if (!isLiquid(row, quote.price)) continue;
     if (Number.isFinite(min) && quote.price < min) continue;
     if (Number.isFinite(max) && quote.price > max) continue;
 
