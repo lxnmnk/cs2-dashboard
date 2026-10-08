@@ -70,7 +70,6 @@
 
   <section id="inventoryCard" class="card" style="display:none;">
     <div class="inventory-layout">
-      <aside id="filtersPanel" class="filters-panel"></aside>
 
       <div class="inventory-main">
         <h2>Your CS2 inventory</h2>
@@ -81,6 +80,7 @@
              картці більше немає, це зайвий клік на кожному предметі. -->
         <div class="inventory-head">
           <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Re-read the inventory from Steam">🔄</button>
+          <input id="inventorySearch" class="inventory-search" type="search" placeholder="Search by name..." />
           <select id="inventorySort" class="inventory-sort"></select>
           <button id="selectAllBtn" class="btn-small" type="button"></button>
           <span id="selectionSummary" class="inventory-selection"></span>
@@ -104,7 +104,8 @@
         <div id="inventoryList" class="inventory-grid"></div>
       </div>
 
-      <aside id="cartSection" class="cart-sidebar" style="display:none;">
+      <aside class="inventory-side">
+      <div id="cartSection" class="cart-sidebar">
         <h3>Cart</h3>
         <div id="cartList" class="cart-list"></div>
         <div class="cart-total-row">
@@ -116,6 +117,8 @@
           <button id="sellAutoBtn" class="btn-gold" type="button">Sell automatically</button>
           <button id="cartClearBtn" class="btn-clear" type="button">Clear list</button>
         </div>
+      </div>
+      <aside id="filtersPanel" class="filters-panel"></aside>
       </aside>
     </div>
   </section>
@@ -176,6 +179,7 @@
       levelLabel: "Level",
       registeredLabel: "Account created",
       openProfile: "Steam profile",
+      cartEmpty: "Pick skins on the left — they show up here",
       sortPriceDesc: "Most expensive",
       sortPriceAsc: "Cheapest first",
       sortName: "By name",

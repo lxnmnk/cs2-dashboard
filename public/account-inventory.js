@@ -60,6 +60,7 @@ const MAX_RETRIES = 3;
 const filters = createItemFilters({
   mount: document.getElementById("filtersPanel"),
   labels: window.ACCOUNT_CONFIG,
+  showSearch: false, // поле пошуку стоїть над сіткою, див. inventorySearch
   onChange: () => renderInventoryList(),
 });
 
@@ -379,9 +380,15 @@ const selectionSummaryEl = document.getElementById("selectionSummary");
 const SORTS = {
   priceDesc: { label: CFG.sortPriceDesc, cmp: (a, b) => (b.price ?? -1) - (a.price ?? -1) },
   priceAsc: { label: CFG.sortPriceAsc, cmp: (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity) },
-  name: { label: CFG.sortName, cmp: (a, b) => a.marketHashName.localeCompare(b.marketHashName) },
 };
 let sortKey = "priceDesc";
+
+const searchEl = document.getElementById("inventorySearch");
+let searchTimer;
+searchEl?.addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => filters.setQuery(searchEl.value), 200);
+});
 
 if (sortEl) {
   sortEl.innerHTML = Object.entries(SORTS)
@@ -453,13 +460,16 @@ function removeItem(assetId) {
 
 function renderCart() {
   saveCart();
+  // Кошик видно завжди, навіть порожній: так одразу зрозуміло, куди
+  // потрапляють вибрані предмети і скільки за них дадуть.
+  const sellBtn = document.getElementById("sellAutoBtn");
+  if (sellBtn) sellBtn.disabled = !cart.length;
   if (!cart.length) {
-    cartSection.style.display = "none";
-    cartList.innerHTML = "";
+    cartList.innerHTML = `<p class="cart-empty">${escapeHtml(CFG.cartEmpty || "")}</p>`;
+    cartTotal.textContent = "$0.00";
     return;
   }
 
-  cartSection.style.display = "block";
   cartList.innerHTML = cart
     .map(
       (it) => `

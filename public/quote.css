@@ -204,10 +204,6 @@ a { color: var(--gold); }
 
 /* ---- Кошик — sticky-панель праворуч, завжди на видноті під час скролу ---- */
 .cart-sidebar {
-  width: 300px;
-  flex-shrink: 0;
-  position: sticky;
-  top: 20px;
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -224,7 +220,7 @@ a { color: var(--gold); }
 
 @media (max-width: 860px) {
   .inventory-layout { flex-direction: column; }
-  .cart-sidebar { width: 100%; position: static; }
+  .inventory-side { width: 100%; position: static; }
 }
 .cart-list {
   display: flex;
@@ -1083,7 +1079,33 @@ a.sender-line { color: var(--gold); }
   font: inherit;
   font-size: 13px;
 }
-.inventory-selection { margin-left: auto; font-size: 13px; color: var(--gold); }
+.inventory-selection { font-size: 13px; color: var(--gold); white-space: nowrap; }
+.inventory-search {
+  flex: 1;
+  min-width: 140px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.inventory-search:focus { border-color: var(--gold-line); outline: none; }
+
+/* Права колонка: кошик зверху, під ним фільтри. Кошик липкий — при довгому
+   інвентарі сума й кнопка завжди перед очима. */
+.inventory-side {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 20px;
+}
+.inventory-side .filters-panel { width: 100%; }
+.cart-empty { margin: 0; font-size: 13px; color: var(--muted); }
 
 /* Картка вибирається кліком по собі, без окремої кнопки. */
 .inventory-card.selectable { cursor: pointer; position: relative; transition: border-color .12s, transform .12s; }

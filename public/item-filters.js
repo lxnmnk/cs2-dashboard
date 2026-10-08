@@ -20,7 +20,10 @@ const PRICE_PRESETS = [
   { label: "> $250", min: 250, max: null },
 ];
 
-function createItemFilters({ mount, labels, showStatus = false, onChange }) {
+// showSearch: false — поле пошуку живе не в панелі, а в рядку над сіткою
+// (сторінка продажу). Два однакові поля на одному екрані плутають, тому
+// панель своє просто не малює, а запит приходить ззовні через setQuery.
+function createItemFilters({ mount, labels, showStatus = false, showSearch = true, onChange }) {
   const state = {
     query: "",
     min: null,
@@ -36,7 +39,7 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
       <button class="filters-reset" type="button">${escapeHtml(labels.resetLabel)}</button>
     </div>
 
-    <input class="filters-search" type="search" placeholder="${escapeHtml(labels.searchPlaceholder)}" />
+    ${showSearch ? `<input class="filters-search" type="search" placeholder="${escapeHtml(labels.searchPlaceholder)}" />` : ""}
 
     <div class="filters-group">
       <h4>${escapeHtml(labels.priceTitle)}</h4>
@@ -84,14 +87,19 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
   // Поле пошуку друкується посимвольно, тому перемальовуємо не на кожну
   // літеру, а трохи згодом — інакше на великому інвентарі ввід підлагує.
   let searchTimer;
-  searchEl.addEventListener("input", () => {
+  searchEl?.addEventListener("input", () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      state.query = searchEl.value.trim().toLowerCase();
-      state.queryTokens = window.searchTokens ? window.searchTokens(state.query) : [];
-      onChange();
+      setQuery(searchEl.value);
     }, 200);
   });
+
+  /** Запит ззовні — коли поле пошуку стоїть не в панелі, а над сіткою. */
+  function setQuery(value) {
+    state.query = String(value || "").trim().toLowerCase();
+    state.queryTokens = window.searchTokens ? window.searchTokens(state.query) : [];
+    onChange();
+  }
 
   for (const [el, key] of [[minEl, "min"], [maxEl, "max"]]) {
     el.addEventListener("input", () => {
@@ -150,7 +158,8 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
     state.wears.clear();
     state.special.clear();
     state.status.clear();
-    searchEl.value = minEl.value = maxEl.value = "";
+    if (searchEl) searchEl.value = "";
+    minEl.value = maxEl.value = "";
     mount.querySelectorAll(".filters-chip").forEach((b) => b.classList.remove("active"));
     mount.querySelectorAll('input[type="checkbox"]').forEach((b) => (b.checked = false));
     onChange();
@@ -220,5 +229,5 @@ function createItemFilters({ mount, labels, showStatus = false, onChange }) {
     return out;
   }
 
-  return { apply: (items) => items.filter(matches), params };
+  return { apply: (items) => items.filter(matches), params, setQuery };
 }

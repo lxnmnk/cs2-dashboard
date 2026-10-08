@@ -70,7 +70,6 @@
 
   <section id="inventoryCard" class="card" style="display:none;">
     <div class="inventory-layout">
-      <aside id="filtersPanel" class="filters-panel"></aside>
 
       <div class="inventory-main">
         <h2>Твой инвентарь CS2</h2>
@@ -81,6 +80,7 @@
              картці більше немає, це зайвий клік на кожному предметі. -->
         <div class="inventory-head">
           <button id="inventoryRefreshBtn" class="btn-small" type="button" title="Перечитать инвентарь из Steam">🔄</button>
+          <input id="inventorySearch" class="inventory-search" type="search" placeholder="Поиск по названию..." />
           <select id="inventorySort" class="inventory-sort"></select>
           <button id="selectAllBtn" class="btn-small" type="button"></button>
           <span id="selectionSummary" class="inventory-selection"></span>
@@ -104,7 +104,8 @@
         <div id="inventoryList" class="inventory-grid"></div>
       </div>
 
-      <aside id="cartSection" class="cart-sidebar" style="display:none;">
+      <aside class="inventory-side">
+      <div id="cartSection" class="cart-sidebar">
         <h3>Корзина</h3>
         <div id="cartList" class="cart-list"></div>
         <div class="cart-total-row">
@@ -116,6 +117,8 @@
           <button id="sellAutoBtn" class="btn-gold" type="button">Продать автоматически</button>
           <button id="cartClearBtn" class="btn-clear" type="button">Очистить список</button>
         </div>
+      </div>
+      <aside id="filtersPanel" class="filters-panel"></aside>
       </aside>
     </div>
   </section>
@@ -176,6 +179,7 @@
       levelLabel: "Уровень",
       registeredLabel: "Аккаунт создан",
       openProfile: "Профиль в Steam",
+      cartEmpty: "Выбери предметы слева — они появятся здесь",
       sortPriceDesc: "Сначала дорогие",
       sortPriceAsc: "Сначала дешёвые",
       sortName: "По названию",
