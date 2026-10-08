@@ -15,7 +15,6 @@
     <nav class="site-nav">
       <a href="/en/buy" class="active"><span class="nav-icon">🛒</span> Buy skins</a>
       <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
-      <a href="/en/my-skins"><span class="nav-icon">📦</span> Our skins</a>
       <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
     </nav>
     <div class="site-header-right">
@@ -31,54 +30,102 @@
 
   <section class="hero">
     <span class="eyebrow">CS2 SKINS TRADE</span>
-    <h1>Buy any <span class="accent">knife</span> or <span class="accent">gloves</span></h1>
-    <p class="hero-sub">Full Youpin898 catalog · Delivery in 5 minutes to 12 hours</p>
+    <h1>Buy <span class="accent">skins</span></h1>
   </section>
 
-  <section class="trust-row">
-    <div class="trust-badge"><span class="icon">💳</span> Full prepayment</div>
-    <div class="trust-badge"><span class="icon">🚀</span> Delivery in 5 min – 12 h</div>
-    <div class="trust-badge"><span class="icon">💰</span> Best prices on the market</div>
+  <!-- Каталог: весь прайс Youpin з нашою націнкою. Складу ми не тримаємо,
+       тому тут один рядок на предмет, а не окремі лоти з float. -->
+  <section class="catalog">
+    <div class="catalog-toolbar">
+      <input id="catalogSearch" class="inventory-search" type="search" placeholder="Search by name..." />
+      <select id="catalogSort" class="inventory-sort">
+        <option value="price_desc">Most expensive</option>
+        <option value="price_asc">Cheapest first</option>
+      </select>
+      <button id="cartOpenBtn" class="btn-gold catalog-cart-btn" type="button">
+        &#128722; Cart <span id="cartCount">0</span> &middot; <span id="cartTotalTop">$0.00</span>
+      </button>
+    </div>
+
+    <div class="catalog-tabs">
+        <button class="catalog-tab active" type="button" data-category="">All</button>
+        <button class="catalog-tab" type="button" data-category="knife">Knives</button>
+        <button class="catalog-tab" type="button" data-category="gloves">Gloves</button>
+        <button class="catalog-tab" type="button" data-category="rifle">Rifles</button>
+        <button class="catalog-tab" type="button" data-category="sniper">Snipers</button>
+        <button class="catalog-tab" type="button" data-category="pistol">Pistols</button>
+        <button class="catalog-tab" type="button" data-category="smg">SMGs</button>
+        <button class="catalog-tab" type="button" data-category="shotgun">Shotguns</button>
+        <button class="catalog-tab" type="button" data-category="machinegun">Machine guns</button>
+        <button class="catalog-tab" type="button" data-category="sticker">Stickers</button>
+        <button class="catalog-tab" type="button" data-category="charm">Charms</button>
+        <button class="catalog-tab" type="button" data-category="agent">Agents</button>
+        <button class="catalog-tab" type="button" data-category="case">Cases</button>
+        <button class="catalog-tab" type="button" data-category="other">Other</button>
+    </div>
+
+    <div class="catalog-layout">
+      <aside class="filters-panel catalog-filters">
+        <div class="filters-head">
+          <h3>Filters</h3>
+          <button id="catalogReset" class="filters-reset" type="button">Reset</button>
+        </div>
+        <div class="filters-group">
+          <h4>Price</h4>
+          <div class="filters-range">
+            <label>From<input id="catalogMin" type="number" min="0" placeholder="0" /></label>
+            <label>To<input id="catalogMax" type="number" min="0" placeholder="&#8734;" /></label>
+          </div>
+        </div>
+        <div class="filters-group">
+          <h4>Wear</h4>
+          <div class="filters-chips">
+            <button class="filters-chip" type="button" data-wear="FN">FN</button>
+            <button class="filters-chip" type="button" data-wear="MW">MW</button>
+            <button class="filters-chip" type="button" data-wear="FT">FT</button>
+            <button class="filters-chip" type="button" data-wear="WW">WW</button>
+            <button class="filters-chip" type="button" data-wear="BS">BS</button>
+          </div>
+        </div>
+        <div class="filters-group">
+          <h4>Special</h4>
+          <label class="filters-check"><input type="radio" name="special" value="" checked /> All</label>
+          <label class="filters-check"><input type="radio" name="special" value="stattrak" /> <span class="tag-stattrak">StatTrak™</span></label>
+          <label class="filters-check"><input type="radio" name="special" value="souvenir" /> <span class="tag-souvenir">Souvenir</span></label>
+          <label class="filters-check"><input type="radio" name="special" value="normal" /> Normal</label>
+        </div>
+      </aside>
+
+      <div class="catalog-main">
+        <p id="catalogStatus" class="card-hint">Loading the catalog...</p>
+        <div id="catalogGrid" class="inventory-grid"></div>
+        <div id="catalogPager" class="catalog-pager" style="display:none;">
+          <button id="catalogPrev" class="btn-small btn-secondary" type="button">Back</button>
+          <span id="catalogPageLabel"></span>
+          <button id="catalogNext" class="btn-small btn-secondary" type="button">Next</button>
+        </div>
+      </div>
+    </div>
   </section>
 
-  <section class="card">
-    <h2>Get your buying price right now</h2>
-    <p class="card-hint">Need several skins? Add them one by one — we'll total it up.</p>
-
-    <div class="autocomplete-wrap">
-      <label for="itemSearch">Item name</label>
-      <input id="itemSearch" type="text" placeholder="Start typing the item name..." autocomplete="off" />
-      <div id="autocompleteList" class="autocomplete-list"></div>
-    </div>
-
-    <div id="unstableBox" class="unstable" style="display: none;">
-      We can't give an automatic price for this item right now — message
-      <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a> on Telegram and we'll sort it out personally.
-    </div>
-
-    <div id="cartSection" class="cart-section" style="display: none;">
+  <div id="cartModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Cart</h3>
+        <button id="cartModalClose" class="modal-close" type="button">&#10005;</button>
+      </div>
+      <p id="cartEmptyLine" class="card-hint">Cart is empty — pick skins from the list</p>
       <div id="cartList" class="cart-list"></div>
       <div class="cart-total-row">
         <span>Total</span>
         <span id="cartTotal" class="cart-total">$0.00</span>
       </div>
       <div class="cart-actions">
-        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/gabenmarket_support" target="_blank">Message on Telegram to arrange</a>
-        <button id="cartClearBtn" class="btn-clear" type="button">Clear list</button>
+        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/gabenmarket_support" target="_blank">Message us on Telegram to pay</a>
+        <button id="cartClearBtn" class="btn-clear" type="button">Clear</button>
       </div>
     </div>
-  </section>
-
-  <section class="card">
-    <h2>Deal terms</h2>
-    <ul class="terms-list">
-      <li><span class="icon">💳</span> Payment — full prepayment before shipping</li>
-      <li><span class="icon">🚀</span> Delivery — from 5 minutes to 12 hours after payment</li>
-      <li><span class="icon">💰</span> I offer some of the best prices on the market</li>
-      <li><span class="icon">🎯</span> I can source any skin from the Youpin898 catalog — even rare ones</li>
-    </ul>
-    <p class="reviews-line">Lots of trusted reviews — <a href="https://t.me/csmarket/538169/1594119" target="_blank">see reviews in @csmarket</a>.</p>
-  </section>
+  </div>
 
   <footer class="site-footer">
     <div class="site-footer-inner">
@@ -90,8 +137,7 @@
       <div class="site-footer-col">
         <h4>Sections</h4>
         <p>
-          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> ·
-          <a href="/en/my-skins">Our skins</a> · <a href="/en/sell">Check a price</a>
+          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/sell">Check a price</a>
         </p>
       </div>
     </div>
@@ -104,18 +150,20 @@
   </footer>
 
   <script>
-    window.QUOTE_CONFIG = {
-      quoteEndpoint: "/api/public/buy-quote",
-      messageIntro: "Hi! I want to buy:",
-      totalLabel: "Total:",
-      priceNote: "site price",
-      removeLabel: "Remove",
-    };
-  </script>
-  <script src="/quote-common.js"></script>
-  <script>
     window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw", holdTitle: "On hold" };
   </script>
+  <script>
+    window.CATALOG_CONFIG = {
+      "nothing": "Nothing found for this search",
+      "loading": "Loading the catalog...",
+      "found": "Found {n}",
+      "page": "Page {n} of {all}",
+      "cartEmpty": "Cart is empty — pick skins from the list",
+      "msgIntro": "Hi! I want to buy:",
+      "msgTotal": "Total:"
+};
+  </script>
+  <script src="/catalog.js"></script>
   <script src="/nav-profile.js"></script>
 </body>
 </html>

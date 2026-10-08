@@ -35,6 +35,7 @@ const skinbuxSalesImport = require("./skinbuxSalesImport");
 const tradeFloats = require("./tradeFloats");
 const debts = require("./debts");
 const promoCodes = require("./promoCodes");
+const { categoryOf, CATEGORY_ORDER } = require("./itemCategory");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
@@ -220,6 +221,8 @@ const PUBLIC_PATHS = new Set([
   "/api/public/item-search",
   "/api/public/sell-quote",
   "/api/public/buy-quote",
+  "/api/public/catalog",
+  "/catalog.js",
   "/api/public/my-skins",
   "/landing.js",
   "/api/public/trade-catalog",
@@ -383,13 +386,10 @@ const CLEAN_PUBLIC_ROUTES = {
   "/en": "trade-en.html",
   "/sell": "sell-quote.html",
   "/buy": "buy-quote.html",
-  "/my-skins": "my-skins.html",
   "/ru/sell": "sell-quote-ru.html",
   "/ru/buy": "buy-quote-ru.html",
-  "/ru/my-skins": "my-skins-ru.html",
   "/en/sell": "sell-quote-en.html",
   "/en/buy": "buy-quote-en.html",
-  "/en/my-skins": "my-skins-en.html",
   "/trade": "swap.html",
   "/ru/trade": "swap-ru.html",
   "/en/trade": "swap-en.html",
@@ -401,6 +401,10 @@ for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
 // Старые адреса этих же страниц — редирект на чистые (ссылка на trade.html
 // уже могла разойтись, например в рекламном посте в Telegram-группе).
 const OLD_PUBLIC_REDIRECTS = {
+  // Вітрина "Наші скіни" знята: усе, що продаємо, тепер у каталозі на /buy.
+  "/my-skins": "/buy",
+  "/ru/my-skins": "/ru/buy",
+  "/en/my-skins": "/en/buy",
   "/trade.html": "/",
   "/trade-ru.html": "/ru",
   "/trade-en.html": "/en",
@@ -1089,6 +1093,84 @@ app.get("/api/public/sell-quote", async (req, res) => {
     quote.imageFull = images?.full || null;
   }
   res.json(quote);
+});
+
+// ---- Каталог "Купити скіни" ----
+// Вітрина з усього прайсу: ціна = youpin ask + націнка з панелі, тобто те
+// саме, що рахує сторінка перевірки ціни. Склад ми не тримаємо — купуємо під
+// замовлення, тому в каталозі один рядок на предмет, а не окремі лоти.
+//
+// Сторінками, бо предметів з ціною близько сорока тисяч: віддати їх разом —
+// це десятки мегабайт і секунди очікування.
+const CATALOG_PAGE_SIZE = 24;
+
+function catalogItems(query) {
+  const q = String(query.q || "").trim();
+  const category = String(query.category || "").trim();
+  const wears = new Set(String(query.wear || "").split(",").filter(Boolean));
+  const special = String(query.special || "").trim();
+  const min = parseFloat(query.min);
+  const max = parseFloat(query.max);
+  const markup = pricingSettings.get().buyMarkup;
+
+  const items = [];
+  for (const row of cache.rows) {
+    const name = row.marketHashName;
+    if (q && !matchesSearchQuery(name, q)) continue;
+    if (category && categoryOf(name) !== category) continue;
+
+    const { baseName, wear } = parseItemName(name);
+    if (wears.size && !wears.has(WEAR_BY_CODE_REVERSE[wear] || "")) continue;
+
+    const isStatTrak = name.includes("StatTrak™");
+    const isSouvenir = name.startsWith("Souvenir ");
+    if (special === "stattrak" && !isStatTrak) continue;
+    if (special === "souvenir" && !isSouvenir) continue;
+    if (special === "normal" && (isStatTrak || isSouvenir)) continue;
+
+    const quote = computeBuyQuote(row, { markup });
+    if (!quote.ok) continue;
+    if (Number.isFinite(min) && quote.price < min) continue;
+    if (Number.isFinite(max) && quote.price > max) continue;
+
+    items.push({ marketHashName: name, name: baseName, wear, price: quote.price });
+  }
+
+  items.sort((a, b) => (query.sort === "price_asc" ? a.price - b.price : b.price - a.price));
+  return items;
+}
+
+// Износ -> код для фильтра ("Factory New" -> "FN").
+const WEAR_BY_CODE_REVERSE = {
+  "Factory New": "FN",
+  "Minimal Wear": "MW",
+  "Field-Tested": "FT",
+  "Well-Worn": "WW",
+  "Battle-Scarred": "BS",
+};
+
+app.get("/api/public/catalog", async (req, res) => {
+  if (!cache.rows.length) return res.json({ ok: false, error: "PRICES_NOT_READY" });
+
+  const all = catalogItems(req.query);
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const items = all.slice((page - 1) * CATALOG_PAGE_SIZE, page * CATALOG_PAGE_SIZE);
+
+  // Картинки тягнемо тільки для цієї сторінки — на сорок тисяч предметів це
+  // були б десятки тисяч запитів до Steam.
+  const images = await Promise.all(items.map((it) => getSteamImages(it.marketHashName)));
+  items.forEach((it, i) => {
+    it.icon = images[i]?.full || null;
+  });
+
+  res.json({
+    ok: true,
+    items,
+    page,
+    pages: Math.max(1, Math.ceil(all.length / CATALOG_PAGE_SIZE)),
+    total: all.length,
+    categories: CATEGORY_ORDER,
+  });
 });
 
 app.get("/api/public/buy-quote", async (req, res) => {

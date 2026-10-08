@@ -1691,3 +1691,52 @@ a.sender-line { color: var(--gold); }
 .promo-row input:focus { border-color: var(--gold-line); outline: none; }
 .promo-status { margin: 0 0 12px; font-size: 12px; color: var(--green, #4caf7d); }
 .promo-status.field-error { color: var(--red, #e0605a); }
+
+/* ---- Каталог "Купити скіни" ---- */
+.catalog { max-width: 1400px; margin: 0 auto; padding: 0 24px 40px; }
+.catalog-toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 14px; }
+.catalog-cart-btn { white-space: nowrap; }
+
+/* Вкладки категорій: у рядок із прокруткою, щоб на вузькому екрані вони не
+   ламали сітку. */
+.catalog-tabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.catalog-tab {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.catalog-tab:hover { color: var(--text); background: var(--panel-2); }
+.catalog-tab.active { color: var(--gold); border-color: var(--gold-line); background: var(--gold-soft); }
+
+.catalog-layout { display: flex; align-items: flex-start; gap: 20px; }
+.catalog-filters { width: 230px; flex-shrink: 0; position: sticky; top: 20px; }
+.catalog-main { flex: 1; min-width: 0; }
+.catalog-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.cart-item-img { width: 44px; height: 34px; object-fit: contain; flex-shrink: 0; }
+.btn-gold.disabled { opacity: 0.5; pointer-events: none; }
+
+@media (max-width: 900px) {
+  .catalog-layout { flex-direction: column; }
+  .catalog-filters { width: 100%; position: static; }
+}
