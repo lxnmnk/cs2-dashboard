@@ -92,7 +92,7 @@ async function fetchInventory(steamId, { force = false } = {}) {
         marketHashName: desc.market_hash_name,
         tradable: !!desc.tradable,
         tradableAfter: desc.tradable ? null : tradableAfterOf(desc),
-        icon: desc.icon_url ? `https://community.akamai.steamstatic.com/economy/image/${desc.icon_url}/330fx330f` : null,
+        icon: desc.icon_url ? `https://community.akamai.steamstatic.com/economy/image/${desc.icon_url}/512fx384f` : null,
       });
     }
 

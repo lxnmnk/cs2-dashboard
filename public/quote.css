@@ -430,9 +430,11 @@ a { color: var(--gold); }
 }
 
 /* ---- Сітка інвентарю (замість списку у стовпчик) ---- */
+/* Ширші колонки: головне на картці — сам скін, а на 150px він виходив
+   завбільшки з іконку. */
 .inventory-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
   gap: 12px;
 }
 .inventory-card {
@@ -463,22 +465,40 @@ a { color: var(--gold); }
 .wear-BS { color: #e0605a; }
 .item-phase { color: var(--gold); }
 
-/* Назва у два рядки: зброя дрібним, сам скін — основним. */
-.inventory-card-name { display: flex; flex-direction: column; gap: 1px; }
-.item-weapon { font-size: 11px; color: var(--muted); font-weight: 400; }
-.item-skin { font-size: 13px; color: var(--text); font-weight: 600; line-height: 1.25; }
-
+/* Картинка — головне на картці, тому їй більше місця й підкладка з
+   підсвіткою знизу: на плоскому темному тлі скіни зливались у кашу. */
 .inventory-card-img {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   object-fit: contain;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 6px;
+  box-sizing: border-box;
+  background:
+    radial-gradient(120% 80% at 50% 115%, rgba(215, 168, 78, 0.18) 0%, rgba(215, 168, 78, 0) 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%);
   border-radius: 8px;
+  transition: transform 0.15s ease;
 }
+.inventory-card.selectable:hover .inventory-card-img { transform: scale(1.04); }
+/* Назва у два рядки: зброя дрібним зверху, сам скін — основним під нею.
+   Було одне правило з line-clamp, і обидва рядки злипались в один. */
 .inventory-card-name {
-  font-size: 12px;
-  line-height: 1.3;
-  min-height: 2.6em;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 2.8em;
+}
+.item-weapon {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--muted);
+  font-weight: 400;
+}
+.item-skin {
+  font-size: 13px;
+  line-height: 1.25;
+  color: var(--text);
+  font-weight: 600;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
