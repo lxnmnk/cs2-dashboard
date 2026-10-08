@@ -1180,6 +1180,20 @@ a.sender-line { color: var(--gold); }
   color: var(--gold);
 }
 .payout-hint { display: block; margin-top: 2px; color: var(--muted); }
+.payout-method-sub { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
+
+/* Дрібні рядки під блоком виплати: скільки предметів і яка комісія. Їх видно
+   і на порожньому кошику — умови мають бути відомі до вибору, а не після. */
+.cart-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+.cart-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+}
+.cart-row-ok { color: var(--green, #4caf7d); }
+.cart-note { margin: 10px 0 0; font-size: 11px; line-height: 1.4; color: var(--muted); }
+.cart-note a { color: var(--gold); }
 
 /* Картка вибирається кліком по собі, без окремої кнопки. */
 .inventory-card.selectable { cursor: pointer; position: relative; transition: border-color .12s, transform .12s; }

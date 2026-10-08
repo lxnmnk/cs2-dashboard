@@ -115,7 +115,13 @@
             <button class="payout-method active" type="button" data-method="card">Карта UA</button>
             <button class="payout-method" type="button" data-method="crypto">Крипта</button>
           </div>
+          <p id="payoutMethodSub" class="payout-method-sub"></p>
           <p id="payoutDateLine" class="payout-date"></p>
+        </div>
+
+        <div class="cart-rows">
+          <div class="cart-row"><span id="itemsRowLabel"></span><span id="cartItemsCount">0</span></div>
+          <div class="cart-row"><span id="feeRowLabel"></span><span id="feeRowValue" class="cart-row-ok"></span></div>
         </div>
 
         <div class="cart-total-row">
@@ -128,6 +134,8 @@
           <button id="sellAutoBtn" class="btn-gold" type="button">Продать автоматически</button>
           <button id="cartClearBtn" class="btn-clear" type="button">Очистить список</button>
         </div>
+        <p id="botNote" class="cart-note"></p>
+        <p id="helpNote" class="cart-note"></p>
       </div>
       </aside>
     </div>
@@ -189,6 +197,13 @@
       levelLabel: "Уровень",
       registeredLabel: "Аккаунт создан",
       openProfile: "Профиль в Steam",
+      payoutCardSub: "mono · privat24 · abank",
+      payoutCryptoSub: "USDT · USDC · BTC",
+      itemsRowLabel: "Предметов",
+      feeRowLabel: "Комиссия",
+      feeRowValue: "0% — цена уже конечная",
+      botNote: "Обмен отправляет бот сразу после нажатия — подтверждаешь в Steam",
+      helpNote: "Вопросы — {tg}",
       cartPicked: "{n} предмет(ов) на сумму",
       payoutMethodTitle: "Как получить деньги",
       payoutCard: "Карта UA",

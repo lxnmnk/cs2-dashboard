@@ -45,6 +45,8 @@ const cartPayout = document.getElementById("cartPayout");
 const cartEmptyLine = document.getElementById("cartEmptyLine");
 const payoutBlock = document.getElementById("payoutBlock");
 const payoutDateLine = document.getElementById("payoutDateLine");
+const payoutMethodSub = document.getElementById("payoutMethodSub");
+const cartItemsCount = document.getElementById("cartItemsCount");
 
 // Куди слати гроші. Виплату власник робить руками, тож це підказка для нього
 // в панелі, а не автоматичний переказ.
@@ -54,6 +56,7 @@ document.querySelectorAll(".payout-method").forEach((btn) => {
     document.querySelectorAll(".payout-method").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     payoutMethod = btn.dataset.method;
+    payoutMethodSub.textContent = payoutMethod === "crypto" ? CFG.payoutCryptoSub || "" : CFG.payoutCardSub || "";
   });
 });
 const cartTotal = document.getElementById("cartTotal");
@@ -524,14 +527,15 @@ function renderCart() {
   const sellBtn = document.getElementById("sellAutoBtn");
   const total = cart.reduce((sum, it) => sum + it.price, 0);
 
-  // Назв предметів у кошику більше немає: вони вже видно на картках, а тут
-  // потрібна тільки сума і те, як і коли людина отримає гроші. Прибрати
-  // предмет — повторним кліком по його картці.
+  // Назв предметів тут немає: вони вже на картках. Натомість те, чого на
+  // картках не видно — скільки вийде разом, куди і коли прийдуть гроші.
+  // Блок виплати показуємо і на порожньому кошику: людина має бачити умови
+  // до того, як щось обере, а не після.
   cartPickedLine.textContent = (CFG.cartPicked || "").replace("{n}", cart.length);
   cartTotal.textContent = `$${total.toFixed(2)}`;
   cartPayout.textContent = `$${total.toFixed(2)}`;
+  cartItemsCount.textContent = String(cart.length);
   cartEmptyLine.textContent = cart.length ? "" : CFG.cartEmpty || "";
-  payoutBlock.style.display = cart.length ? "block" : "none";
   if (sellBtn) sellBtn.disabled = !cart.length;
 
   // Дата виплати: гроші приходять після холду Steam — 7 днів від обміну.
@@ -539,9 +543,34 @@ function renderCart() {
   payoutDateLine.innerHTML = `${escapeHtml(
     (CFG.payoutDateLine || "").replace("{date}", unlock.toLocaleDateString(CFG.dateLocale || "uk-UA"))
   )}<span class="payout-hint">${escapeHtml(CFG.payoutHint || "")}</span>`;
+  payoutMethodSub.textContent = payoutMethod === "crypto" ? CFG.payoutCryptoSub || "" : CFG.payoutCardSub || "";
 
   sellStatusEl.textContent = "";
 }
+
+// Підписи, які не змінюються від вибору — ставимо один раз при завантаженні.
+function fillCartLabels() {
+  const set = (id, text) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text || "";
+  };
+  set("itemsRowLabel", CFG.itemsRowLabel);
+  set("feeRowLabel", CFG.feeRowLabel);
+  set("feeRowValue", CFG.feeRowValue);
+  set("toBePaidLabel", CFG.toBePaidLabel);
+  set("botNote", CFG.botNote);
+  const help = document.getElementById("helpNote");
+  if (help) {
+    help.innerHTML = escapeHtml(CFG.helpNote || "").replace(
+      "{tg}",
+      '<a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>'
+    );
+  }
+}
+fillCartLabels();
+// Малюємо кошик одразу, не чекаючи інвентаря: умови виплати мають бути на
+// екрані з першої секунди, навіть поки нічого не обрано.
+renderCart();
 
 function escapeHtml(s) {
   return (s || "").replace(

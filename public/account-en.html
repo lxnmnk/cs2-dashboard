@@ -115,7 +115,13 @@
             <button class="payout-method active" type="button" data-method="card">Card (UA)</button>
             <button class="payout-method" type="button" data-method="crypto">Crypto</button>
           </div>
+          <p id="payoutMethodSub" class="payout-method-sub"></p>
           <p id="payoutDateLine" class="payout-date"></p>
+        </div>
+
+        <div class="cart-rows">
+          <div class="cart-row"><span id="itemsRowLabel"></span><span id="cartItemsCount">0</span></div>
+          <div class="cart-row"><span id="feeRowLabel"></span><span id="feeRowValue" class="cart-row-ok"></span></div>
         </div>
 
         <div class="cart-total-row">
@@ -128,6 +134,8 @@
           <button id="sellAutoBtn" class="btn-gold" type="button">Sell automatically</button>
           <button id="cartClearBtn" class="btn-clear" type="button">Clear list</button>
         </div>
+        <p id="botNote" class="cart-note"></p>
+        <p id="helpNote" class="cart-note"></p>
       </div>
       </aside>
     </div>
@@ -189,6 +197,13 @@
       levelLabel: "Level",
       registeredLabel: "Account created",
       openProfile: "Steam profile",
+      payoutCardSub: "mono · privat24 · abank",
+      payoutCryptoSub: "USDT · USDC · BTC",
+      itemsRowLabel: "Items",
+      feeRowLabel: "Fee",
+      feeRowValue: "0% — the price is final",
+      botNote: "The bot sends the trade right away — you accept it in Steam",
+      helpNote: "Questions — {tg}",
       cartPicked: "{n} item(s) for the amount",
       payoutMethodTitle: "How to get paid",
       payoutCard: "Card (UA)",
