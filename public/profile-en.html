@@ -27,6 +27,7 @@
       <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
     </nav>
     <div class="site-header-right">
+      <div id="currencySwitch"></div>
       <div class="lang-switch">
         <a href="/profile">UA</a>
         <a href="/ru/profile">RU</a>
@@ -106,6 +107,7 @@
         <div class="profile-stat"><span class="profile-stat-value" id="balHold">$0.00</span><span class="profile-stat-label">On hold</span></div>
         <div class="profile-stat"><span class="profile-stat-value" id="balTrade">$0.00</span><span class="profile-stat-label">Trade balance</span></div>
       </div>
+      <p class="card-hint" id="balRate"></p>
       <p class="card-hint">Payouts go through Telegram — the button shows up on a deal once the Steam hold is over.</p>
     </div>
   </section>
@@ -238,6 +240,7 @@
   <script>
     window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw", holdTitle: "On hold" };
   </script>
+  <script src="/currency.js"></script>
   <script src="/nav-profile.js"></script>
   <script src="/item-aliases.js"></script>
   <script src="/item-filters.js"></script>

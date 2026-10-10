@@ -1878,3 +1878,10 @@ a.sender-line { color: var(--gold); }
   border-radius: 0 !important;
   color: var(--muted) !important;
 }
+
+/* Гривня під доларом: виплата йде на картку в гривні, і друге число тут
+   потрібне, щоб людина не рахувала курс у голові. */
+.profile-stat-uah { display: block; margin-top: 2px; font-size: 13px; font-weight: 600; color: var(--muted); }
+
+/* Перемикач валюти — поряд із мовою, таким самим виглядом. */
+.currency-switch a { min-width: 26px; text-align: center; font-weight: 700; }

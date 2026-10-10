@@ -43,8 +43,10 @@ function saveCart() {
   }
 }
 
+// Валюту обирає людина (currency.js): усередині все лишається в доларах,
+// змінюється тільки те, як число показано.
 function money(n) {
-  return `$${(Number(n) || 0).toFixed(2)}`;
+  return window.fmtPrice ? window.fmtPrice(n) : `$${(Number(n) || 0).toFixed(2)}`;
 }
 
 function esc(s) {
@@ -53,6 +55,25 @@ function esc(s) {
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
 }
+
+/** Введене людиною число -> долари, в яких рахує сервер. */
+function toUsd(value) {
+  const n = parseFloat(value);
+  if (!Number.isFinite(n)) return "";
+  return window.Currency?.code === "UAH" ? (n / (window.Currency.rate || 45.5)).toFixed(2) : String(n);
+}
+
+// Підписи полів ціни показують ту валюту, яку обрала людина.
+(function markCurrencyInFilters() {
+  const symbol = window.Currency?.code === "UAH" ? "₴" : "$";
+  document.querySelectorAll(".catalog-filters .filters-range label").forEach((label) => {
+    label.childNodes.forEach((node) => {
+      if (node.nodeType === 3 && node.textContent.includes("$")) {
+        node.textContent = node.textContent.replace("$", symbol);
+      }
+    });
+  });
+})();
 
 const WEAR_CODES = {
   "Factory New": "FN",
@@ -73,8 +94,10 @@ async function loadCatalog() {
   const params = new URLSearchParams({ page: state.page, sort: state.sort });
   if (state.q) params.set("q", state.q);
   if (state.category) params.set("category", state.category);
-  if (state.min) params.set("min", state.min);
-  if (state.max) params.set("max", state.max);
+  // Сервер рахує в доларах, а людина вводить у своїй валюті — переводимо тут,
+  // інакше "до 2000" у гривні означало б дві тисячі доларів.
+  if (state.min) params.set("min", toUsd(state.min));
+  if (state.max) params.set("max", toUsd(state.max));
   if (state.wear.size) params.set("wear", [...state.wear].join(","));
   if (state.weapons.size) params.set("weapon", [...state.weapons].join(","));
   if (state.special) params.set("special", state.special);

@@ -18,6 +18,7 @@
       <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
     </nav>
     <div class="site-header-right">
+      <div id="currencySwitch"></div>
       <div class="lang-switch">
         <a href="/sell">UA</a>
         <a href="/ru/sell">RU</a>
@@ -109,9 +110,10 @@
       totalLabel: "Total:",
       priceNote: "site price",
       removeLabel: "Remove",
-      uah: { enabled: true, rate: 45 },
+      uah: { enabled: true, rate: 45.5 },
     };
   </script>
+  <script src="/currency.js"></script>
   <script src="/quote-common.js"></script>
   <script>
     window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw", holdTitle: "On hold" };

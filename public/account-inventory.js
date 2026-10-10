@@ -406,7 +406,7 @@ function renderInventoryList() {
             ${img}
             <div class="inventory-card-name">${nameHtml}</div>
             <span class="lock-tag locked">🔒 ${escapeHtml(it.tradableAfter || tradeLockedLabel)}</span>
-            ${it.price != null ? `<span class="inventory-card-price">$${it.price.toFixed(2)}</span>` : ""}
+            ${it.price != null ? `<span class="inventory-card-price">${price(it.price)}</span>` : ""}
           </div>`;
       }
 
@@ -441,7 +441,7 @@ function renderInventoryList() {
           ${topHtml}
           ${img}
           <div class="inventory-card-name">${nameHtml}</div>
-          <span class="inventory-card-price">$${it.price.toFixed(2)}</span>
+          <span class="inventory-card-price">${price(it.price)}</span>
         </div>`;
     })
     .join("");
@@ -555,8 +555,8 @@ function renderCart() {
   // Блок виплати показуємо і на порожньому кошику: людина має бачити умови
   // до того, як щось обере, а не після.
   cartPickedLine.textContent = (CFG.cartPicked || "").replace("{n}", cart.length);
-  cartTotal.textContent = `$${total.toFixed(2)}`;
-  cartPayout.textContent = `$${total.toFixed(2)}`;
+  cartTotal.textContent = price(total);
+  cartPayout.textContent = price(total);
   cartItemsCount.textContent = String(cart.length);
   cartEmptyLine.textContent = cart.length ? "" : CFG.cartEmpty || "";
   if (sellBtn) sellBtn.disabled = !cart.length;
@@ -594,6 +594,12 @@ fillCartLabels();
 // Малюємо кошик одразу, не чекаючи інвентаря: умови виплати мають бути на
 // екрані з першої секунди, навіть поки нічого не обрано.
 renderCart();
+
+// Ціну показуємо у валюті, яку обрала людина (currency.js). Усередині все
+// лишається в доларах — міняється тільки показ.
+function price(usd) {
+  return window.fmtPrice ? window.fmtPrice(usd) : `$${(Number(usd) || 0).toFixed(2)}`;
+}
 
 function escapeHtml(s) {
   return (s || "").replace(

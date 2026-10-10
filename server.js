@@ -223,6 +223,8 @@ const PUBLIC_PATHS = new Set([
   "/api/public/buy-quote",
   "/api/public/catalog",
   "/catalog.js",
+  "/api/public/rate",
+  "/currency.js",
   "/api/public/my-skins",
   "/landing.js",
   "/api/public/trade-catalog",
@@ -1182,6 +1184,12 @@ const WEAR_BY_CODE_REVERSE = {
   "Well-Worn": "WW",
   "Battle-Scarred": "BS",
 };
+
+// Курс гривні для перемикача валют (public/currency.js). Один на весь сайт,
+// щоб ціна в гривні не відрізнялась від сторінки до сторінки.
+app.get("/api/public/rate", (req, res) => {
+  res.json({ uahRate: config.uahRate });
+});
 
 app.get("/api/public/catalog", async (req, res) => {
   if (!cache.rows.length) return res.json({ ok: false, error: "PRICES_NOT_READY" });

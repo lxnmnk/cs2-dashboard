@@ -27,6 +27,7 @@
       <a href="/ru/trade"><span class="nav-icon">🔄</span> Обмен</a>
     </nav>
     <div class="site-header-right">
+      <div id="currencySwitch"></div>
       <div class="lang-switch">
         <a href="/profile">UA</a>
         <a href="/ru/profile" class="active">RU</a>
@@ -106,6 +107,7 @@
         <div class="profile-stat"><span class="profile-stat-value" id="balHold">$0.00</span><span class="profile-stat-label">В холде</span></div>
         <div class="profile-stat"><span class="profile-stat-value" id="balTrade">$0.00</span><span class="profile-stat-label">Trade-баланс</span></div>
       </div>
+      <p class="card-hint" id="balRate"></p>
       <p class="card-hint">Выплата — в Telegram, кнопка появится в сделке, когда пройдёт холд Steam.</p>
     </div>
   </section>
@@ -238,6 +240,7 @@
   <script>
     window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате", holdTitle: "В холде" };
   </script>
+  <script src="/currency.js"></script>
   <script src="/nav-profile.js"></script>
   <script src="/item-aliases.js"></script>
   <script src="/item-filters.js"></script>

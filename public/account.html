@@ -27,6 +27,7 @@
       <a href="/trade"><span class="nav-icon">🔄</span> Обмін</a>
     </nav>
     <div class="site-header-right">
+      <div id="currencySwitch"></div>
       <div class="lang-switch">
         <a href="/account" class="active">UA</a>
         <a href="/ru/account">RU</a>
@@ -277,6 +278,7 @@
   <script>
     window.NAV_CONFIG = { signInLabel: "Увійти", accountUrl: "/account", loginUrl: "/auth/steam", balanceTitle: "Доступно до виплати", holdTitle: "У холді" };
   </script>
+  <script src="/currency.js"></script>
   <script src="/nav-profile.js"></script>
   <script src="/item-aliases.js"></script>
   <script src="/item-filters.js"></script>

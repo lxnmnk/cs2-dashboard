@@ -14,7 +14,7 @@ const tradeUrlInput = document.getElementById("profileTradeUrl");
 const tradeUrlStatus = document.getElementById("profileTradeUrlStatus");
 
 function money(n) {
-  return `$${(Number(n) || 0).toFixed(2)}`;
+  return window.fmtPrice ? window.fmtPrice(n) : `$${(Number(n) || 0).toFixed(2)}`;
 }
 
 function esc(s) {
@@ -60,10 +60,14 @@ async function loadProfile() {
   document.getElementById("profileSteamLink").href = c.profileUrl || "#";
   tradeUrlInput.value = c.tradeUrl || "";
 
+  // Валюту обирає сама людина перемикачем у шапці — показуємо в ній одній,
+  // друге число поруч тільки заважало б читати.
   const b = data.balance || {};
   document.getElementById("balAvailable").textContent = money(b.available);
   document.getElementById("balHold").textContent = money(b.hold);
   document.getElementById("balTrade").textContent = money(b.trade);
+  const rate = document.getElementById("balRate");
+  if (rate && b.uahRate) rate.textContent = `1 $ = ${b.uahRate} ₴`;
 
   loadStats();
 }

@@ -18,6 +18,7 @@
       <a href="/trade"><span class="nav-icon">🔄</span> Обмін</a>
     </nav>
     <div class="site-header-right">
+      <div id="currencySwitch"></div>
       <div class="lang-switch">
         <a href="/buy" class="active">UA</a>
         <a href="/ru/buy">RU</a>
@@ -73,8 +74,8 @@
         <div class="filters-group">
           <h4>Ціна</h4>
           <div class="filters-range">
-            <label>Від<input id="catalogMin" type="number" min="0" placeholder="0" /></label>
-            <label>До<input id="catalogMax" type="number" min="0" placeholder="&#8734;" /></label>
+            <label>Від, $<input id="catalogMin" type="number" min="0" placeholder="0" /></label>
+            <label>До, $<input id="catalogMax" type="number" min="0" placeholder="&#8734;" /></label>
           </div>
         </div>
         <div class="filters-group">
@@ -164,6 +165,7 @@
       "msgTotal": "Разом:"
 };
   </script>
+  <script src="/currency.js"></script>
   <script src="/catalog.js"></script>
   <script src="/nav-profile.js"></script>
 </body>

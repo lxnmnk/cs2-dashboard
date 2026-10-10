@@ -18,6 +18,7 @@
       <a href="/ru/trade"><span class="nav-icon">🔄</span> Обмен</a>
     </nav>
     <div class="site-header-right">
+      <div id="currencySwitch"></div>
       <div class="lang-switch">
         <a href="/sell">UA</a>
         <a href="/ru/sell" class="active">RU</a>
@@ -109,9 +110,10 @@
       totalLabel: "Итого:",
       priceNote: "по цене с сайта",
       removeLabel: "Убрать",
-      uah: { enabled: true, rate: 45 },
+      uah: { enabled: true, rate: 45.5 },
     };
   </script>
+  <script src="/currency.js"></script>
   <script src="/quote-common.js"></script>
   <script>
     window.NAV_CONFIG = { signInLabel: "Войти", accountUrl: "/ru/account", loginUrl: "/auth/steam?lang=ru", balanceTitle: "Доступно к выплате", holdTitle: "В холде" };
