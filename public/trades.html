@@ -214,6 +214,50 @@
       </table>
     </div>
 
+    <!-- Поправки к балансу клиента по Steam ID. Журнал продаж не знает о
+         выплатах частями, бонусах и расчётах мимо сайта, поэтому число в
+         кабинете расходится с тем, что человек реально получит. -->
+    <div class="section-title">Client balances <span class="section-hint">what each client sees in their own profile. A correction is added on top of the deals — plus means we owe more, minus takes money off the balance (paid part in cash, say)</span></div>
+    <section class="trade-form">
+      <label>Steam ID
+        <input id="custBalSteamIdInput" type="text" maxlength="17" placeholder="76561198..." list="custBalSteamIdList" autocomplete="off" />
+        <datalist id="custBalSteamIdList"></datalist>
+      </label>
+      <label>Wallet
+        <select id="custBalBucketSelect">
+          <option value="available">Available — can withdraw</option>
+          <option value="hold">On hold — 7 days</option>
+          <option value="trade">Trade only — for our skins</option>
+        </select>
+      </label>
+      <label>Amount $
+        <input id="custBalAmountInput" type="number" step="0.01" placeholder="-25" title="Plus adds to the balance, minus takes off it" />
+      </label>
+      <label>What for
+        <input id="custBalNoteInput" type="text" maxlength="200" placeholder="e.g. paid $50 in cash, rest stays" />
+      </label>
+      <button id="custBalAddBtn">Correct</button>
+      <span id="custBalStatus" class="field-hint"></span>
+    </section>
+    <div class="table-card">
+      <table id="custBalTable">
+        <thead>
+          <tr><th>Client</th><th>Steam ID</th><th>From deals</th><th>Corrections</th><th>Available</th><th>On hold</th><th>Trade</th><th>Sees in total</th></tr>
+        </thead>
+        <tbody id="custBalBody">
+          <tr><td colspan="8" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="table-card" id="custBalLogCard" style="display:none;">
+      <table id="custBalLogTable">
+        <thead>
+          <tr><th>When</th><th>Client</th><th>Wallet</th><th>Amount</th><th>What for</th><th></th></tr>
+        </thead>
+        <tbody id="custBalLogBody"></tbody>
+      </table>
+    </div>
+
     <!-- Партнери: одне посилання виду gaben.market/sicarios і той самий код
          руками в кошику. Тут видно, що з цього вийшло. -->
     <div class="section-title">Partners &amp; promo codes <span class="section-hint">a link like gaben.market/&lt;code&gt;, the same word works as a promo code in the cart</span></div>

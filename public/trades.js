@@ -2164,7 +2164,183 @@ fetch("/api/me")
     loadClientSales();
     loadPricingSettings();
     loadPromoCodes();
+    loadCustomerBalances();
   });
+
+// ---- Балансы клиентов (только владелец) ----
+// Баланс в кабинете считается из журнала продаж: что продал, то и должны,
+// минус отметки "выплачено". Журнал не знает о выплатах частями, бонусах и
+// расчётах мимо сайта — поэтому здесь поправка по Steam ID, с заметкой и
+// возможностью удалить. См. customerBalances.js.
+const CUST_BAL_WALLETS = { available: "available", hold: "on hold", trade: "trade only" };
+
+// Поправка со знаком: "+$25.00" / "-$25.00" читается с одного взгляда, а
+// "$-25.00" из общего fmtMoney — нет.
+function custBalDelta(v) {
+  const n = Number(v) || 0;
+  return `${n > 0 ? "+" : "-"}$${Math.abs(n).toFixed(2)}`;
+}
+
+// Баланс клиента может уйти в минус (переплатили, отдали вперёд) — знак
+// ставим перед долларом, "$-25.50" читается как опечатка.
+function custBalMoney(v) {
+  const n = Number(v) || 0;
+  return `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
+}
+let custBalClients = [];
+
+async function loadCustomerBalances() {
+  const body = document.getElementById("custBalBody");
+  if (!body) return;
+
+  let data;
+  try {
+    data = await (await fetch("/api/customer-balances")).json();
+  } catch {
+    data = { ok: false };
+  }
+  if (!data.ok) return;
+
+  custBalClients = data.clients || [];
+  renderCustomerBalances();
+  renderCustomerBalanceLog();
+  describeCustomer();
+}
+
+function renderCustomerBalances() {
+  const body = document.getElementById("custBalBody");
+
+  // Подсказка в поле Steam ID: ник рядом с номером, иначе выбирать не из чего.
+  document.getElementById("custBalSteamIdList").innerHTML = custBalClients
+    .map((c) => `<option value="${escapeHtml(c.steamId)}" label="${escapeHtml(c.name || c.steamId)}"></option>`)
+    .join("");
+
+  if (!custBalClients.length) {
+    body.innerHTML = '<tr><td colspan="8" class="empty-row">No clients yet — nobody has logged in or sold anything.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = custBalClients
+    .map((c) => {
+      const computed = c.computed.available + c.computed.hold + c.computed.trade;
+      const adj = c.adjustment.available + c.adjustment.hold + c.adjustment.trade;
+      return `<tr${c.total ? "" : ' class="debt-repaid"'}>
+        <td><a href="https://steamcommunity.com/profiles/${escapeHtml(c.steamId)}" target="_blank">${escapeHtml(c.name || "(no name)")}</a></td>
+        <td><span class="na">${escapeHtml(c.steamId)}</span></td>
+        <td>${custBalMoney(computed)}</td>
+        <td>${adj ? `<b class="${adj > 0 ? "loss" : "profit"}">${custBalDelta(adj)}</b>` : '<span class="na">—</span>'}</td>
+        <td>${custBalMoney(c.balance.available)}</td>
+        <td>${custBalMoney(c.balance.hold)}</td>
+        <td>${custBalMoney(c.balance.trade)}</td>
+        <td><b>${custBalMoney(c.total)}</b></td>
+      </tr>`;
+    })
+    .join("");
+}
+
+// Список самих поправок: без него через месяц не вспомнить, почему у человека
+// на сорок долларов больше, и откатить не получится.
+function renderCustomerBalanceLog() {
+  const card = document.getElementById("custBalLogCard");
+  const body = document.getElementById("custBalLogBody");
+
+  const rows = [];
+  for (const c of custBalClients) {
+    for (const e of c.entries || []) rows.push({ ...e, steamId: c.steamId, name: c.name });
+  }
+  rows.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+  card.style.display = rows.length ? "block" : "none";
+  if (!rows.length) {
+    body.innerHTML = "";
+    return;
+  }
+
+  body.innerHTML = rows
+    .map(
+      (e) => `<tr>
+        <td>${fmtDate(e.createdAt)}</td>
+        <td>${escapeHtml(e.name || e.steamId)}</td>
+        <td>${CUST_BAL_WALLETS[e.bucket] || e.bucket}</td>
+        <td class="${e.amount > 0 ? "loss" : "profit"}">${custBalDelta(e.amount)}</td>
+        <td>${escapeHtml(e.note || "")}</td>
+        <td><button class="btn-small btn-danger" data-action="cust-bal-delete" data-steamid="${escapeHtml(e.steamId)}" data-id="${e.id}">Undo</button></td>
+      </tr>`
+    )
+    .join("");
+
+  body.querySelectorAll("[data-action='cust-bal-delete']").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Remove this correction? The client's balance goes back to what the deals say.")) return;
+      const res = await fetch(`/api/customer-balances/${encodeURIComponent(btn.dataset.steamid)}/${encodeURIComponent(btn.dataset.id)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!data.ok) return alert(data.error);
+      custBalClients = data.clients || [];
+      renderCustomerBalances();
+      renderCustomerBalanceLog();
+      describeCustomer();
+    });
+  });
+}
+
+// Пока правишь — видно, кого именно и с какого числа. Без этого легко
+// поправить незнакомый номер и не заметить.
+function describeCustomer() {
+  const status = document.getElementById("custBalStatus");
+  const id = document.getElementById("custBalSteamIdInput").value.trim();
+  if (!id) return (status.textContent = "");
+  const c = custBalClients.find((x) => x.steamId === id);
+  if (!c) {
+    status.textContent = /^\d{17}$/.test(id)
+      ? "no deals through the site — the correction will be their whole balance"
+      : "Steam ID is 17 digits";
+    return;
+  }
+  status.textContent = `${c.name || c.steamId}: sees ${custBalMoney(c.total)} now (${custBalMoney(c.balance.available)} available, ${custBalMoney(
+    c.balance.hold
+  )} on hold, ${custBalMoney(c.balance.trade)} trade)`;
+}
+
+document.getElementById("custBalSteamIdInput")?.addEventListener("input", describeCustomer);
+
+document.getElementById("custBalAddBtn")?.addEventListener("click", async () => {
+  const status = document.getElementById("custBalStatus");
+  const steamId = document.getElementById("custBalSteamIdInput").value.trim();
+  const amount = parseFloat(document.getElementById("custBalAmountInput").value);
+  if (!/^\d{17}$/.test(steamId)) return alert("Steam ID is 17 digits (76561198...)");
+  if (!amount) return alert("Enter the amount: plus adds to the balance, minus takes off it");
+
+  const client = custBalClients.find((c) => c.steamId === steamId);
+  const bucket = document.getElementById("custBalBucketSelect").value;
+  const was = client ? client.balance[bucket] : 0;
+  const who = client ? client.name || steamId : steamId;
+  // Клиент это число видит у себя в кабинете, поэтому спрашиваем до записи.
+  if (!confirm(`${who}: ${CUST_BAL_WALLETS[bucket]} ${custBalMoney(was)} -> ${custBalMoney(was + amount)}. Write it?`)) return;
+
+  const res = await fetch("/api/customer-balances", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      steamId,
+      amount,
+      bucket,
+      note: document.getElementById("custBalNoteInput").value.trim(),
+    }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    status.textContent = data.error;
+    return;
+  }
+  custBalClients = data.clients || [];
+  document.getElementById("custBalAmountInput").value = "";
+  document.getElementById("custBalNoteInput").value = "";
+  renderCustomerBalances();
+  renderCustomerBalanceLog();
+  describeCustomer();
+});
 
 // ---- Партнёры и промокоды (только владелец) ----
 // Одно слово работает двумя способами: gaben.market/sicarios как ссылка и

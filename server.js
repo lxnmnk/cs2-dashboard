@@ -26,6 +26,7 @@ const { startTelegramArbBot } = require("./telegramArbBot");
 const steamAuth = require("./steamAuth");
 const customers = require("./customers");
 const balanceAdjustments = require("./balanceAdjustments");
+const customerBalances = require("./customerBalances");
 const { fetchInventory } = require("./steamInventory");
 const skinbuxInventory = require("./skinbuxInventory");
 const skinbuxTx = require("./skinbuxTransactions");
@@ -456,7 +457,9 @@ app.get("/api/account/me", (req, res) => {
   const customer = req.session.customer || null;
   if (!customer) return res.json({ customer: null });
 
-  const balance = skinbuxSales.computeBalance(customer.steamId);
+  // Поправки владельца поверх расчёта по журналу: частичные выплаты, бонусы,
+  // расчёты мимо сайта — см. customerBalances.js.
+  const balance = customerBalances.apply(skinbuxSales.computeBalance(customer.steamId), customer.steamId);
   res.json({
     customer,
     balance: {
@@ -2001,6 +2004,71 @@ app.delete("/api/debts/:id", (req, res) => {
   try {
     debts.remove(req.params.id, req.session.username);
     res.json({ ok: true, ...debts.totalOwed(req.session.username) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// ---- Балансы клиентов (только владелец) ----
+// Что человек видит у себя в профиле, то и здесь: расчёт по журналу продаж
+// плюс ручные поправки по Steam ID (customerBalances.js).
+function customerBalanceRows() {
+  const sales = skinbuxSales.loadAll();
+  // Клиенты: кто входил в кабинет, кто что-то продавал через сайт и кому
+  // уже ставили поправку. Свои и партнёрские аккаунты это не клиенты.
+  const names = new Map();
+  for (const sale of sales) {
+    const id = String(sale.steamId || "");
+    if (!id || skinbuxSales.OWN_STEAM_IDS.has(id)) continue;
+    if (sale.customerName) names.set(id, sale.customerName);
+    else if (!names.has(id)) names.set(id, null);
+  }
+  for (const c of customers.list()) {
+    const id = String(c.steamId || "");
+    if (!id || skinbuxSales.OWN_STEAM_IDS.has(id)) continue;
+    names.set(id, c.displayName || names.get(id) || null);
+  }
+  for (const id of customerBalances.steamIds()) {
+    if (!names.has(id)) names.set(id, null);
+  }
+
+  return [...names.entries()]
+    .map(([steamId, name]) => {
+      const computed = skinbuxSales.computeBalance(steamId);
+      const adjustment = customerBalances.totalsFor(steamId);
+      const balance = customerBalances.apply(computed, steamId);
+      return {
+        steamId,
+        name,
+        computed,
+        adjustment,
+        balance,
+        total: round2(balance.available + balance.hold + balance.trade),
+        entries: customerBalances.listFor(steamId),
+      };
+    })
+    // Сверху те, у кого деньги на балансе: с ними и есть что решать.
+    .sort((a, b) => b.total - a.total || String(a.name || "").localeCompare(String(b.name || "")));
+}
+
+app.get("/api/customer-balances", requireSiteOwner, (req, res) => {
+  res.json({ ok: true, clients: customerBalanceRows() });
+});
+
+app.post("/api/customer-balances", requireSiteOwner, (req, res) => {
+  try {
+    const { steamId, amount, bucket, note } = req.body || {};
+    const entry = customerBalances.add({ steamId, amount, bucket, note, by: req.session.username });
+    res.json({ ok: true, entry, clients: customerBalanceRows() });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.delete("/api/customer-balances/:steamId/:entryId", requireSiteOwner, (req, res) => {
+  try {
+    customerBalances.remove(req.params.steamId, req.params.entryId);
+    res.json({ ok: true, clients: customerBalanceRows() });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }

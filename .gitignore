@@ -16,3 +16,6 @@ cs2-dashboard-update.tar.gz
 capital.json
 debts.json
 promoCodes.json
+
+# Поправки к балансам клиентов — тоже данные
+customerBalances.json

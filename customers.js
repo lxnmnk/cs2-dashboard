@@ -72,4 +72,9 @@ function setTradeUrl(steamId, tradeUrl) {
   return customer;
 }
 
-module.exports = { upsertBySteamId, findBySteamId, setTradeUrl, isValidTradeUrl };
+// Все клиенты — для панели владельца (список балансов, подсказки по Steam ID).
+function list() {
+  return loadCustomers();
+}
+
+module.exports = { list, upsertBySteamId, findBySteamId, setTradeUrl, isValidTradeUrl };
