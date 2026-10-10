@@ -147,7 +147,13 @@ function cardHtml(it) {
   return `
     <div class="inventory-card selectable${picked ? " selected" : ""}" data-name="${esc(it.marketHashName)}" role="button" tabindex="0">
       ${picked ? '<span class="inventory-card-check">✓</span>' : ""}
-      ${code ? `<div class="inventory-card-top"><span class="wear-code wear-${code}">${code}</span></div>` : ""}
+      ${
+        code || it.phase
+          ? `<div class="inventory-card-top">${code ? `<span class="wear-code wear-${code}">${code}</span>` : ""}${
+              code && it.phase ? '<span class="dot">·</span>' : ""
+            }${it.phase ? `<span class="item-phase">${esc(it.phase)}</span>` : ""}</div>`
+          : ""
+      }
       ${img}
       <div class="inventory-card-name">
         ${skin ? `<span class="item-weapon">${esc(weapon)}</span><span class="item-skin">${esc(skin)}</span>` : `<span class="item-skin">${esc(weapon)}</span>`}

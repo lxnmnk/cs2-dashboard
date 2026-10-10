@@ -104,6 +104,12 @@ document.querySelectorAll(".payout-method").forEach((btn) => {
     btn.classList.add("active");
     payoutMethod = btn.dataset.method;
     payoutMethodSub.textContent = payoutMethod === "crypto" ? CFG.payoutCryptoSub || "" : CFG.payoutCardSub || "";
+    // Крипта рахується в доларах, картка — у гривні. Перемикаємо показ самі,
+    // щоб людина бачила суму в тій валюті, в якій її й отримає. Без
+    // перезавантаження: воно скинуло б щойно обрані предмети.
+    window.setCurrency?.(payoutMethod === "crypto" ? "USD" : "UAH", { reload: false });
+    renderInventoryList();
+    renderCart();
   });
 });
 const cartTotal = document.getElementById("cartTotal");
@@ -265,7 +271,9 @@ const sellOfferModal = createSellOfferModal({
     cancelledText: CFG.cancelledText,
   },
   receivedText: (sale, holdDays) => {
-    const amount = `$${Number(sale.totalPrice).toFixed(2)}`;
+    // Сума в тій же валюті, що й решта сторінки — інакше після продажу
+    // людина бачила долари там, де щойно дивилась на гривні.
+    const amount = price(sale.totalPrice);
     if (sale.status !== "hold") return fillSaleText(CFG.receivedAvailableText, { amount });
     const days = holdDays || 7;
     const unlockAt = sale.unlockAt ? new Date(sale.unlockAt) : new Date(Date.now() + days * 86400000);
@@ -342,9 +350,23 @@ async function loadInventory({ refresh = false } = {}) {
   inventoryItems = data.items;
   if (!cartRestored) {
     restoreCart();
-    renderCart();
   }
+  // Кошик тримає власні копії цін, тож після перечитування інвентаря їх треба
+  // оновити: інакше після введення промокоду картки показували нову ціну, а
+  // кошик — стару, і продаж пішов би за старою.
+  syncCartPrices();
+  renderCart();
   renderInventoryList();
+}
+
+/** Підтягує в кошик свіжі ціни; зниклі з інвентаря предмети прибирає. */
+function syncCartPrices() {
+  cart = cart
+    .map((it) => {
+      const fresh = inventoryItems.find((i) => i.assetId === it.assetId);
+      return fresh && fresh.price != null ? { ...it, price: fresh.price } : null;
+    })
+    .filter(Boolean);
 }
 
 // ---- Картка предмета ----
@@ -518,7 +540,7 @@ function renderSelectionControls(visible) {
 
   const sum = cart.reduce((acc, it) => acc + it.price, 0);
   selectionSummaryEl.textContent = cart.length
-    ? (CFG.selectedSummary || "").replace("{n}", cart.length).replace("{sum}", sum.toFixed(2))
+    ? (CFG.selectedSummary || "").replace("{n}", cart.length).replace("{sum}", price(sum))
     : "";
 }
 
@@ -594,6 +616,13 @@ fillCartLabels();
 // Малюємо кошик одразу, не чекаючи інвентаря: умови виплати мають бути на
 // екрані з першої секунди, навіть поки нічого не обрано.
 renderCart();
+
+// Курс гривні приходить із сервера трохи пізніше за першу відмальовку —
+// перемальовуємо ціни, коли він приїхав.
+document.addEventListener("currency-rate", () => {
+  renderInventoryList();
+  renderCart();
+});
 
 // Ціну показуємо у валюті, яку обрала людина (currency.js). Усередині все
 // лишається в доларах — міняється тільки показ.

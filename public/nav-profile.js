@@ -54,27 +54,25 @@ function refreshNavBalance() {
       // Гривні рахує сервер за курсом з config.json, щоб не тримати його копію
       // в кожній мовній версії сторінки.
       if (navBalanceEl && data.customer && data.balance) {
-        const { available, availableUah, hold, holdUah, trade, tradeUah } = data.balance;
+        const { available, hold, trade } = data.balance;
+        // Валюту обирає людина перемикачем у шапці (currency.js) — раніше тут
+        // завжди стояли обидві суми, і тепер це сперечалося б із її вибором.
+        const money = (usd) => (window.fmtPrice ? window.fmtPrice(usd) : "$" + Number(usd || 0).toFixed(2));
         // Гроші в холді показуємо окремим рядком: без цього клієнт після
         // успішного продажу бачив у шапці $0.00 і не розумів, чи все дійшло.
         const holdLine = hold
-          ? `<span class="nav-balance-hold" title="${escapeHtml(NAV_T.holdTitle || "")}">+$${hold.toFixed(
-              2
-            )} · ${holdUah} ₴</span>`
+          ? `<span class="nav-balance-hold" title="${escapeHtml(NAV_T.holdTitle || "")}">+${money(hold)}</span>`
           : "";
         // Trade-баланс — гроші за сторону клієнта в обміні. Витрачаються лише
         // на наші скіни, тому ведуть не в кабінет, а в сам обмін.
         const tradeLine = trade
-          ? `<span class="nav-balance-trade" title="${escapeHtml(navText("tradeTitle"))}">🔄 $${trade.toFixed(
-              2
-            )} · ${tradeUah} ₴</span>`
+          ? `<span class="nav-balance-trade" title="${escapeHtml(navText("tradeTitle"))}">🔄 ${money(trade)}</span>`
           : "";
         navBalanceEl.innerHTML = `
           <a class="nav-balance" href="${escapeHtml(
             trade && !available && !hold ? NAV_T.tradeUrl || "/trade" : NAV_T.accountUrl
           )}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
-            <span class="nav-balance-usd">$${available.toFixed(2)}</span>
-            <span class="nav-balance-uah">${availableUah} ₴</span>
+            <span class="nav-balance-usd">${money(available)}</span>
             ${holdLine}
             ${tradeLine}
           </a>`;

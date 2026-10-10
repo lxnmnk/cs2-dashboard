@@ -117,7 +117,9 @@ function swapEscape(s) {
 }
 
 function swapMoney(n) {
-  return "$" + n.toFixed(2);
+  // Валюту обирає людина в шапці (currency.js) — усередині все лишається в
+  // доларах, змінюється тільки показ.
+  return window.fmtPrice ? window.fmtPrice(n) : "$" + n.toFixed(2);
 }
 
 function swapFill(template, vars) {
@@ -584,3 +586,11 @@ restoreSwapOurs();
 loadMine();
 loadOurs();
 renderSummary();
+
+// Курс гривні приходить із сервера після першої відмальовки — перемальовуємо
+// обидві сторони обміну, коли він приїхав.
+document.addEventListener("currency-rate", () => {
+  renderMine();
+  renderOurs();
+  renderSummary();
+});

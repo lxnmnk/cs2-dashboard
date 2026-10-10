@@ -12,6 +12,10 @@
     return String(str || "").replace(/\{(\w+)\}/g, (_, key) => vars[key]);
   }
 
+  function money(usd) {
+    return window.fmtPrice ? window.fmtPrice(usd) : "$" + (Number(usd) || 0).toFixed(2);
+  }
+
   function esc(s) {
     return (s || "").replace(
       /[&<>"']/g,
@@ -63,7 +67,7 @@
       <div class="deal-card">
         <div class="deal-card-head">
           <span class="deal-items">${itemsLabel}</span>
-          <span class="deal-price">$${sale.totalPrice.toFixed(2)}</span>
+          <span class="deal-price">${money(sale.totalPrice)}</span>
         </div>
         <p class="card-hint">${esc(format(T.dealLineTemplate, { id: sale.id, date }))}</p>
         ${statusHtml}

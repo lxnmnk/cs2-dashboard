@@ -12,8 +12,10 @@
   const KEY = "currency";
   const DEFAULT_RATE = 45.5;
 
+  // За замовчуванням гривня: більшість клієнтів з України і виплату беруть на
+  // картку. Хто працює в доларах — перемикає сам, вибір запам'ятовується.
   const state = {
-    code: localStorage.getItem(KEY) === "UAH" ? "UAH" : "USD",
+    code: localStorage.getItem(KEY) === "USD" ? "USD" : "UAH",
     rate: DEFAULT_RATE,
   };
 
@@ -26,29 +28,98 @@
     return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  const SYMBOL = { USD: "$", UAH: "₴" };
+
+  /**
+   * Перемикачі в шапці — валюта й мова — малюються однаково: кнопка з
+   * поточним значенням і список під нею. Рядком із трьох посилань вони
+   * займали півшапки, а на телефоні ще й переносились.
+   */
+  function dropdown(mount, { label, items, onPick }) {
+    mount.classList.add("header-drop");
+    mount.innerHTML = `
+      <button class="header-drop-btn" type="button">${label}<span class="header-drop-arrow">▾</span></button>
+      <div class="header-drop-menu">
+        ${items.map((i) => `<a href="${i.href || "#"}" data-value="${i.value}"${i.active ? ' class="active"' : ""}>${i.label}</a>`).join("")}
+      </div>`;
+
+    const btn = mount.querySelector(".header-drop-btn");
+    const menu = mount.querySelector(".header-drop-menu");
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = !menu.classList.contains("open");
+      document.querySelectorAll(".header-drop-menu.open").forEach((m) => m.classList.remove("open"));
+      menu.classList.toggle("open", open);
+    });
+    if (onPick) {
+      menu.querySelectorAll("[data-value]").forEach((link) => {
+        link.addEventListener("click", (e) => {
+          e.preventDefault();
+          menu.classList.remove("open");
+          onPick(link.dataset.value);
+        });
+      });
+    }
+  }
+
   function render() {
     const mount = document.getElementById("currencySwitch");
-    if (!mount) return;
-    mount.className = "lang-switch currency-switch";
-    mount.innerHTML = ["USD", "UAH"]
-      .map((c) => `<a href="#" data-currency="${c}"${c === state.code ? ' class="active"' : ""}>${c === "UAH" ? "₴" : "$"}</a>`)
-      .join("");
-
-    mount.querySelectorAll("[data-currency]").forEach((link) => {
-      link.addEventListener("click", (e) => {
-        e.preventDefault();
-        const code = link.dataset.currency;
-        if (code === state.code) return;
-        localStorage.setItem(KEY, code);
-        // Перезавантаження — найнадійніший спосіб: усі ціни на сторінці
-        // перемалюються тим самим кодом, що й зазвичай.
-        location.reload();
+    if (mount) {
+      dropdown(mount, {
+        label: SYMBOL[state.code],
+        items: ["UAH", "USD"].map((c) => ({ value: c, label: `${SYMBOL[c]} ${c}`, active: c === state.code })),
+        onPick: (code) => setCurrency(code),
       });
-    });
+    }
+
+    // Мова лежить у розмітці звичайними посиланнями — згортаємо їх у такий
+    // самий список, не чіпаючи два десятки сторінок.
+    const lang = document.querySelector(".lang-switch:not(.header-drop)");
+    if (lang) {
+      const links = [...lang.querySelectorAll("a")].map((a) => ({
+        value: a.getAttribute("href"),
+        href: a.getAttribute("href"),
+        label: a.textContent.trim(),
+        active: a.classList.contains("active"),
+      }));
+      if (links.length) {
+        dropdown(lang, { label: (links.find((l) => l.active) || links[0]).label, items: links });
+      }
+    }
+  }
+
+  document.addEventListener("click", () => {
+    document.querySelectorAll(".header-drop-menu.open").forEach((m) => m.classList.remove("open"));
+  });
+
+  /**
+   * Змінити валюту показу.
+   *
+   * reload: true (перемикач у шапці) — найнадійніший спосіб, усі ціни на
+   * сторінці перемальовуються звичайним кодом. reload: false потрібен там, де
+   * валюта міняється сама посеред дії людини — наприклад, коли в кошику
+   * обрали крипту: перезавантаження зараз скинуло б вибір предметів.
+   */
+  function setCurrency(code, { reload = true } = {}) {
+    const next = code === "UAH" ? "UAH" : "USD";
+    if (next === state.code) return;
+    state.code = next;
+    try {
+      localStorage.setItem(KEY, next);
+    } catch {
+      // приватний режим — просто не запам'ятаємо
+    }
+    if (reload) {
+      location.reload();
+      return;
+    }
+    render();
+    document.dispatchEvent(new Event("currency-changed"));
   }
 
   window.Currency = state;
   window.fmtPrice = fmt;
+  window.setCurrency = setCurrency;
 
   // Курс питаємо один раз; поки не прийшов, рахуємо за запасним — щоб ціни не
   // блимали й не чекали мережі.

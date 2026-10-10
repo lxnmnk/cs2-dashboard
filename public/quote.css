@@ -1885,3 +1885,50 @@ a.sender-line { color: var(--gold); }
 
 /* Перемикач валюти — поряд із мовою, таким самим виглядом. */
 .currency-switch a { min-width: 26px; text-align: center; font-weight: 700; }
+
+/* Перемикачі в шапці (валюта й мова) — компактні випадайки замість рядка
+   посилань: рядком вони займали півшапки й переносились на телефоні. */
+.header-drop { position: relative; }
+.header-drop-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.header-drop-btn:hover { border-color: var(--gold-line); }
+.header-drop-arrow { font-size: 10px; color: var(--muted); }
+.header-drop-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 60;
+  min-width: 118px;
+  margin-top: 4px;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+.header-drop-menu.open { display: block; }
+.header-drop-menu a {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.header-drop-menu a:hover { background: rgba(255, 255, 255, 0.06); }
+.header-drop-menu a.active { color: var(--gold); }

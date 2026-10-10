@@ -1154,7 +1154,11 @@ function catalogItems(query) {
     if (category && categoryOf(name) !== category) continue;
     if (weapons.size && !weapons.has(weaponOf(name))) continue;
 
-    const { baseName, wear } = parseItemName(name);
+    // У допплерів фаза приклеєна до якості ("Factory New · Phase 2") — тоді
+    // ні код якості, ні сама фаза на картці не показувались, і два різні ножі
+    // виглядали однаково. Розділяємо.
+    const { baseName, wear: wearRaw, phase } = parseItemName(name);
+    const wear = phase && wearRaw ? wearRaw.replace(` · ${phase}`, "") : wearRaw;
     if (wears.size && !wears.has(WEAR_BY_CODE_REVERSE[wear] || "")) continue;
 
     const isStatTrak = name.includes("StatTrak™");
@@ -1169,7 +1173,7 @@ function catalogItems(query) {
     if (Number.isFinite(min) && quote.price < min) continue;
     if (Number.isFinite(max) && quote.price > max) continue;
 
-    items.push({ marketHashName: name, name: baseName, wear, price: quote.price });
+    items.push({ marketHashName: name, name: baseName, wear, phase: phase || null, price: quote.price });
   }
 
   items.sort((a, b) => (query.sort === "price_asc" ? a.price - b.price : b.price - a.price));
