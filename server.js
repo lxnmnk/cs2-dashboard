@@ -1145,7 +1145,10 @@ function catalogItems(query) {
   const special = String(query.special || "").trim();
   const min = parseFloat(query.min);
   const max = parseFloat(query.max);
-  const markup = pricingSettings.get().buyMarkup;
+  // У розділі Trade наша сторона коштує дорожче (своя націнка), тому каталог
+  // уміє рахувати обома — інакше в обміні показувались би ціни купівлі.
+  const settings = pricingSettings.get();
+  const markup = query.mode === "trade" ? settings.tradeMarkup : settings.buyMarkup;
 
   const items = [];
   for (const row of cache.rows) {

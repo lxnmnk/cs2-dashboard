@@ -88,15 +88,39 @@
         <h2>Our skins</h2>
         <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
       </div>
-      <p class="card-hint">These are the popular ones — find any other skin through the search. Click to add, right-click to remove.<br /><b class="swap-benefit">Trade the same day: no 7-day wait like with a sale, and better value than selling and buying.</b></p>
+      <p class="card-hint">The whole catalog: pick a category or search by name. Click to add, right-click to remove.<br /><b class="swap-benefit">Trade the same day: no 7-day wait like with a sale, and better value than selling and buying.</b></p>
 
       <!-- Что уже выбрано: карточка видна только пока предмет в текущем
            списке, а выбор переживает и поиск, и перезагрузку. -->
       <div id="swapOursChosen" class="swap-chosen" style="display:none;"></div>
 
+      <!-- Ті самі вкладки категорій, що в каталозі "Купити скіни": на нашій
+           стороні обміну весь прайс, і без них його не перебрати. -->
+      <div class="catalog-tabs" id="swapCatalogTabs">
+        <button class="catalog-tab active" type="button" data-category="">All</button>
+        <button class="catalog-tab" type="button" data-category="knife">Knives</button>
+        <button class="catalog-tab" type="button" data-category="gloves">Gloves</button>
+        <button class="catalog-tab" type="button" data-category="rifle">Rifles</button>
+        <button class="catalog-tab" type="button" data-category="sniper">Snipers</button>
+        <button class="catalog-tab" type="button" data-category="pistol">Pistols</button>
+        <button class="catalog-tab" type="button" data-category="smg">SMGs</button>
+        <button class="catalog-tab" type="button" data-category="shotgun">Shotguns</button>
+        <button class="catalog-tab" type="button" data-category="machinegun">Machine guns</button>
+        <button class="catalog-tab" type="button" data-category="sticker">Stickers</button>
+        <button class="catalog-tab" type="button" data-category="charm">Charms</button>
+        <button class="catalog-tab" type="button" data-category="agent">Agents</button>
+        <button class="catalog-tab" type="button" data-category="case">Cases</button>
+        <button class="catalog-tab" type="button" data-category="other">Other</button>
+      </div>
+
       <p id="swapOursLoading" class="card-hint">Loading the showcase...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
       <p id="swapAnyHint" class="swap-any-hint"></p>
+      <div id="swapOursPager" class="catalog-pager" style="display:none;">
+        <button id="swapOursPrev" class="btn-small btn-secondary" type="button">Back</button>
+        <span id="swapOursPageLabel"></span>
+        <button id="swapOursNext" class="btn-small btn-secondary" type="button">Next</button>
+      </div>
     </div>
 
     <aside id="swapOursFilters" class="filters-panel swap-filters"></aside>

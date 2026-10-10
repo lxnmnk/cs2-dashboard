@@ -88,15 +88,39 @@
         <h2>Наши скины</h2>
         <span class="swap-panel-total" id="swapOursTotal">$0.00</span>
       </div>
-      <p class="card-hint">Здесь популярное — любой другой скин найдётся через поиск. Клик — добавить, правый клик — убрать.<br /><b class="swap-benefit">Обмен день в день: без 7 дней ожидания, как при продаже, и выгоднее, чем продать и купить.</b></p>
+      <p class="card-hint">Весь каталог: выбирай категорию или ищи по названию. Клик — добавить, правый клик — убрать.<br /><b class="swap-benefit">Обмен день в день: без 7 дней ожидания, как при продаже, и выгоднее, чем продать и купить.</b></p>
 
       <!-- Что уже выбрано: карточка видна только пока предмет в текущем
            списке, а выбор переживает и поиск, и перезагрузку. -->
       <div id="swapOursChosen" class="swap-chosen" style="display:none;"></div>
 
+      <!-- Ті самі вкладки категорій, що в каталозі "Купити скіни": на нашій
+           стороні обміну весь прайс, і без них його не перебрати. -->
+      <div class="catalog-tabs" id="swapCatalogTabs">
+        <button class="catalog-tab active" type="button" data-category="">Все</button>
+        <button class="catalog-tab" type="button" data-category="knife">Ножи</button>
+        <button class="catalog-tab" type="button" data-category="gloves">Перчатки</button>
+        <button class="catalog-tab" type="button" data-category="rifle">Винтовки</button>
+        <button class="catalog-tab" type="button" data-category="sniper">Снайперские</button>
+        <button class="catalog-tab" type="button" data-category="pistol">Пистолеты</button>
+        <button class="catalog-tab" type="button" data-category="smg">ПП</button>
+        <button class="catalog-tab" type="button" data-category="shotgun">Дробовики</button>
+        <button class="catalog-tab" type="button" data-category="machinegun">Пулемёты</button>
+        <button class="catalog-tab" type="button" data-category="sticker">Наклейки</button>
+        <button class="catalog-tab" type="button" data-category="charm">Брелоки</button>
+        <button class="catalog-tab" type="button" data-category="agent">Агенты</button>
+        <button class="catalog-tab" type="button" data-category="case">Кейсы</button>
+        <button class="catalog-tab" type="button" data-category="other">Другое</button>
+      </div>
+
       <p id="swapOursLoading" class="card-hint">Загружаю витрину...</p>
       <div id="swapOursGrid" class="swap-grid"></div>
       <p id="swapAnyHint" class="swap-any-hint"></p>
+      <div id="swapOursPager" class="catalog-pager" style="display:none;">
+        <button id="swapOursPrev" class="btn-small btn-secondary" type="button">Назад</button>
+        <span id="swapOursPageLabel"></span>
+        <button id="swapOursNext" class="btn-small btn-secondary" type="button">Дальше</button>
+      </div>
     </div>
 
     <aside id="swapOursFilters" class="filters-panel swap-filters"></aside>

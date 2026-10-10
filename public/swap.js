@@ -212,7 +212,10 @@ const CATALOG_RETRIES = 5;
 const CATALOG_RETRY_MS = 8000;
 
 async function loadOurs(attempt = 0) {
-  const data = await fetch("/api/public/trade-catalog")
+  // Перша сторінка того самого каталогу, що і в "Купити скіни", але за цінами
+  // обміну. Окремої вітрини популярного більше немає: з фільтрами й
+  // категоріями людина доходить до потрібного швидше, ніж по короткому списку.
+  const data = await fetch("/api/public/catalog?mode=trade")
     .then((r) => r.json())
     .catch(() => ({ ok: false }));
 
@@ -227,14 +230,12 @@ async function loadOurs(attempt = 0) {
   }
 
   swapOursLoading.style.display = "none";
-  swapOursCatalog = data.items;
   rememberOurs(data.items);
-  // Сохранённый выбор мог прийти со старыми ценами — пересчитываем итог.
+  // Збережений вибір міг прийти зі старими цінами — перераховуємо підсумок.
   renderSummary();
-  if (!isSearching()) {
-    swapOurs = swapOursCatalog;
-    renderOurs();
-  }
+  swapOurs = data.items;
+  renderOurs();
+  renderOursPager(data);
 }
 
 function isSearching() {
@@ -245,44 +246,82 @@ let oursSearchTimer = null;
 let oursSearchSeq = 0;
 
 function onOursFiltersChange() {
-  if (!isSearching()) {
-    clearTimeout(oursSearchTimer);
-    swapOurs = swapOursCatalog;
-    renderOurs();
-    return;
-  }
-
-  // Пошук іде на сервер, тому чекаємо, поки людина допише назву.
+  // Будь-яка зміна фільтра — новий запит до каталогу з першої сторінки.
+  oursPage = 1;
   clearTimeout(oursSearchTimer);
   oursSearchTimer = setTimeout(runOursSearch, 350);
 }
 
-async function runOursSearch() {
-  const query = swapOursSearchInput.value.trim();
-  const seq = ++oursSearchSeq;
+// Наша сторона обміну — той самий каталог, що й у "Купити скіни", тільки за
+// цінами обміну (mode=trade). Раніше тут була коротка вітрина популярного і
+// пошук по назві: якщо людина не знала, чого хоче, перебрати не було як.
+let oursPage = 1;
+let oursPages = 1;
 
+async function runOursSearch() {
+  const seq = ++oursSearchSeq;
   swapOursGrid.innerHTML = `<p class="swap-empty">${swapEscape(SWAP_T.searchingLabel)}</p>`;
-  // Фільтри йдуть на сервер разом із запитом: відповідь обрізається до
-  // найдорожчої верхівки збігів, тож відбирати по ціні й якості треба там.
-  const params = new URLSearchParams({ q: query, ...swapOursFilters.params() });
-  const data = await fetch(`/api/public/trade-search?${params}`)
+
+  const params = new URLSearchParams({ mode: "trade", page: oursPage, ...swapOursFilters.params() });
+  const query = swapOursSearchInput?.value.trim();
+  if (query) params.set("q", query);
+  if (swapCategory) params.set("category", swapCategory);
+
+  const data = await fetch(`/api/public/catalog?${params}`)
     .then((r) => r.json())
     .catch(() => ({ ok: false, items: [] }));
 
-  // Поки відповідь ішла, людина могла дописати назву — тоді цей результат уже
-  // не актуальний.
+  // Поки відповідь ішла, людина могла змінити фільтр — тоді ця вже не потрібна.
   if (seq !== oursSearchSeq) return;
 
   const items = data.items || [];
+  oursPages = data.pages || 1;
   rememberOurs(items);
   swapOurs = items;
   renderOurs({ searched: true });
+  renderOursPager(data);
 }
+
+function renderOursPager(data) {
+  const pager = document.getElementById("swapOursPager");
+  if (!pager) return;
+  pager.style.display = (data.pages || 1) > 1 ? "flex" : "none";
+  document.getElementById("swapOursPageLabel").textContent = `${data.page || 1} / ${data.pages || 1}`;
+  document.getElementById("swapOursPrev").disabled = (data.page || 1) <= 1;
+  document.getElementById("swapOursNext").disabled = (data.page || 1) >= (data.pages || 1);
+}
+
+// ---- Вкладки категорій на нашій стороні ----
+let swapCategory = "";
+document.querySelectorAll("#swapCatalogTabs .catalog-tab").forEach((tab) => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll("#swapCatalogTabs .catalog-tab").forEach((t) => t.classList.remove("active"));
+    tab.classList.add("active");
+    swapCategory = tab.dataset.category || "";
+    oursPage = 1;
+    runOursSearch();
+  });
+});
+
+document.getElementById("swapOursPrev")?.addEventListener("click", () => {
+  if (oursPage > 1) {
+    oursPage--;
+    runOursSearch();
+  }
+});
+document.getElementById("swapOursNext")?.addEventListener("click", () => {
+  if (oursPage < oursPages) {
+    oursPage++;
+    runOursSearch();
+  }
+});
 
 function renderOurs({ searched = false } = {}) {
   // Рядок пошуку для правої сторони вже відпрацював на сервері, але решта
   // фільтрів (ціна, якість) звужує і вітрину, і результат пошуку.
-  const visible = swapOursFilters.apply(swapOurs);
+  // Сервер уже відібрав за фільтрами — тут нічого не досіюємо, інакше
+  // сторінка з 24 предметів ще й ужималась би вдруге.
+  const visible = swapOurs;
   if (!visible.length) {
     const message = searched || isSearching() ? SWAP_T.searchEmpty : SWAP_T.nothingFound;
     swapOursGrid.innerHTML = `<p class="swap-empty">${swapEscape(message)}</p>`;
