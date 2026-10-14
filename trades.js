@@ -6,7 +6,12 @@ const path = require("path");
 const crypto = require("crypto");
 const { getSteamImages } = require("./steamImages");
 
-const TRADES_FILE = path.join(__dirname, "trades.json");
+// TRADES_FILE — чтобы посмотреть чужой/серверный файл сделок, не подменяя свой:
+// `TRADES_FILE=./trades-server.json node report-sellable.js`. Сайт переменную
+// не задаёт и работает со своим trades.json как раньше.
+const TRADES_FILE = process.env.TRADES_FILE
+  ? path.resolve(process.env.TRADES_FILE)
+  : path.join(__dirname, "trades.json");
 
 function loadTrades() {
   if (!fs.existsSync(TRADES_FILE)) return [];

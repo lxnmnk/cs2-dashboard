@@ -10,6 +10,12 @@
 // числа совпадали с тем, что видно в My Trades, а не считались по-своему.
 //
 // Запуск:  node report-sellable.js [owner]      (по умолчанию lxnmnk)
+//          TRADES_FILE=./trades-server.json node report-sellable.js
+//
+// TRADES_FILE нужен, когда смотришь не свой файл, а скачанный с сервера:
+// подменять им локальный trades.json не надо. В шапке отчёта печатается,
+// какой файл прочитан и когда была последняя покупка, — чтобы отчёт по
+// позавчерашней копии не выдавался за сегодняшний склад.
 require("dotenv").config();
 
 const fs = require("fs");
@@ -46,6 +52,7 @@ function pad(s, width, right = false) {
   // cs.money в этом отчёте не участвует: сдаём мы на Skinbux или в бид Youpin.
   const rows = buildRows(cs2shItems, new Map(), skinbuxMap, config);
 
+  const tradesFile = path.resolve(process.env.TRADES_FILE || path.join(__dirname, "trades.json"));
   const all = trades.listTrades({ owner, rows, config });
   const holding = all.filter((t) => t.status === "holding");
   const locked = holding.filter((t) => t.isLocked);
@@ -79,6 +86,8 @@ function pad(s, width, right = false) {
   report.sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
 
   const W = [46, 10, 10, 11, 11, 12, 9];
+  const lastBuy = all.reduce((max, t) => (!max || t.buyDate > max ? t.buyDate : max), null);
+  console.log(`Файл: ${tradesFile} · сделок: ${all.length} · последняя покупка: ${lastBuy ? new Date(lastBuy).toLocaleString("ru-RU") : "нет"}`);
   console.log(`Владелец: ${owner} · свободных позиций: ${free.length} · в трейд-бане: ${locked.length}`);
   console.log(`Цены на ${new Date().toLocaleString("ru-RU")}; Youpin считаем по ${Math.round(YOUPIN_INSTANT * 100)}% (остальное во frozen)\n`);
   console.log(
