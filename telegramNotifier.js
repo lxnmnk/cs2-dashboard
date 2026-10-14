@@ -44,4 +44,28 @@ async function sendScanToTelegram(snapshot, { botToken, chatId }) {
   return { sent: true };
 }
 
-module.exports = { sendScanToTelegram };
+/**
+ * Звичайне текстове повідомлення власнику — тим самим ботом, що й скани.
+ * Потрібне для "по цій угоді вже можна платити": без нього власник дізнавався
+ * про зняття холду, лише коли сам відкривав панель.
+ *
+ * Помилку не ковтаємо мовчки, але й не ламаємо через неї те, звідки нас
+ * покликали: Telegram може бути недоступний, а продаж від цього не змінився.
+ */
+async function sendOwnerMessage(text, { botToken, chatId }) {
+  if (!botToken || !chatId) return { sent: false, reason: "TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID не заданы в .env" };
+
+  const res = await fetch(`${TELEGRAM_API}/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text: text.slice(0, 4000), disable_web_page_preview: true }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`telegram sendMessage ${res.status}: ${body}`);
+  }
+  return { sent: true };
+}
+
+module.exports = { sendScanToTelegram, sendOwnerMessage };

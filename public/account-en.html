@@ -104,6 +104,21 @@
             <button class="payout-method" type="button" data-method="crypto">Crypto</button>
           </div>
           <p id="payoutMethodSub" class="payout-method-sub"></p>
+
+          <!-- Реквізити виплати. Заповнюються тут, щоб після зняття холду
+               гроші можна було переказати без переписки в Telegram. -->
+          <div id="payoutCardFields" class="payout-fields">
+            <select id="payoutBank" class="payout-input"></select>
+            <input id="payoutBankName" class="payout-input" type="text" maxlength="40" style="display:none" />
+            <input id="payoutCardNumber" class="payout-input" type="text" inputmode="numeric" autocomplete="off" maxlength="19" />
+            <input id="payoutHolder" class="payout-input" type="text" autocomplete="off" maxlength="60" />
+          </div>
+          <div id="payoutCryptoFields" class="payout-fields" style="display: none;">
+            <select id="payoutNetwork" class="payout-input"></select>
+            <input id="payoutAddress" class="payout-input" type="text" autocomplete="off" maxlength="80" spellcheck="false" />
+          </div>
+          <p id="payoutError" class="payout-error"></p>
+
           <p id="payoutDateLine" class="payout-date"></p>
         </div>
 
@@ -185,7 +200,7 @@
       registeredLabel: "Account created",
       openProfile: "Steam profile",
       payoutCardSub: "mono · privat24 · abank",
-      payoutCryptoSub: "USDT · USDC · BTC",
+      payoutCryptoSub: "USDT · USDC — TRC-20, ERC-20, BEP-20, Solana",
       itemsRowLabel: "Items",
       feeRowLabel: "Fee",
       feeRowValue: "0% — the price is final",
@@ -199,8 +214,22 @@
       payoutMethodTitle: "How to get paid",
       payoutCard: "Card (UA)",
       payoutCrypto: "Crypto",
-      payoutDateLine: "Payment date: after {date}",
-      payoutHint: "While the Steam hold lasts — 7 days after the trade",
+      payoutDateLine: "Due to new Steam Trade Protection rules, payout for this order is sent to your account in 7 days.",
+      payoutHint: "",
+      payoutBankLabel: "Bank",
+      payoutBanks: { mono: "monobank", privat24: "privat24", abank: "a-bank", other: "other bank" },
+      payoutBankNamePlaceholder: "Bank name",
+      payoutCardPlaceholder: "Card number",
+      payoutHolderPlaceholder: "Name and surname as on the card",
+      payoutNetworkLabel: "Network",
+      payoutAddressPlaceholder: "Wallet address",
+      payoutErrBank: "Pick a bank",
+      payoutErrBankName: "Type the bank name",
+      payoutErrCard: "Card number is 16 digits",
+      payoutErrCardCheck: "That card number has a typo — check the digits",
+      payoutErrHolder: "Name and surname as on the card, two words",
+      payoutErrNetwork: "Pick a network",
+      payoutErrAddress: "Check the wallet address — it must belong to the chosen network",
       toBePaidLabel: "To be paid",
       cartEmpty: "Pick skins on the left — they show up here",
       sortPriceDesc: "Most expensive",

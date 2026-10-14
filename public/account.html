@@ -104,6 +104,21 @@
             <button class="payout-method" type="button" data-method="crypto">Крипта</button>
           </div>
           <p id="payoutMethodSub" class="payout-method-sub"></p>
+
+          <!-- Реквізити виплати. Заповнюються тут, щоб після зняття холду
+               гроші можна було переказати без переписки в Telegram. -->
+          <div id="payoutCardFields" class="payout-fields">
+            <select id="payoutBank" class="payout-input"></select>
+            <input id="payoutBankName" class="payout-input" type="text" maxlength="40" style="display:none" />
+            <input id="payoutCardNumber" class="payout-input" type="text" inputmode="numeric" autocomplete="off" maxlength="19" />
+            <input id="payoutHolder" class="payout-input" type="text" autocomplete="off" maxlength="60" />
+          </div>
+          <div id="payoutCryptoFields" class="payout-fields" style="display: none;">
+            <select id="payoutNetwork" class="payout-input"></select>
+            <input id="payoutAddress" class="payout-input" type="text" autocomplete="off" maxlength="80" spellcheck="false" />
+          </div>
+          <p id="payoutError" class="payout-error"></p>
+
           <p id="payoutDateLine" class="payout-date"></p>
         </div>
 
@@ -185,7 +200,7 @@
       registeredLabel: "Акаунт створено",
       openProfile: "Профіль у Steam",
       payoutCardSub: "mono · privat24 · abank",
-      payoutCryptoSub: "USDT · USDC · BTC",
+      payoutCryptoSub: "USDT · USDC — TRC-20, ERC-20, BEP-20, Solana",
       itemsRowLabel: "Предметів",
       feeRowLabel: "Комісія",
       feeRowValue: "0% — ціна вже кінцева",
@@ -199,8 +214,22 @@
       payoutMethodTitle: "Як отримати гроші",
       payoutCard: "Картка UA",
       payoutCrypto: "Крипта",
-      payoutDateLine: "Гроші будуть: після {date}",
-      payoutHint: "Поки триває холд Steam — 7 днів після обміну",
+      payoutDateLine: "За новими правилами Steam Trade Protection виплата за це замовлення надходить на твій рахунок через 7 днів.",
+      payoutHint: "",
+      payoutBankLabel: "Банк",
+      payoutBanks: { mono: "monobank", privat24: "privat24", abank: "a-bank", other: "інший банк" },
+      payoutBankNamePlaceholder: "Назва банку",
+      payoutCardPlaceholder: "Номер картки",
+      payoutHolderPlaceholder: "Ім'я та прізвище як на картці",
+      payoutNetworkLabel: "Мережа",
+      payoutAddressPlaceholder: "Адреса гаманця",
+      payoutErrBank: "Обери банк",
+      payoutErrBankName: "Напиши назву банку",
+      payoutErrCard: "Номер картки — 16 цифр",
+      payoutErrCardCheck: "Номер картки з помилкою — перевір цифри",
+      payoutErrHolder: "Ім'я та прізвище — як на картці, двома словами",
+      payoutErrNetwork: "Обери мережу",
+      payoutErrAddress: "Перевір адресу гаманця — вона має бути з обраної мережі",
       toBePaidLabel: "До виплати",
       cartEmpty: "Обери предмети зліва — вони з'являться тут",
       sortPriceDesc: "Спочатку дорогі",

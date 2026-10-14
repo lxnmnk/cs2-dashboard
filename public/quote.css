@@ -1182,6 +1182,27 @@ a.sender-line { color: var(--gold); }
 .payout-hint { display: block; margin-top: 2px; color: var(--muted); }
 .payout-method-sub { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
 
+/* Реквізити виплати: куди саме слати гроші. Поля вузькі, як і весь кошик,
+   тому один стовпчик — у два вони б злиплися. */
+.payout-fields { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px; }
+.payout-input {
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.payout-input:focus { border-color: var(--gold-line); outline: none; }
+.payout-input::placeholder { color: var(--muted); }
+/* Номер картки й адресу гаманця звіряють посимвольно — моноширинний шрифт
+   робить це можливим, а звичайний перетворює 0 і O на лотерею. */
+#payoutCardNumber, #payoutAddress { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.04em; }
+.payout-error { margin: 0 0 10px; font-size: 12px; color: var(--red, #e0605a); }
+.payout-error:empty { display: none; }
+
 /* Дрібні рядки під блоком виплати: скільки предметів і яка комісія. Їх видно
    і на порожньому кошику — умови мають бути відомі до вибору, а не після. */
 .cart-rows { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }

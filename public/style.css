@@ -693,3 +693,12 @@ tr.row-gone { background: rgba(224, 96, 90, 0.08); }
   z-index: 60;
 }
 .autocomplete-list { z-index: 70; }
+
+/* Реквизиты выплаты под именем клиента в "Client Sales": их переписывают
+   в банк, поэтому моноширинный шрифт и чуть крупнее обычной сноски. */
+.client-payout {
+  margin-top: 3px;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 11px;
+  color: var(--gold, #d7a84e);
+}

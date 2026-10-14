@@ -13,7 +13,8 @@ const { buildRows, filterAndSort, applyDisplayFilters, findBestFlip, normalizeSo
 const trades = require("./trades");
 const users = require("./users");
 const { runCsfloatBidScan } = require("./csfloatBidScan");
-const { sendScanToTelegram } = require("./telegramNotifier");
+const { sendScanToTelegram, sendOwnerMessage } = require("./telegramNotifier");
+const payoutDetails = require("./payoutDetails");
 const { computeSellQuote } = require("./sellQuote");
 const priceOverrides = require("./priceOverrides");
 const { getSteamImages } = require("./steamImages");
@@ -650,6 +651,19 @@ async function sellCustomerItems(req, res, { tradeMode }) {
   const expectedPrices = (req.body || {}).expectedPrices || {};
   if (!assetIds.length) return res.status(400).json({ ok: false, error: "Порожній список предметів" });
 
+  // Реквізити виплати. В обміні грошей немає — клієнт отримує наші скіни,
+  // тому там їх не питаємо і не вимагаємо.
+  const method = PAYOUT_METHODS.has(String(req.body?.payoutMethod)) ? String(req.body.payoutMethod) : null;
+  let details = null;
+  if (!tradeMode) {
+    if (!method) return res.status(400).json({ ok: false, error: "Обери спосіб виплати" });
+    try {
+      details = payoutDetails.parse(method, req.body?.payoutDetails);
+    } catch (err) {
+      return res.status(400).json({ ok: false, error: err.message });
+    }
+  }
+
   try {
     // Для продажу — завжди свіжий інвентар, повз хвилинний кеш: у ньому
     // ціна Skinbux, а вона встигає змінитись, і тоді INVALID_PRICE.
@@ -737,7 +751,8 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       kind: tradeMode ? "trade" : "sell",
       // Спосіб виплати — те, що людина обрала в кошику. Виплачуємо руками,
       // тож це просто підказка власнику, куди слати гроші.
-      payoutMethod: PAYOUT_METHODS.has(String(req.body?.payoutMethod)) ? String(req.body.payoutMethod) : null,
+      payoutMethod: method,
+      payoutDetails: details,
       // Хто привів цього клієнта — за цим рахується звіт по партнерах.
       promoCode: promoCodes.find(req.session?.promo)?.code || null,
     });
@@ -818,11 +833,86 @@ async function refreshOpenSaleStatuses(sales) {
   }
 }
 
+// Коли гроші за угоду вийшли з холду Skinbux, їх можна переказувати клієнту —
+// і про це треба сказати власнику, а не чекати, поки він сам відкриє панель.
+// Повідомлення несе все, що потрібно для переказу: суму, банк, картку, ім'я.
+// Позначка notifiedPayableAt не дає надіслати те саме двічі.
+// Куди слати "можна платити". За замовчуванням — той самий бот, що надсилає
+// скани CSFloat (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID). Якщо для виплат
+// зручніший окремий бот або окремий чат, задається парою
+// TELEGRAM_PAYOUT_BOT_TOKEN/TELEGRAM_PAYOUT_CHAT_ID — міняти код не треба.
+function payoutBotCredentials() {
+  return {
+    botToken: process.env.TELEGRAM_PAYOUT_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
+    chatId: process.env.TELEGRAM_PAYOUT_CHAT_ID || process.env.TELEGRAM_CHAT_ID,
+  };
+}
+
+async function notifyPayableSales() {
+  const pending = skinbuxSales.payableNow().filter((sale) => !sale.notifiedPayableAt);
+  if (!pending.length) return;
+
+  for (const sale of pending) {
+    const uah = Math.round((Number(sale.totalPrice) || 0) * config.uahRate);
+    const lines = [
+      `💸 Можно платить — сделка #${sale.id}`,
+      `Клиент: ${sale.customerName || "—"} (${sale.steamId})`,
+      sale.payoutDetails?.method === "card"
+        ? `Сумма: $${Number(sale.totalPrice).toFixed(2)} ≈ ${uah.toLocaleString("uk-UA")} ₴`
+        : `Сумма: $${Number(sale.totalPrice).toFixed(2)}`,
+      `Куда: ${payoutDetails.describe(sale.payoutDetails) || "реквизиты не указаны — спроси в Telegram"}`,
+      `Предметы: ${(sale.items || []).map((it) => it.name).join(", ")}`,
+      "",
+      "После перевода отметь выплату в My Trades → Client Sales.",
+    ];
+
+    try {
+      const result = await sendOwnerMessage(lines.join("\n"), payoutBotCredentials());
+      if (!result.sent) {
+        console.warn(`[payout] Угода ${sale.id} готова до виплати, але сповіщення не надіслано: ${result.reason}`);
+        continue;
+      }
+      skinbuxSales.markNotifiedPayable(sale.id);
+      // Реквізити в лог не пишемо — тільки те, за чим угоду можна знайти.
+      console.log(`[payout] Угода ${sale.id} готова до виплати, власнику надіслано`);
+    } catch (err) {
+      console.error(`[payout] Не вдалося сповістити про угоду ${sale.id}:`, err.message);
+    }
+  }
+}
+
+// Сам по собі статус угоди не оновлюється: вебхук Skinbux вимкнений, а
+// refreshOpenSaleStatuses смикається тільки коли хтось відкриває сторінку.
+// Тому раз на чверть години перечитуємо незакриті угоди самі — щоб
+// "гроші вийшли з холду" приходило в Telegram без участі людини.
+const SALES_WATCH_MINUTES = 15;
+
+function scheduleSalesWatch() {
+  const tick = async () => {
+    try {
+      await refreshOpenSaleStatuses(skinbuxSales.loadAll().filter((s) => !s.paidAt));
+      await notifyPayableSales();
+    } catch (err) {
+      console.error("[payout] Перевірка угод не вдалася:", err.message);
+    }
+  };
+  setTimeout(tick, 60 * 1000).unref?.();
+  setInterval(tick, SALES_WATCH_MINUTES * 60 * 1000).unref?.();
+}
+
+// Останні реквізити клієнта — щоб у кошику не вписувати картку заново.
+app.get("/api/account/payout", (req, res) => {
+  if (!req.session.customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const last = skinbuxSales.lastPayout(req.session.customer.steamId);
+  res.json({ ok: true, method: last?.method || null, details: last?.details || null });
+});
+
 app.get("/api/account/sales", async (req, res) => {
   if (!req.session.customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
   const steamId = req.session.customer.steamId;
 
   await refreshOpenSaleStatuses(skinbuxSales.loadAll().filter((s) => s.steamId === steamId));
+  await notifyPayableSales();
 
   const sales = skinbuxSales.listByUser(steamId);
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
@@ -1376,6 +1466,7 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
   // Невиплачені угоди перепитуємо в Skinbux — інакше в панелі висів старий
   // статус, поки клієнт сам не відкрив "Мої угоди".
   await refreshOpenSaleStatuses(clientSales().filter((s) => !s.paidAt));
+  await notifyPayableSales();
 
   const sales = clientSales()
     .map((sale) => {
@@ -1406,6 +1497,9 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
         status: sale.status,
         paidAt: sale.paidAt || null,
         unlockAt: skinbuxSales.unlockAtOf(sale),
+        // Куди переказувати гроші — те, що клієнт вписав у кошику. Показуємо
+        // повністю: саме з цього рядка власник і робить переказ.
+        payout: sale.payoutDetails ? payoutDetails.describe(sale.payoutDetails) : null,
         createdAt: sale.createdAt,
       };
     })
@@ -2231,6 +2325,7 @@ app.listen(PORT, async () => {
   }
 
   scheduleDailyCapitalClose();
+  scheduleSalesWatch();
 
   startTelegramArbBot(() => cache.rows, config);
 });

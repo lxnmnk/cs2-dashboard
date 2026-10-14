@@ -108,10 +108,153 @@ document.querySelectorAll(".payout-method").forEach((btn) => {
     // щоб людина бачила суму в тій валюті, в якій її й отримає. Без
     // перезавантаження: воно скинуло б щойно обрані предмети.
     window.setCurrency?.(payoutMethod === "crypto" ? "USD" : "UAH", { reload: false });
+    showPayoutFields();
     renderInventoryList();
     renderCart();
   });
 });
+
+// ---- Реквізити виплати ----
+// Куди саме слати гроші, людина пише тут, а не потім у Telegram: власник
+// бачить реквізити разом з угодою і переказує, щойно знімається холд.
+//
+// Перевіряємо те саме, що й сервер (payoutDetails.js) — він лишається
+// головним, але сказати про помилку до натискання "Продати" чесніше, ніж
+// після. Повідомлення беремо з конфігу сторінки, щоб вони були мовою, якою
+// людина читає решту сайту.
+const payoutCardFields = document.getElementById("payoutCardFields");
+const payoutCryptoFields = document.getElementById("payoutCryptoFields");
+const payoutBank = document.getElementById("payoutBank");
+const payoutBankName = document.getElementById("payoutBankName");
+const payoutCardNumber = document.getElementById("payoutCardNumber");
+const payoutHolder = document.getElementById("payoutHolder");
+const payoutNetwork = document.getElementById("payoutNetwork");
+const payoutAddress = document.getElementById("payoutAddress");
+const payoutError = document.getElementById("payoutError");
+
+// Мережі не перекладаються: людина звіряє напис із тим, що бачить у своєму
+// гаманці. chain — за яким форматом перевіряти адресу.
+const PAYOUT_NETWORKS = [
+  { value: "usdt-trc20", label: "USDT TRC-20", chain: "tron" },
+  { value: "usdt-erc20", label: "USDT ERC-20", chain: "evm" },
+  { value: "usdt-bep20", label: "USDT BEP-20", chain: "evm" },
+  { value: "usdt-sol", label: "USDT Solana", chain: "solana" },
+  { value: "usdc-trc20", label: "USDC TRC-20", chain: "tron" },
+  { value: "usdc-erc20", label: "USDC ERC-20", chain: "evm" },
+  { value: "usdc-bep20", label: "USDC BEP-20", chain: "evm" },
+];
+const PAYOUT_ADDRESS_RE = {
+  tron: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
+  evm: /^0x[0-9a-fA-F]{40}$/,
+  solana: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
+};
+
+function fillPayoutSelects() {
+  if (!payoutBank) return;
+  const banks = CFG.payoutBanks || {};
+  payoutBank.innerHTML =
+    `<option value="" disabled selected>${escapeHtml(CFG.payoutBankLabel || "")}</option>` +
+    Object.entries(banks).map(([v, label]) => `<option value="${v}">${escapeHtml(label)}</option>`).join("");
+  payoutBankName.placeholder = CFG.payoutBankNamePlaceholder || "";
+  payoutCardNumber.placeholder = CFG.payoutCardPlaceholder || "";
+  payoutHolder.placeholder = CFG.payoutHolderPlaceholder || "";
+
+  payoutNetwork.innerHTML =
+    `<option value="" disabled selected>${escapeHtml(CFG.payoutNetworkLabel || "")}</option>` +
+    PAYOUT_NETWORKS.map((n) => `<option value="${n.value}">${n.label}</option>`).join("");
+  payoutAddress.placeholder = CFG.payoutAddressPlaceholder || "";
+}
+
+function showPayoutFields() {
+  if (!payoutCardFields) return;
+  payoutCardFields.style.display = payoutMethod === "card" ? "" : "none";
+  payoutCryptoFields.style.display = payoutMethod === "crypto" ? "" : "none";
+  payoutError.textContent = "";
+}
+
+// "Інший банк" — єдиний випадок, коли треба вписати назву руками.
+payoutBank?.addEventListener("change", () => {
+  payoutBankName.style.display = payoutBank.value === "other" ? "" : "none";
+  payoutError.textContent = "";
+});
+
+// Номер зручніше читати групами по чотири — і зводити з тим, що в застосунку.
+payoutCardNumber?.addEventListener("input", () => {
+  const digits = payoutCardNumber.value.replace(/\D/g, "").slice(0, 16);
+  payoutCardNumber.value = digits.replace(/(\d{4})(?=\d)/g, "$1 ");
+  payoutError.textContent = "";
+});
+payoutHolder?.addEventListener("input", () => (payoutError.textContent = ""));
+payoutAddress?.addEventListener("input", () => (payoutError.textContent = ""));
+payoutNetwork?.addEventListener("change", () => (payoutError.textContent = ""));
+
+function luhnValid(digits) {
+  let sum = 0;
+  for (let i = 0; i < digits.length; i++) {
+    let n = Number(digits[digits.length - 1 - i]);
+    if (i % 2 === 1) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+  }
+  return sum % 10 === 0;
+}
+
+/** Реквізити для запиту, або null — тоді в payoutError лежить причина. */
+function collectPayoutDetails() {
+  payoutError.textContent = "";
+  const fail = (msg) => {
+    payoutError.textContent = msg || "";
+    return null;
+  };
+
+  if (payoutMethod === "card") {
+    const bank = payoutBank.value;
+    if (!bank) return fail(CFG.payoutErrBank);
+    const bankName = payoutBankName.value.trim();
+    if (bank === "other" && bankName.length < 2) return fail(CFG.payoutErrBankName);
+
+    const card = payoutCardNumber.value.replace(/\D/g, "");
+    if (card.length !== 16) return fail(CFG.payoutErrCard);
+    if (!luhnValid(card)) return fail(CFG.payoutErrCardCheck);
+
+    const holder = payoutHolder.value.trim().replace(/\s+/g, " ");
+    if (!/^[\p{L}'’-]{2,}(\s+[\p{L}'’-]{2,})+$/u.test(holder)) return fail(CFG.payoutErrHolder);
+
+    return { bank, bankName, cardNumber: card, holder };
+  }
+
+  const network = payoutNetwork.value;
+  if (!network) return fail(CFG.payoutErrNetwork);
+  const chain = PAYOUT_NETWORKS.find((n) => n.value === network)?.chain;
+  const address = payoutAddress.value.trim();
+  if (!PAYOUT_ADDRESS_RE[chain].test(address)) return fail(CFG.payoutErrAddress);
+  return { network, address };
+}
+
+// Реквізити з минулої угоди: людина продає не вперше, і переписувати номер
+// картки щоразу — зайвий привід помилитись.
+fetch("/api/account/payout")
+  .then((r) => r.json())
+  .then((data) => {
+    const d = data?.details;
+    if (!d) return;
+    if (d.method === "card") {
+      payoutBank.value = d.bank || "";
+      payoutBankName.value = d.bankName || "";
+      payoutBankName.style.display = d.bank === "other" ? "" : "none";
+      payoutCardNumber.value = (d.cardNumber || "").replace(/(\d{4})(?=\d)/g, "$1 ");
+      payoutHolder.value = d.holder || "";
+    } else if (d.method === "crypto") {
+      payoutNetwork.value = d.network || "";
+      payoutAddress.value = d.address || "";
+    }
+  })
+  .catch(() => {});
+
+fillPayoutSelects();
+showPayoutFields();
 const cartTotal = document.getElementById("cartTotal");
 const sellAutoBtn = document.getElementById("sellAutoBtn");
 const sellStatusEl = document.getElementById("sellStatus");
@@ -195,6 +338,14 @@ sellAutoBtn?.addEventListener("click", async () => {
     return;
   }
 
+  // Без реквізитів продаж не починаємо: обмін пішов би, а платити не було б
+  // куди — і далі все одно довелося б домовлятись у Telegram.
+  const payoutDetails = collectPayoutDetails();
+  if (!payoutDetails) {
+    payoutBlock?.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
+
   sellAutoBtn.disabled = true;
   sellStatusEl.textContent = "";
 
@@ -206,6 +357,7 @@ sellAutoBtn?.addEventListener("click", async () => {
       assetIds: cart.map((it) => it.assetId),
       expectedPrices: Object.fromEntries(cart.map((it) => [it.assetId, it.price])),
       payoutMethod,
+      payoutDetails,
     }),
   });
   const data = await res.json();

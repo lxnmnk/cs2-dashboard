@@ -104,6 +104,21 @@
             <button class="payout-method" type="button" data-method="crypto">Крипта</button>
           </div>
           <p id="payoutMethodSub" class="payout-method-sub"></p>
+
+          <!-- Реквізити виплати. Заповнюються тут, щоб після зняття холду
+               гроші можна було переказати без переписки в Telegram. -->
+          <div id="payoutCardFields" class="payout-fields">
+            <select id="payoutBank" class="payout-input"></select>
+            <input id="payoutBankName" class="payout-input" type="text" maxlength="40" style="display:none" />
+            <input id="payoutCardNumber" class="payout-input" type="text" inputmode="numeric" autocomplete="off" maxlength="19" />
+            <input id="payoutHolder" class="payout-input" type="text" autocomplete="off" maxlength="60" />
+          </div>
+          <div id="payoutCryptoFields" class="payout-fields" style="display: none;">
+            <select id="payoutNetwork" class="payout-input"></select>
+            <input id="payoutAddress" class="payout-input" type="text" autocomplete="off" maxlength="80" spellcheck="false" />
+          </div>
+          <p id="payoutError" class="payout-error"></p>
+
           <p id="payoutDateLine" class="payout-date"></p>
         </div>
 
@@ -185,7 +200,7 @@
       registeredLabel: "Аккаунт создан",
       openProfile: "Профиль в Steam",
       payoutCardSub: "mono · privat24 · abank",
-      payoutCryptoSub: "USDT · USDC · BTC",
+      payoutCryptoSub: "USDT · USDC — TRC-20, ERC-20, BEP-20, Solana",
       itemsRowLabel: "Предметов",
       feeRowLabel: "Комиссия",
       feeRowValue: "0% — цена уже конечная",
@@ -199,8 +214,22 @@
       payoutMethodTitle: "Как получить деньги",
       payoutCard: "Карта UA",
       payoutCrypto: "Крипта",
-      payoutDateLine: "Деньги будут: после {date}",
-      payoutHint: "Пока идёт холд Steam — 7 дней после обмена",
+      payoutDateLine: "По новым правилам Steam Trade Protection выплата по этому заказу приходит на твой счёт через 7 дней.",
+      payoutHint: "",
+      payoutBankLabel: "Банк",
+      payoutBanks: { mono: "monobank", privat24: "privat24", abank: "a-bank", other: "другой банк" },
+      payoutBankNamePlaceholder: "Название банка",
+      payoutCardPlaceholder: "Номер карты",
+      payoutHolderPlaceholder: "Имя и фамилия как на карте",
+      payoutNetworkLabel: "Сеть",
+      payoutAddressPlaceholder: "Адрес кошелька",
+      payoutErrBank: "Выбери банк",
+      payoutErrBankName: "Напиши название банка",
+      payoutErrCard: "Номер карты — 16 цифр",
+      payoutErrCardCheck: "В номере карты ошибка — проверь цифры",
+      payoutErrHolder: "Имя и фамилия — как на карте, двумя словами",
+      payoutErrNetwork: "Выбери сеть",
+      payoutErrAddress: "Проверь адрес кошелька — он должен быть из выбранной сети",
       toBePaidLabel: "К выплате",
       cartEmpty: "Выбери предметы слева — они появятся здесь",
       sortPriceDesc: "Сначала дорогие",

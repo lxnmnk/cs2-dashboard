@@ -1975,6 +1975,10 @@ async function loadClientSales() {
             s.steamId
               ? `<a href="https://steamcommunity.com/profiles/${escapeHtml(s.steamId)}" target="_blank">${escapeHtml(s.customerName || s.steamId)}</a>`
               : '<span class="na">off-site deal</span>'
+          }${
+            // Реквизиты выплаты клиент оставил сам при продаже — переводить
+            // можно прямо отсюда, не спрашивая его в Telegram.
+            s.payout && !s.paidAt ? `<div class="client-payout">${escapeHtml(s.payout)}</div>` : ""
           }</td>
           <td>${escapeHtml(s.items.join(", "))}</td>
           <td>${fmtMoney(s.totalPrice)}</td>

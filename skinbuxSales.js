@@ -40,12 +40,14 @@ function saveAll(sales) {
 // kind — звичайний викуп ("sell") чи сторона клієнта в обміні ("trade").
 // Від нього залежить, у який баланс ляжуть гроші (див. computeBalance) і що
 // означає "виплачено": у викупі — переказали гроші, в обміні — віддали скіни.
-// payoutMethod — як людина хоче отримати гроші (картка / крипта). Ми не
-// переказуємо автоматично, виплату робить власник руками, і без цього поля
-// доводилось щоразу перепитувати в Telegram.
+// payoutMethod — як людина хоче отримати гроші (картка / крипта), а
+// payoutDetails — куди саме: банк, номер картки й ім'я або мережа й адреса
+// гаманця (див. payoutDetails.js). Ми не переказуємо автоматично, виплату
+// робить власник руками, і без цих полів доводилось щоразу випитувати
+// реквізити в Telegram уже після того, як гроші вийшли з холду.
 // promoCode — хто привів цього клієнта (promoCodes.js). Потрібен, щоб
 // порахувати, скільки партнеру належить за приведених людей.
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, promoCode }) {
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode }) {
   const sales = loadAll();
   sales.push({
     id,
@@ -53,6 +55,7 @@ function record({ id, steamId, customerName, items, totalPrice, offerId, expires
     customerName,
     kind: kind === "trade" ? "trade" : "sell",
     payoutMethod: payoutMethod || null,
+    payoutDetails: payoutDetails || null,
     promoCode: promoCode || null,
     items,
     totalPrice,
@@ -162,8 +165,38 @@ function unmarkPaid(id) {
   return sale;
 }
 
+/**
+ * Угоди, за якими вже можна платити, але ще не платили: гроші вийшли з
+ * холду Skinbux, позначки "виплачено" немає. Обмін сюди не рахуємо — за
+ * нього віддають скіни, а не гроші.
+ */
+function payableNow() {
+  return loadAll().filter((s) => s.status === "completed" && !s.paidAt && (s.kind || "sell") !== "trade");
+}
+
+/**
+ * Позначка "власнику вже сказали, що можна платити". Без неї нагадування
+ * про ту саму угоду приходило б щоразу, коли ми перечитуємо статуси.
+ */
+function markNotifiedPayable(id) {
+  const sales = loadAll();
+  const sale = sales.find((s) => String(s.id) === String(id));
+  if (!sale) return null;
+  sale.notifiedPayableAt = new Date().toISOString();
+  saveAll(sales);
+  return sale;
+}
+
+/** Останні реквізити клієнта — щоб не вписувати картку при кожному продажу. */
+function lastPayout(steamId) {
+  const sale = loadAll()
+    .filter((s) => s.steamId === steamId && s.payoutDetails)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  return sale ? { method: sale.payoutMethod, details: sale.payoutDetails } : null;
+}
+
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, HOLD_DAYS };
+module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, payableNow, markNotifiedPayable, lastPayout, HOLD_DAYS };
