@@ -112,7 +112,13 @@ function pad(s, width, right = false) {
     };
   });
 
-  report.sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
+  // По умолчанию сортируем по проценту, а не по долларам: сотня прибыли на
+  // ноже за три тысячи и сотня на ноже за триста — разные сделки, и в
+  // долларовом списке первая стоит выше, хотя интересна вторая.
+  // SORT=usd возвращает старый порядок, когда нужно разгрузить склад на
+  // конкретную сумму.
+  const sortBy = process.env.SORT === "usd" ? "profit" : "profitPct";
+  report.sort((a, b) => (b[sortBy] ?? -Infinity) - (a[sortBy] ?? -Infinity));
 
   const W = [38, 9, 18, 18, 18, 18];
   const lastBuy = all.reduce((max, t) => (!max || t.buyDate > max ? t.buyDate : max), null);
@@ -120,6 +126,7 @@ function pad(s, width, right = false) {
   console.log(`Файл: ${tradesFile} · сделок: ${all.length} · последняя покупка: ${lastBuy ? new Date(lastBuy).toLocaleString("ru-RU") : "нет"}`);
   console.log(`Владелец: ${owner} · свободных позиций: ${free.length} · в трейд-бане: ${locked.length}`);
   console.log(`Цены на ${new Date().toLocaleString("ru-RU")}; проценты — от цены покупки, * — лучший мгновенный выход`);
+  console.log(`Сортировка: ${sortBy === "profit" ? "по деньгам" : "по проценту (SORT=usd — по деньгам)"}`);
   console.log(`Youpin по ${Math.round(YOUPIN_INSTANT * 100)}% (остальное во frozen), CSFloat за вычетом ${csfloatFeePct}% комиссии
 `);
   console.log(
