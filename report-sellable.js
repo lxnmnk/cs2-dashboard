@@ -1,6 +1,7 @@
-// Отчёт "что сейчас выгодно сдать в выкуп": по каждой позиции, которая уже
-// вышла из трейд-бана, показывает, сколько за неё дают Skinbux и бид Youpin,
-// и что из этого выше цены покупки.
+// Отчёт "что сейчас выгодно сдать": по каждой позиции, которая уже вышла из
+// трейд-бана, показывает четыре варианта выхода — Skinbux, бид Youpin, бид
+// CSFloat и выставление лотом на CSFloat — в деньгах после комиссии и в
+// процентах от того, что за предмет заплачено.
 //
 // Зачем отдельным скриптом, а не вкладкой в панели: это разовый вопрос
 // "разгрузить склад сегодня", и запускать его хочется и на сервере, где
@@ -33,8 +34,25 @@ const owner = process.argv[2] || "lxnmnk";
 // честнее сравнивать по тому, что реально придёт на руки.
 const YOUPIN_INSTANT = (config.sources.youpin.instantPercent ?? 100) / 100;
 
+// Сколько останется на руках после комиссии площадки за продажу. Ставки
+// берём из config.sources, а не вписываем числом: поменяется комиссия —
+// поменяется и отчёт, без правок здесь.
+function afterFee(source, gross) {
+  if (gross == null) return null;
+  return gross * (1 - (config.sources[source].sellFee ?? 0));
+}
+
 function money(n) {
   return n == null ? "—" : `$${n.toFixed(2)}`;
+}
+
+// Цена и сколько это от закупки: "+5.9%" читается быстрее, чем отдельная
+// колонка с процентами, которую глазами ещё надо сопоставить со строкой.
+function cell(net, buyPrice) {
+  if (net == null) return "—";
+  if (!(buyPrice > 0)) return money(net);
+  const pct = ((net - buyPrice) / buyPrice) * 100;
+  return `${money(net)} ${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
 }
 
 function pad(s, width, right = false) {
@@ -59,13 +77,23 @@ function pad(s, width, right = false) {
   const free = holding.filter((t) => !t.isLocked);
 
   const report = free.map((t) => {
-    const row = rows.find((r) => r.marketHashName === t.marketHashName);
-    const skinbux = row?.prices?.skinbux?.bid ?? null;
-    const youpinBid = row?.prices?.youpin?.bid ?? null;
-    const youpinNet = youpinBid == null ? null : youpinBid * YOUPIN_INSTANT;
+    const prices = rows.find((r) => r.marketHashName === t.marketHashName)?.prices || {};
+
+    // Skinbux: выкуп без комиссии, деньги через 7 дней.
+    const skinbux = afterFee("skinbux", prices.skinbux?.bid ?? null);
+    // Youpin: бид без комиссии, но сразу отдают только instantPercent.
+    const youpinGross = afterFee("youpin", prices.youpin?.bid ?? null);
+    const youpin = youpinGross == null ? null : youpinGross * YOUPIN_INSTANT;
+    // CSFloat: и продажа в чужой buy order, и свой лот — с их комиссией.
+    const csfloatBid = afterFee("csfloat", prices.csfloat?.bid ?? null);
+    const csfloatAsk = afterFee("csfloat", prices.csfloat?.ask ?? null);
+
+    // "Лучшее" выбираем только среди мгновенных выходов: лот на CSFloat —
+    // это ожидание покупателя, сравнивать его с выкупом напрямую нечестно.
     const best = [
       { where: "skinbux", net: skinbux },
-      { where: "youpin bid", net: youpinNet },
+      { where: "youpin bid", net: youpin },
+      { where: "csfloat bid", net: csfloatBid },
     ]
       .filter((o) => o.net != null)
       .sort((a, b) => b.net - a.net)[0] || null;
@@ -75,8 +103,9 @@ function pad(s, width, right = false) {
       buyPrice: t.buyPrice,
       buyDate: t.buyDate,
       skinbux,
-      youpinBid,
-      youpinNet,
+      youpin,
+      csfloatBid,
+      csfloatAsk,
       best,
       profit: best ? best.net - t.buyPrice : null,
       profitPct: best && t.buyPrice > 0 ? ((best.net - t.buyPrice) / t.buyPrice) * 100 : null,
@@ -85,27 +114,29 @@ function pad(s, width, right = false) {
 
   report.sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity));
 
-  const W = [46, 10, 10, 11, 11, 12, 9];
+  const W = [38, 9, 18, 18, 18, 18];
   const lastBuy = all.reduce((max, t) => (!max || t.buyDate > max ? t.buyDate : max), null);
+  const csfloatFeePct = Math.round((config.sources.csfloat.sellFee ?? 0) * 100);
   console.log(`Файл: ${tradesFile} · сделок: ${all.length} · последняя покупка: ${lastBuy ? new Date(lastBuy).toLocaleString("ru-RU") : "нет"}`);
   console.log(`Владелец: ${owner} · свободных позиций: ${free.length} · в трейд-бане: ${locked.length}`);
-  console.log(`Цены на ${new Date().toLocaleString("ru-RU")}; Youpin считаем по ${Math.round(YOUPIN_INSTANT * 100)}% (остальное во frozen)\n`);
+  console.log(`Цены на ${new Date().toLocaleString("ru-RU")}; проценты — от цены покупки, * — лучший мгновенный выход`);
+  console.log(`Youpin по ${Math.round(YOUPIN_INSTANT * 100)}% (остальное во frozen), CSFloat за вычетом ${csfloatFeePct}% комиссии
+`);
   console.log(
     pad("Предмет", W[0]) + pad("куплен", W[1], true) + pad("skinbux", W[2], true) +
-    pad("youpin", W[3], true) + pad("youpin×", W[4], true) + pad("лучшее", W[5], true) + pad("разница", W[6], true)
+    pad("youpin бид", W[3], true) + pad("csfloat бид", W[4], true) + pad("csfloat лотом", W[5], true)
   );
   console.log("-".repeat(W.reduce((a, b) => a + b, 0)));
 
   for (const r of report) {
+    const mark = (where, text) => (r.best?.where === where && text !== "—" ? text + " *" : text);
     console.log(
       pad(r.name, W[0]) +
       pad(money(r.buyPrice), W[1], true) +
-      pad(money(r.skinbux), W[2], true) +
-      pad(money(r.youpinBid), W[3], true) +
-      pad(money(r.youpinNet), W[4], true) +
-      pad(r.best ? `${money(r.best.net)}` : "нет цен", W[5], true) +
-      pad(r.profit == null ? "—" : `${r.profit >= 0 ? "+" : ""}${r.profit.toFixed(2)}`, W[6], true) +
-      (r.best ? `  ${r.best.where}` : "")
+      pad(mark("skinbux", cell(r.skinbux, r.buyPrice)), W[2], true) +
+      pad(mark("youpin bid", cell(r.youpin, r.buyPrice)), W[3], true) +
+      pad(mark("csfloat bid", cell(r.csfloatBid, r.buyPrice)), W[4], true) +
+      pad(cell(r.csfloatAsk, r.buyPrice), W[5], true)
     );
   }
 
@@ -114,7 +145,9 @@ function pad(s, width, right = false) {
   const sumBest = report.reduce((s, r) => s + (r.best?.net ?? 0), 0);
   console.log("\nИтого по свободным позициям:");
   console.log(`  вложено:        ${money(sumBuy)}`);
-  console.log(`  дадут сейчас:   ${money(sumBest)}  (${sumBest - sumBuy >= 0 ? "+" : ""}${(sumBest - sumBuy).toFixed(2)})`);
+  const diff = sumBest - sumBuy;
+  const diffPct = sumBuy > 0 ? (diff / sumBuy) * 100 : 0;
+  console.log(`  дадут сейчас:   ${money(sumBest)}  (${diff >= 0 ? "+" : ""}${diff.toFixed(2)} · ${diff >= 0 ? "+" : ""}${diffPct.toFixed(1)}%)`);
   console.log(`  в плюс:         ${profitable.length} из ${report.length}` +
     (profitable.length ? ` — на ${money(profitable.reduce((s, r) => s + r.profit, 0))}` : ""));
 
