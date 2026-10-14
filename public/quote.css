@@ -1157,19 +1157,6 @@ a.sender-line { color: var(--gold); }
 .cart-amount { font-size: 26px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
 .payout-block h4 { margin: 0 0 8px; font-size: 12px; color: var(--muted); font-weight: 500; }
 .payout-methods { display: flex; gap: 8px; margin-bottom: 10px; }
-.payout-method {
-  flex: 1;
-  padding: 9px 8px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-.payout-method:hover { border-color: var(--gold-line); }
-.payout-method.active { border-color: var(--gold); background: var(--gold-soft); color: var(--gold); }
 .payout-date {
   margin: 0 0 14px;
   padding: 9px 10px;
@@ -1182,9 +1169,85 @@ a.sender-line { color: var(--gold); }
 .payout-hint { display: block; margin-top: 2px; color: var(--muted); }
 .payout-method-sub { margin: 0 0 10px; font-size: 11px; color: var(--muted); }
 
-/* Реквізити виплати: куди саме слати гроші. Поля вузькі, як і весь кошик,
-   тому один стовпчик — у два вони б злиплися. */
-.payout-fields { display: flex; flex-direction: column; gap: 8px; margin: 0 0 10px; }
+/* ---- Спосіб виплати ---- */
+/* Обраний спосіб — рядком, решта за "змінити": вісім плиток, розгорнутих
+   назавжди, перетягували б увагу з предметів на вибір монети. */
+.payout-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  border: 1px solid var(--gold-line);
+  background: var(--gold-soft);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.payout-selected:hover { border-color: var(--gold); }
+.payout-selected.open { border-color: var(--gold); }
+.payout-selected-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.payout-selected-title { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+.payout-selected-sub { font-size: 11px; color: var(--muted); }
+.payout-change {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--gold);
+  white-space: nowrap;
+}
+
+/* Кружок із символом монети. Малюємо самі, а не вантажимо іконки: дві літери
+   й колір упізнаються так само, а сторінка не чекає на чужий CDN. */
+.payout-coin {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+.coin-uah { background: linear-gradient(180deg, #2a6fd6 50%, #f2c230 50%); color: #0a0c10; }
+.coin-usdt { background: #26a17b; }
+.coin-usdc { background: #2775ca; }
+
+.payout-picker {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.payout-tile {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.payout-tile:hover { border-color: var(--gold-line); }
+.payout-tile.active { border-color: var(--gold); background: var(--gold-soft); }
+.payout-tile .payout-coin { width: 24px; height: 24px; font-size: 12px; }
+.payout-tile-name { display: flex; flex-direction: column; font-size: 12px; font-weight: 700; min-width: 0; }
+.payout-tile-badge { font-size: 10px; font-weight: 500; color: var(--muted); }
+
+/* ---- Реквізити ---- */
+.payout-fields { display: flex; flex-direction: column; gap: 6px; margin: 0 0 10px; }
+.payout-label { font-size: 11px; color: var(--muted); }
+.payout-label + .payout-input { margin-bottom: 2px; }
 .payout-input {
   width: 100%;
   padding: 9px 10px;
@@ -1200,6 +1263,7 @@ a.sender-line { color: var(--gold); }
 /* Номер картки й адресу гаманця звіряють посимвольно — моноширинний шрифт
    робить це можливим, а звичайний перетворює 0 і O на лотерею. */
 #payoutCardNumber, #payoutAddress { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; letter-spacing: 0.04em; }
+.payout-note { margin: 2px 0 0; font-size: 11px; line-height: 1.35; color: var(--muted); }
 .payout-error { margin: 0 0 10px; font-size: 12px; color: var(--red, #e0605a); }
 .payout-error:empty { display: none; }
 

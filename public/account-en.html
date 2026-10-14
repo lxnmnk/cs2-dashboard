@@ -99,23 +99,35 @@
 
         <div id="payoutBlock" class="payout-block">
           <h4>How to get paid</h4>
-          <div class="payout-methods">
-            <button class="payout-method active" type="button" data-method="card">Card (UA)</button>
-            <button class="payout-method" type="button" data-method="crypto">Crypto</button>
-          </div>
-          <p id="payoutMethodSub" class="payout-method-sub"></p>
+          <!-- Спосіб виплати: обраний показуємо карткою, решту ховаємо за
+               "змінити". Список із восьми мереж, розгорнутий весь час, займав
+               би половину кошика й відволікав від предметів. -->
+          <button id="payoutSelected" class="payout-selected" type="button">
+            <span class="payout-coin" id="payoutSelectedIcon"></span>
+            <span class="payout-selected-text">
+              <span class="payout-selected-title" id="payoutSelectedTitle"></span>
+              <span class="payout-selected-sub" id="payoutSelectedSub"></span>
+            </span>
+            <span class="payout-change" id="payoutChange"></span>
+          </button>
+          <div id="payoutPicker" class="payout-picker" style="display: none;"></div>
 
           <!-- Реквізити виплати. Заповнюються тут, щоб після зняття холду
                гроші можна було переказати без переписки в Telegram. -->
           <div id="payoutCardFields" class="payout-fields">
+            <label class="payout-label" id="payoutBankLabelEl"></label>
             <select id="payoutBank" class="payout-input"></select>
-            <input id="payoutBankName" class="payout-input" type="text" maxlength="40" style="display:none" />
-            <input id="payoutCardNumber" class="payout-input" type="text" inputmode="numeric" autocomplete="off" maxlength="19" />
+            <input id="payoutBankName" class="payout-input" type="text" maxlength="40" style="display: none;" />
+            <label class="payout-label" id="payoutCardLabelEl"></label>
+            <input id="payoutCardNumber" class="payout-input" type="text" inputmode="numeric" autocomplete="off" maxlength="19" placeholder="0000 0000 0000 0000" />
+            <label class="payout-label" id="payoutHolderLabelEl"></label>
             <input id="payoutHolder" class="payout-input" type="text" autocomplete="off" maxlength="60" />
+            <p class="payout-note" id="payoutHolderHintEl"></p>
           </div>
           <div id="payoutCryptoFields" class="payout-fields" style="display: none;">
-            <select id="payoutNetwork" class="payout-input"></select>
+            <label class="payout-label" id="payoutAddressLabelEl"></label>
             <input id="payoutAddress" class="payout-input" type="text" autocomplete="off" maxlength="80" spellcheck="false" />
+            <p class="payout-note" id="payoutAddressHintEl"></p>
           </div>
           <p id="payoutError" class="payout-error"></p>
 
@@ -216,6 +228,14 @@
       payoutCrypto: "Crypto",
       payoutDateLine: "Due to new Steam Trade Protection rules, payout for this order is sent to your account in 7 days.",
       payoutHint: "",
+      payoutChange: "CHANGE",
+      payoutCardTitle: "CARD UAH",
+      payoutCardNote: "Hryvnia to a Ukrainian bank card",
+      payoutCardLabel: "Card number",
+      payoutHolderLabel: "Cardholder name",
+      payoutHolderHint: "Exactly as on the card. The bank rejects a mismatch.",
+      payoutAddressLabel: "Wallet address",
+      payoutAddressHint: "Check the network: coins sent to the wrong one do not come back.",
       payoutBankLabel: "Bank",
       payoutBanks: { mono: "monobank", privat24: "privat24", abank: "a-bank", other: "other bank" },
       payoutBankNamePlaceholder: "Bank name",

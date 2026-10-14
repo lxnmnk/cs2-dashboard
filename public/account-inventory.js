@@ -43,7 +43,6 @@ const cartPayout = document.getElementById("cartPayout");
 const cartEmptyLine = document.getElementById("cartEmptyLine");
 const payoutBlock = document.getElementById("payoutBlock");
 const payoutDateLine = document.getElementById("payoutDateLine");
-const payoutMethodSub = document.getElementById("payoutMethodSub");
 const cartItemsCount = document.getElementById("cartItemsCount");
 
 // ---- Промокод ----
@@ -95,53 +94,27 @@ fetch("/api/account/promo")
   .then((d) => showPromo(d.promo))
   .catch(() => {});
 
-// Куди слати гроші. Виплату власник робить руками, тож це підказка для нього
-// в панелі, а не автоматичний переказ.
-let payoutMethod = "card";
-document.querySelectorAll(".payout-method").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".payout-method").forEach((b) => b.classList.remove("active"));
-    btn.classList.add("active");
-    payoutMethod = btn.dataset.method;
-    payoutMethodSub.textContent = payoutMethod === "crypto" ? CFG.payoutCryptoSub || "" : CFG.payoutCardSub || "";
-    // Крипта рахується в доларах, картка — у гривні. Перемикаємо показ самі,
-    // щоб людина бачила суму в тій валюті, в якій її й отримає. Без
-    // перезавантаження: воно скинуло б щойно обрані предмети.
-    window.setCurrency?.(payoutMethod === "crypto" ? "USD" : "UAH", { reload: false });
-    showPayoutFields();
-    renderInventoryList();
-    renderCart();
-  });
-});
-
-// ---- Реквізити виплати ----
-// Куди саме слати гроші, людина пише тут, а не потім у Telegram: власник
-// бачить реквізити разом з угодою і переказує, щойно знімається холд.
+// ---- Спосіб виплати і реквізити ----
+// Виплату власник робить руками, тож усе це — дані для нього: куди саме
+// переказати гроші, коли Skinbux зніме холд.
 //
-// Перевіряємо те саме, що й сервер (payoutDetails.js) — він лишається
-// головним, але сказати про помилку до натискання "Продати" чесніше, ніж
-// після. Повідомлення беремо з конфігу сторінки, щоб вони були мовою, якою
-// людина читає решту сайту.
-const payoutCardFields = document.getElementById("payoutCardFields");
-const payoutCryptoFields = document.getElementById("payoutCryptoFields");
-const payoutBank = document.getElementById("payoutBank");
-const payoutBankName = document.getElementById("payoutBankName");
-const payoutCardNumber = document.getElementById("payoutCardNumber");
-const payoutHolder = document.getElementById("payoutHolder");
-const payoutNetwork = document.getElementById("payoutNetwork");
-const payoutAddress = document.getElementById("payoutAddress");
-const payoutError = document.getElementById("payoutError");
+// Способів вісім (картка плюс сім мереж), і розгорнутим списком вони займали
+// б половину кошика. Тому видно лише обраний, решта — за "змінити": один
+// рядок у спокої, сітка на час вибору.
+let payoutMethod = "card"; // card | crypto — те, що розуміє сервер
+let payoutNetwork = null; // для crypto: мережу треба знати окремо
 
-// Мережі не перекладаються: людина звіряє напис із тим, що бачить у своєму
+// Назви мереж не перекладаємо: людина звіряє напис із тим, що бачить у
 // гаманці. chain — за яким форматом перевіряти адресу.
-const PAYOUT_NETWORKS = [
-  { value: "usdt-trc20", label: "USDT TRC-20", chain: "tron" },
-  { value: "usdt-erc20", label: "USDT ERC-20", chain: "evm" },
-  { value: "usdt-bep20", label: "USDT BEP-20", chain: "evm" },
-  { value: "usdt-sol", label: "USDT Solana", chain: "solana" },
-  { value: "usdc-trc20", label: "USDC TRC-20", chain: "tron" },
-  { value: "usdc-erc20", label: "USDC ERC-20", chain: "evm" },
-  { value: "usdc-bep20", label: "USDC BEP-20", chain: "evm" },
+const PAYOUT_OPTIONS = [
+  { id: "card", kind: "card", coin: "\u20b4", coinClass: "coin-uah" },
+  { id: "usdt-trc20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "TRC-20", chain: "tron" },
+  { id: "usdt-erc20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "ERC-20", chain: "evm" },
+  { id: "usdt-bep20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "BEP-20", chain: "evm" },
+  { id: "usdt-sol", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "Solana", chain: "solana" },
+  { id: "usdc-trc20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "TRC-20", chain: "tron" },
+  { id: "usdc-erc20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "ERC-20", chain: "evm" },
+  { id: "usdc-bep20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "BEP-20", chain: "evm" },
 ];
 const PAYOUT_ADDRESS_RE = {
   tron: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
@@ -149,30 +122,99 @@ const PAYOUT_ADDRESS_RE = {
   solana: /^[1-9A-HJ-NP-Za-km-z]{32,44}$/,
 };
 
+const payoutSelected = document.getElementById("payoutSelected");
+const payoutSelectedIcon = document.getElementById("payoutSelectedIcon");
+const payoutSelectedTitle = document.getElementById("payoutSelectedTitle");
+const payoutSelectedSub = document.getElementById("payoutSelectedSub");
+const payoutChange = document.getElementById("payoutChange");
+const payoutPicker = document.getElementById("payoutPicker");
+const payoutCardFields = document.getElementById("payoutCardFields");
+const payoutCryptoFields = document.getElementById("payoutCryptoFields");
+const payoutBank = document.getElementById("payoutBank");
+const payoutBankName = document.getElementById("payoutBankName");
+const payoutCardNumber = document.getElementById("payoutCardNumber");
+const payoutHolder = document.getElementById("payoutHolder");
+const payoutAddress = document.getElementById("payoutAddress");
+const payoutError = document.getElementById("payoutError");
+
+let payoutChoice = PAYOUT_OPTIONS[0];
+
+function payoutOptionTitle(opt) {
+  return opt.kind === "card" ? CFG.payoutCardTitle || "CARD UAH" : opt.title;
+}
+
+function payoutTile(opt) {
+  const active = opt.id === payoutChoice.id ? " active" : "";
+  // У плитці назва й мережа стоять у два рядки. Для картки другим рядком
+  // йде валюта: "КАРТКА UAH" одним рядком у вузькій плитці переносилось
+  // навпіл і виглядало зламаним.
+  const full = payoutOptionTitle(opt);
+  const cut = opt.kind === "card" ? full.lastIndexOf(" ") : -1;
+  const name = cut > 0 ? full.slice(0, cut) : full;
+  const sub = opt.badge || (cut > 0 ? full.slice(cut + 1) : "");
+  return `<button class="payout-tile${active}" type="button" data-id="${opt.id}">
+      <span class="payout-coin ${opt.coinClass}">${opt.coin}</span>
+      <span class="payout-tile-name">${escapeHtml(name)}${sub ? `<span class="payout-tile-badge">${escapeHtml(sub)}</span>` : ""}</span>
+    </button>`;
+}
+
+function renderPayoutChoice() {
+  payoutSelectedIcon.className = `payout-coin ${payoutChoice.coinClass}`;
+  payoutSelectedIcon.textContent = payoutChoice.coin;
+  payoutSelectedTitle.textContent = payoutOptionTitle(payoutChoice);
+  payoutSelectedSub.textContent =
+    payoutChoice.kind === "card" ? CFG.payoutCardNote || "" : `${payoutChoice.title} \u00b7 ${payoutChoice.badge}`;
+  payoutChange.textContent = CFG.payoutChange || "";
+
+  payoutCardFields.style.display = payoutChoice.kind === "card" ? "" : "none";
+  payoutCryptoFields.style.display = payoutChoice.kind === "crypto" ? "" : "none";
+  payoutError.textContent = "";
+}
+
+function openPayoutPicker(open) {
+  payoutPicker.style.display = open ? "" : "none";
+  payoutSelected.classList.toggle("open", open);
+  if (open) payoutPicker.innerHTML = PAYOUT_OPTIONS.map(payoutTile).join("");
+}
+
+payoutSelected?.addEventListener("click", () => openPayoutPicker(payoutPicker.style.display === "none"));
+
+payoutPicker?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".payout-tile");
+  if (!btn) return;
+  payoutChoice = PAYOUT_OPTIONS.find((o) => o.id === btn.dataset.id) || PAYOUT_OPTIONS[0];
+  payoutMethod = payoutChoice.kind;
+  payoutNetwork = payoutChoice.kind === "crypto" ? payoutChoice.id : null;
+  openPayoutPicker(false);
+  renderPayoutChoice();
+  // Крипта рахується в доларах, картка — у гривні. Перемикаємо показ самі,
+  // щоб людина бачила суму в тій валюті, в якій її й отримає. Без
+  // перезавантаження: воно скинуло б щойно обрані предмети.
+  window.setCurrency?.(payoutMethod === "crypto" ? "USD" : "UAH", { reload: false });
+  renderInventoryList();
+  renderCart();
+});
+
 function fillPayoutSelects() {
   if (!payoutBank) return;
   const banks = CFG.payoutBanks || {};
   payoutBank.innerHTML =
-    `<option value="" disabled selected>${escapeHtml(CFG.payoutBankLabel || "")}</option>` +
+    '<option value="" disabled selected>\u2014</option>' +
     Object.entries(banks).map(([v, label]) => `<option value="${v}">${escapeHtml(label)}</option>`).join("");
   payoutBankName.placeholder = CFG.payoutBankNamePlaceholder || "";
-  payoutCardNumber.placeholder = CFG.payoutCardPlaceholder || "";
   payoutHolder.placeholder = CFG.payoutHolderPlaceholder || "";
-
-  payoutNetwork.innerHTML =
-    `<option value="" disabled selected>${escapeHtml(CFG.payoutNetworkLabel || "")}</option>` +
-    PAYOUT_NETWORKS.map((n) => `<option value="${n.value}">${n.label}</option>`).join("");
   payoutAddress.placeholder = CFG.payoutAddressPlaceholder || "";
+
+  // Підписи над полями — звідси ж, щоб у кожної мовної версії були свої.
+  document.getElementById("payoutBankLabelEl").textContent = CFG.payoutBankLabel || "";
+  document.getElementById("payoutCardLabelEl").textContent = CFG.payoutCardLabel || "";
+  document.getElementById("payoutHolderLabelEl").textContent = CFG.payoutHolderLabel || "";
+  document.getElementById("payoutHolderHintEl").textContent = CFG.payoutHolderHint || "";
+  document.getElementById("payoutAddressLabelEl").textContent = CFG.payoutAddressLabel || "";
+  document.getElementById("payoutAddressHintEl").textContent = CFG.payoutAddressHint || "";
 }
 
-function showPayoutFields() {
-  if (!payoutCardFields) return;
-  payoutCardFields.style.display = payoutMethod === "card" ? "" : "none";
-  payoutCryptoFields.style.display = payoutMethod === "crypto" ? "" : "none";
-  payoutError.textContent = "";
-}
-
-// "Інший банк" — єдиний випадок, коли треба вписати назву руками.
+// "Інший банк" — єдиний випадок, коли назву треба вписати руками.
 payoutBank?.addEventListener("change", () => {
   payoutBankName.style.display = payoutBank.value === "other" ? "" : "none";
   payoutError.textContent = "";
@@ -186,7 +228,6 @@ payoutCardNumber?.addEventListener("input", () => {
 });
 payoutHolder?.addEventListener("input", () => (payoutError.textContent = ""));
 payoutAddress?.addEventListener("input", () => (payoutError.textContent = ""));
-payoutNetwork?.addEventListener("change", () => (payoutError.textContent = ""));
 
 function luhnValid(digits) {
   let sum = 0;
@@ -201,7 +242,11 @@ function luhnValid(digits) {
   return sum % 10 === 0;
 }
 
-/** Реквізити для запиту, або null — тоді в payoutError лежить причина. */
+/**
+ * Реквізити для запиту, або null — тоді в payoutError лежить причина.
+ * Перевіряємо те саме, що й сервер (payoutDetails.js): він лишається
+ * головним, але сказати про помилку до натискання "Продати" чесніше.
+ */
 function collectPayoutDetails() {
   payoutError.textContent = "";
   const fail = (msg) => {
@@ -220,17 +265,14 @@ function collectPayoutDetails() {
     if (!luhnValid(card)) return fail(CFG.payoutErrCardCheck);
 
     const holder = payoutHolder.value.trim().replace(/\s+/g, " ");
-    if (!/^[\p{L}'’-]{2,}(\s+[\p{L}'’-]{2,})+$/u.test(holder)) return fail(CFG.payoutErrHolder);
+    if (!/^[\p{L}'\u2019-]{2,}(\s+[\p{L}'\u2019-]{2,})+$/u.test(holder)) return fail(CFG.payoutErrHolder);
 
     return { bank, bankName, cardNumber: card, holder };
   }
 
-  const network = payoutNetwork.value;
-  if (!network) return fail(CFG.payoutErrNetwork);
-  const chain = PAYOUT_NETWORKS.find((n) => n.value === network)?.chain;
   const address = payoutAddress.value.trim();
-  if (!PAYOUT_ADDRESS_RE[chain].test(address)) return fail(CFG.payoutErrAddress);
-  return { network, address };
+  if (!PAYOUT_ADDRESS_RE[payoutChoice.chain].test(address)) return fail(CFG.payoutErrAddress);
+  return { network: payoutNetwork, address };
 }
 
 // Реквізити з минулої угоди: людина продає не вперше, і переписувати номер
@@ -247,14 +289,22 @@ fetch("/api/account/payout")
       payoutCardNumber.value = (d.cardNumber || "").replace(/(\d{4})(?=\d)/g, "$1 ");
       payoutHolder.value = d.holder || "";
     } else if (d.method === "crypto") {
-      payoutNetwork.value = d.network || "";
+      const opt = PAYOUT_OPTIONS.find((o) => o.id === d.network);
+      if (opt) {
+        payoutChoice = opt;
+        payoutMethod = "crypto";
+        payoutNetwork = opt.id;
+        renderPayoutChoice();
+        window.setCurrency?.("USD", { reload: false });
+        renderCart();
+      }
       payoutAddress.value = d.address || "";
     }
   })
   .catch(() => {});
 
 fillPayoutSelects();
-showPayoutFields();
+renderPayoutChoice();
 const cartTotal = document.getElementById("cartTotal");
 const sellAutoBtn = document.getElementById("sellAutoBtn");
 const sellStatusEl = document.getElementById("sellStatus");
@@ -740,8 +790,6 @@ function renderCart() {
   payoutDateLine.innerHTML = `${escapeHtml(
     (CFG.payoutDateLine || "").replace("{date}", unlock.toLocaleDateString(CFG.dateLocale || "uk-UA"))
   )}<span class="payout-hint">${escapeHtml(CFG.payoutHint || "")}</span>`;
-  payoutMethodSub.textContent = payoutMethod === "crypto" ? CFG.payoutCryptoSub || "" : CFG.payoutCardSub || "";
-
   sellStatusEl.textContent = "";
 }
 
