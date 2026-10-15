@@ -511,8 +511,33 @@ inventoryRefreshBtn?.addEventListener("click", () => {
   loadInventory({ refresh: true });
 });
 
+/**
+ * Картки-привиди на час завантаження інвентарю.
+ *
+ * Рядок "Завантажую інвентар..." на порожньому екрані виглядає як
+ * зависання — особливо коли Steam відповідає десять секунд. Сітка сірих
+ * карток показує, що саме зараз з'явиться, і місце під неї вже зайняте:
+ * коли приходять дані, сторінка не стрибає.
+ */
+function inventorySkeletons(count = 12) {
+  if (!inventoryListEl) return;
+  inventoryListEl.innerHTML = Array.from({ length: count })
+    .map(
+      () => `<div class="inventory-card skeleton-card">
+          <div class="skeleton-box skeleton-img"></div>
+          <div class="skeleton-box skeleton-line"></div>
+          <div class="skeleton-box skeleton-line short"></div>
+        </div>`
+    )
+    .join("");
+}
+
 async function loadInventory({ refresh = false } = {}) {
   if (inventoryRefreshBtn) inventoryRefreshBtn.disabled = true;
+  // Привидів показуємо лише на першому завантаженні: при оновленні вже є що
+  // показувати, і підміна готового списку сірими картками виглядала б як
+  // втрата даних.
+  if (!inventoryItems.length) inventorySkeletons();
   inventoryLoadingEl.style.display = "block";
   inventoryPrivateEl.style.display = "none";
   inventoryEmptyEl.style.display = "none";
@@ -550,6 +575,8 @@ async function loadInventory({ refresh = false } = {}) {
 
   inventoryRetries = 0;
   inventoryItems = data.items;
+  // Привиди зникають разом із першим справжнім рендером нижче.
+
   if (!cartRestored) {
     restoreCart();
   }

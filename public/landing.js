@@ -121,3 +121,64 @@
 
   load();
 })();
+
+// ---- Поява секцій при скролі ----
+// Не заради краси: сторінка довга, і без жодного руху незрозуміло, що нижче
+// ще щось є. Зсув на вісім пікселів і проявлення — рівно стільки, щоб око
+// помітило нове й не відволіклось від тексту.
+//
+// Головне правило: вміст не має зникати ні за яких обставин. Те, що вже на
+// екрані, показуємо одразу й не ховаємо взагалі; ховаємо тільки те, до чого
+// ще треба долистати. Якщо спостерігач не спрацює (а в деяких оболонках
+// він мовчить), усе одно показуємо все через дві секунди.
+(function () {
+  const blocks = [...document.querySelectorAll(".landing-block, .hero-showcase")];
+  if (!blocks.length) return;
+
+  // Системне "не анімувати" поважаємо: людина могла попросити це через
+  // вестибулярні проблеми, а не з любові до статики.
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (still || !("IntersectionObserver" in window)) return;
+
+  const below = blocks.filter((b) => b.getBoundingClientRect().top > window.innerHeight * 0.9);
+  if (!below.length) return;
+
+  below.forEach((b) => b.classList.add("reveal"));
+  const io = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        e.target.classList.add("in");
+        io.unobserve(e.target); // показали один раз — далі не стежимо
+      }
+    },
+    { rootMargin: "0px 0px -10% 0px" }
+  );
+  below.forEach((b) => io.observe(b));
+
+  setTimeout(() => below.forEach((b) => b.classList.add("in")), 2000);
+})();
+
+// ---- Фон рухається повільніше за контент ----
+// Дешевий спосіб дати першому екрану глибину там, де справжнього 3D немає:
+// Steam віддає плоскі картинки, моделей ножів у нас нема. На дотикових
+// екранах вимкнено — там це лише зайва робота для батареї.
+(function () {
+  const bg = document.querySelector(".bg-decor");
+  if (!bg || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (window.matchMedia("(hover: none)").matches) return;
+
+  let ticking = false;
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        bg.style.transform = "translate3d(0, " + Math.min(window.scrollY * 0.12, 120) + "px, 0)";
+        ticking = false;
+      });
+    },
+    { passive: true }
+  );
+})();

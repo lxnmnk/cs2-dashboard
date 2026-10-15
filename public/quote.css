@@ -72,7 +72,10 @@ a { color: var(--gold); }
   object-position: center 35%;
   opacity: 0.08;
   pointer-events: none;
-  z-index: 0;
+  /* Нижче всього контенту. З z-index: 0 фіксована картинка малювалась ПОВЕРХ
+     звичайного тексту — при нерухомому фоні це було майже непомітно, а варто
+     було зрушити його паралаксом, як сторінка потьмяніла. */
+  z-index: -1;
   -webkit-mask-image: linear-gradient(to bottom, transparent, black 18%, black 75%, transparent);
   mask-image: linear-gradient(to bottom, transparent, black 18%, black 75%, transparent);
 }
@@ -580,11 +583,19 @@ a { color: var(--gold); }
 .inventory-card {
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-2) var(--s-3);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s-2);
+  transition: transform 0.18s var(--ease), border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+/* Картка піднімається під курсором. Раніше реагувала тільки картинка
+   всередині, і було незрозуміло, що клікається сама картка. */
+.inventory-card.selectable:hover {
+  transform: translateY(-3px);
+  border-color: var(--gold-line);
+  box-shadow: var(--shadow);
 }
 /* Верхній рядок картки: якість і float — за ними впізнають конкретний
    екземпляр, два однакові ножі відрізняються тільки цим. */
@@ -597,12 +608,23 @@ a { color: var(--gold); }
   font-variant-numeric: tabular-nums;
 }
 .inventory-card-top .dot { opacity: 0.5; }
-.wear-code { font-weight: 700; letter-spacing: 0.02em; }
-.wear-FN { color: #4caf7d; }
-.wear-MW { color: #7cb342; }
-.wear-FT { color: #d7a84e; }
-.wear-WW { color: #e08a4e; }
-.wear-BS { color: #e0605a; }
+/* Якість лишається кольоровою — це мова гри, FN зелене всюди, — але тепер
+   це маленький чип із приглушеним кольором, а не яскравий напис, який
+   сперечався із золотою ціною за увагу. */
+.wear-code {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  opacity: 0.75;
+}
+.wear-FN { color: #6fbf8e; }
+.wear-MW { color: #9ac46e; }
+.wear-FT { color: #c9a05c; }
+.wear-WW { color: #cf9068; }
+.wear-BS { color: #cf7a74; }
 .item-phase { color: var(--gold); }
 
 /* Картинка — головне на картці, тому їй більше місця й підкладка з
@@ -629,7 +651,7 @@ a { color: var(--gold); }
   min-height: 2.8em;
 }
 .item-weapon {
-  font-size: 11px;
+  font-size: var(--t-xs);
   line-height: 1.2;
   color: var(--muted);
   font-weight: 400;
@@ -1793,27 +1815,33 @@ a.sender-line { color: var(--gold); }
 }
 .landing-block > .card-hint { margin: 0 0 20px; }
 
-.how-steps { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-top: 22px; }
+.how-steps { display: flex; gap: var(--s-4); flex-wrap: wrap; justify-content: center; margin-top: var(--s-5); }
 .how-step {
-  flex: 1 1 260px;
-  max-width: 330px;
+  flex: 1 1 280px;
+  max-width: 340px;
+  text-align: left;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 22px 20px;
-  text-align: left;
+  border-radius: var(--r-lg);
+  padding: var(--s-5);
+  position: relative;
+  overflow: hidden;
 }
+/* Номер кроку великою цифрою у кутку: ряд із трьох карток тепер читається
+   як послідовність, а не як три однакові абзаци. */
 .how-num {
-  width: 30px; height: 30px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 50%;
-  background: var(--gold-soft);
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-4);
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 800;
   color: var(--gold);
-  font-weight: 700;
-  margin-bottom: 12px;
+  opacity: 0.14;
+  pointer-events: none;
 }
-.how-title { font-weight: 600; margin-bottom: 6px; }
-.how-text { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.how-title { font-size: var(--t-lg); font-weight: 700; margin-bottom: var(--s-2); }
+.how-text { font-size: var(--t-sm); color: var(--muted); line-height: 1.6; }
 
 /* Способи виплати. Значки — свої плашки у фірмових кольорах банків, а не
    їхні логотипи: чужі торгові марки ми в репозиторій не кладемо. */
@@ -1851,7 +1879,19 @@ a.sender-line { color: var(--gold); }
 .pay-usdt { --dot: #26a17b; }
 .pay-usdc { --dot: #2775ca; }
 
-.trust-grid { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
+/* Секція з темнішою підкладкою: три однакові сірі смуги підряд читались як
+   один довгий список. Тепер остання стоїть окремо й видно, що розповідь
+   дійшла до кінця. */
+.landing-block.band {
+  max-width: none;
+  padding: var(--s-7) var(--s-5);
+  margin-bottom: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+  border-top: 1px solid var(--border);
+}
+.landing-block.band > * { max-width: 1100px; margin-left: auto; margin-right: auto; }
+
+.trust-grid { display: flex; gap: var(--s-4); flex-wrap: wrap; justify-content: center; margin-top: var(--s-5); }
 .trust-item {
   flex: 1 1 260px;
   max-width: 330px;
@@ -1861,8 +1901,8 @@ a.sender-line { color: var(--gold); }
   border-radius: 14px;
   padding: 20px;
 }
-.trust-item h4 { margin: 0 0 8px; font-size: 15px; }
-.trust-item p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.trust-item h4 { margin: 0 0 var(--s-2); font-size: var(--t-lg); font-weight: 700; }
+.trust-item p { margin: 0; font-size: var(--t-sm); color: var(--muted); line-height: 1.6; }
 
 @media (max-width: 720px) {
   .landing-block { padding: 0 16px; }
@@ -2192,3 +2232,54 @@ a.sender-line { color: var(--gold); }
 }
 .header-drop-menu a:hover { background: rgba(255, 255, 255, 0.06); }
 .header-drop-menu a.active { color: var(--gold); }
+
+
+/* ---- Поява секцій при скролі ----
+   Блоки не вистрибують і не їдуть здалеку: зсув на вісім пікселів і поява
+   прозорості. Рух має підказувати, що з'явилось нове, а не влаштовувати
+   виставу. Хто просив систему не анімувати — отримує все одразу. */
+.reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.5s var(--ease), transform 0.5s var(--ease);
+  will-change: opacity, transform;
+}
+.reveal.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; transition: none; }
+  .show-card, .inventory-card { transition: none; }
+}
+
+/* ---- Глибина на першому екрані ----
+   Справжнього 3D у нас немає й не буде: Steam віддає плоскі PNG, моделей
+   ножів у нас нема. Але відчуття об'єму дають дві дешеві речі — фон, що
+   рухається повільніше за контент, і легкий нахил картки під курсором. */
+.hero-showcase-grid { perspective: 900px; }
+.show-card { transform-style: preserve-3d; }
+.show-card:hover { transform: translateY(-3px) rotateX(3deg) rotateY(-3deg); }
+@media (hover: none) {
+  .show-card:hover { transform: none; }
+}
+
+
+/* ---- Картки-привиди ----
+   Поки вантажиться інвентар або каталог, місце вже зайняте сірими картками
+   того ж розміру: видно, що сторінка працює, і нічого не стрибає, коли
+   приходять справжні дані. */
+.skeleton-card { pointer-events: none; }
+.skeleton-box {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.03));
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s linear infinite;
+  border-radius: var(--r-sm);
+}
+.skeleton-img { width: 100%; aspect-ratio: 4 / 3; }
+.skeleton-line { height: 10px; margin-top: var(--s-2); }
+.skeleton-line.short { width: 55%; }
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-box { animation: none; }
+}

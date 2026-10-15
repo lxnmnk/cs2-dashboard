@@ -90,6 +90,17 @@ async function loadCatalog() {
   const seq = ++loadSeq;
   statusEl.style.display = "block";
   statusEl.textContent = C.loading;
+  // Сітка з сірих карток на час запиту: ряд порожнечі з написом "Завантажую"
+  // виглядає як зламана сторінка, особливо коли міняєш фільтр і чекаєш.
+  grid.innerHTML = Array.from({ length: 12 })
+    .map(
+      () => `<div class="inventory-card skeleton-card">
+          <div class="skeleton-box skeleton-img"></div>
+          <div class="skeleton-box skeleton-line"></div>
+          <div class="skeleton-box skeleton-line short"></div>
+        </div>`
+    )
+    .join("");
 
   const params = new URLSearchParams({ page: state.page, sort: state.sort });
   if (state.q) params.set("q", state.q);
