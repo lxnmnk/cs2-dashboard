@@ -16,18 +16,21 @@
   const CFG = window.LANDING_CONFIG || {};
   const COUNT = 6;
 
-  // Три діапазони, по два предмети з кожного. Одним запитом виходив ряд із
-  // шести ножів по сорок тисяч: каталог віддає сторінку відсортовану за
-  // ціною, і "розкидати" всередині однієї сторінки нічого не дає — вона вся
-  // з одного кінця діапазону. А людина має побачити, що тут є і за дві
-  // тисячі, і за двадцять.
-  const BANDS = ["min=40&max=120", "min=120&max=350", "min=350&max=900"];
-  const PER_BAND = 2;
-
-  // Наліпки, кейси, капсули й музичні набори в каталозі є, але у вітрині
-  // "подивись, що тут продають" вони виглядають дрібним сміттям поряд із
-  // ножем. Показуємо зброю, ножі й рукавиці.
-  const NOT_A_SKIN = /^(Sticker|Sealed Graffiti|Patch|Music Kit|StatTrak™ Music Kit|Souvenir Package)|Capsule|Case Key|Case$|Pin$/;
+  // Вітрина показує тільки найліквідніше — список заданий на сервері
+  // (isFeatured у server.js): ножі в Doppler, Tiger Tooth, Freehand, Marble
+  // Fade та Black Laminate і три автомати в Printstream, Neo-Noir, Neon
+  // Rider, Neon Revolution, без StatTrak. Це те, що йде в будь-який день, і
+  // саме таке має бачити людина, яка відкрила сайт уперше.
+  //
+  // Два запити, а не один: каталог віддає сторінку, відсортовану за ціною,
+  // тож з одного кінця прийшли б самі ножі по сорок тисяч. Беремо найдешевші
+  // й найдорожчі й показуємо по три звідти й звідти.
+  const QUERIES = [
+    "featured=1&sort=price_asc",
+    "featured=1&min=150&max=400&sort=price_asc",
+    "featured=1&sort=price_desc",
+  ];
+  const PER_QUERY = 2;
 
   // Якості пишемо кодом: у рядок під назвою "Factory New" не влазить, а FN
   // упізнається з одного погляду — так само, як у каталозі.
@@ -94,12 +97,19 @@
 
   function load() {
     skeletons();
-    Promise.all(BANDS.map((band) => fetch(`/api/public/catalog?${band}&sort=price_desc`).then((r) => r.json())))
+    Promise.all(QUERIES.map((q) => fetch(`/api/public/catalog?${q}`).then((r) => r.json())))
       .then((pages) => {
         const items = [];
+        const seen = new Set();
         for (const page of pages) {
           if (!page.ok || !page.items?.length) continue;
-          items.push(...spread(page.items.filter((it) => !NOT_A_SKIN.test(it.name)), PER_BAND));
+          for (const it of spread(page.items, PER_QUERY)) {
+            // Найдешевший і найдорожчий списки перетинаються, коли предметів
+            // у вітрині мало — один предмет двічі в ряду виглядає як помилка.
+            if (seen.has(it.marketHashName)) continue;
+            seen.add(it.marketHashName);
+            items.push(it);
+          }
         }
         // Ціни ще не піднялися після рестарту — вітрину просто не показуємо:
         // порожня сітка гірша за її відсутність.

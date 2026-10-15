@@ -1228,6 +1228,43 @@ function isLiquid(row, ourPrice) {
   return (ourPrice - bid) / ourPrice <= maxSpread;
 }
 
+// Вітрина на головній — не весь каталог, а короткий список найліквіднішого:
+// те, що продається в будь-який день і за передбачувану ціну. Людина, яка
+// вперше відкрила сайт, має побачити впізнавані речі, а не випадковий
+// предмет із сорока тисяч.
+//
+// Список заданий руками власником і навмисно вузький. StatTrak і Souvenir
+// сюди не йдуть: їхня ціна гуляє сильніше, а продаються вони довше.
+const FEATURED_KNIVES = new Set([
+  "★ Bayonet",
+  "★ Butterfly Knife",
+  "★ Flip Knife",
+  "★ Karambit",
+  "★ M9 Bayonet",
+  "★ Stiletto Knife",
+]);
+// Gamma Doppler сюди теж потрапляє: для вітрини це той самий попит.
+const FEATURED_KNIFE_SKINS = new Set(["Doppler", "Gamma Doppler", "Tiger Tooth", "Freehand", "Marble Fade", "Black Laminate"]);
+const FEATURED_GUNS = new Set(["AK-47", "M4A4", "M4A1-S"]);
+const FEATURED_GUN_SKINS = new Set(["Printstream", "Neo-Noir", "Neon Rider", "Neon Revolution"]);
+
+// Рідкісні фази доплера коштують як автомобіль і чекають покупця тижнями —
+// для вітрини "ось що в нас є" це найгірший приклад: ціна лякає, а швидкої
+// угоди по ній не буде.
+const FEATURED_SKIP_PHASES = new Set(["Ruby", "Sapphire", "Emerald", "Black Pearl"]);
+
+function isFeatured(marketHashName) {
+  if (marketHashName.includes("StatTrak\u2122") || marketHashName.startsWith("Souvenir ")) return false;
+  // baseName — назва без якості й без синтетичного суфікса фази.
+  const { baseName, phase } = parseItemName(marketHashName);
+  if (phase && FEATURED_SKIP_PHASES.has(phase)) return false;
+  const [weapon, skin] = baseName.split(" | ");
+  if (!skin) return false;
+  if (FEATURED_KNIVES.has(weapon)) return FEATURED_KNIFE_SKINS.has(skin);
+  if (FEATURED_GUNS.has(weapon)) return FEATURED_GUN_SKINS.has(skin);
+  return false;
+}
+
 function catalogItems(query) {
   const q = String(query.q || "").trim();
   const category = String(query.category || "").trim();
@@ -1246,6 +1283,7 @@ function catalogItems(query) {
   const items = [];
   for (const row of cache.rows) {
     const name = row.marketHashName;
+    if (query.featured === "1" && !isFeatured(name)) continue;
     if (q && !matchesSearchQuery(name, q)) continue;
     if (category && categoryOf(name) !== category) continue;
     if (weapons.size && !weapons.has(weaponOf(name))) continue;
