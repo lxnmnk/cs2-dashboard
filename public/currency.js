@@ -12,10 +12,25 @@
   const KEY = "currency";
   const DEFAULT_RATE = 45.5;
 
-  // За замовчуванням гривня: більшість клієнтів з України і виплату беруть на
-  // картку. Хто працює в доларах — перемикає сам, вибір запам'ятовується.
+  // Гривня — тільки на українській версії. На російській та англійській
+  // платити на українську картку нікому: там виплата в крипті, а ціни в
+  // гривні лише збивали б з пантелику — людина порахувала б у ₴ те, що
+  // отримає в доларах.
+  const LANG = (document.documentElement.lang || "uk").toLowerCase();
+  const UAH_ALLOWED = LANG === "uk";
+
+  // На українській за замовчуванням гривня: більшість клієнтів з України і
+  // виплату беруть на картку. Хто працює в доларах — перемикає сам, вибір
+  // запам'ятовується.
+  const stored = (() => {
+    try {
+      return localStorage.getItem(KEY);
+    } catch {
+      return null; // приватний режим
+    }
+  })();
   const state = {
-    code: localStorage.getItem(KEY) === "USD" ? "USD" : "UAH",
+    code: !UAH_ALLOWED ? "USD" : stored === "USD" ? "USD" : "UAH",
     rate: DEFAULT_RATE,
   };
 
@@ -65,9 +80,10 @@
   function render() {
     const mount = document.getElementById("currencySwitch");
     if (mount) {
+      const choices = UAH_ALLOWED ? ["UAH", "USD"] : ["USD"];
       dropdown(mount, {
         label: SYMBOL[state.code],
-        items: ["UAH", "USD"].map((c) => ({ value: c, label: `${SYMBOL[c]} ${c}`, active: c === state.code })),
+        items: choices.map((c) => ({ value: c, label: `${SYMBOL[c]} ${c}`, active: c === state.code })),
         onPick: (code) => setCurrency(code),
       });
     }
@@ -101,7 +117,11 @@
    * обрали крипту: перезавантаження зараз скинуло б вибір предметів.
    */
   function setCurrency(code, { reload = true } = {}) {
-    const next = code === "UAH" ? "UAH" : "USD";
+    // Прохання показати гривню на неукраїнській версії ігноруємо — там її
+    // немає й у виплатах. Запит приходить і з коду (кошик перемикає валюту
+    // слідом за способом виплати), тому мовчазне ігнорування тут доречніше
+    // за помилку.
+    const next = code === "UAH" && UAH_ALLOWED ? "UAH" : "USD";
     if (next === state.code) return;
     state.code = next;
     try {

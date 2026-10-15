@@ -1680,15 +1680,19 @@ a.sender-line { color: var(--gold); }
 .swap-empty { grid-column: 1 / -1; color: var(--muted); font-size: 13px; padding: 8px 2px; }
 
 /* Кнопка "здати свій бік" під інвентарем клієнта. */
+/* Блок дії стоїть НАД сіткою предметів: у сітки своя прокрутка, і кнопка
+   під нею діставалась лише тим, хто догортав сторінку донизу. Тепер вона
+   з'являється там, куди людина дивиться одразу після вибору. */
 .swap-sell {
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
+  margin: 0 0 var(--s-3);
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--s-2);
   align-items: flex-start;
 }
+.swap-sell-note { margin: 0; font-size: var(--t-xs); color: var(--muted); line-height: 1.5; }
 .swap-sell .btn-gold { align-self: stretch; text-align: center; }
 .swap-sell .btn-gold:disabled { opacity: 0.45; pointer-events: none; }
 .swap-sell-status { margin: 0; font-size: 12px; color: var(--muted); min-height: 16px; }

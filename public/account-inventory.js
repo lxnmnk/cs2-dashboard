@@ -106,6 +106,10 @@ let payoutNetwork = null; // для crypto: мережу треба знати �
 
 // Назви мереж не перекладаємо: людина звіряє напис із тим, що бачить у
 // гаманці. chain — за яким форматом перевіряти адресу.
+// Українська картка є тільки на українській версії сайту: решті платимо в
+// крипті. Прапорець задає сторінка (CFG), а не цей файл — мовні відмінності
+// живуть у мовних файлах.
+const PAYOUT_CARD_ENABLED = CFG.payoutCardEnabled !== false;
 const PAYOUT_OPTIONS = [
   { id: "card", kind: "card", coin: "\u20b4", coinClass: "coin-uah" },
   { id: "usdt-trc20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "TRC-20", chain: "tron" },
@@ -115,7 +119,8 @@ const PAYOUT_OPTIONS = [
   { id: "usdc-trc20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "TRC-20", chain: "tron" },
   { id: "usdc-erc20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "ERC-20", chain: "evm" },
   { id: "usdc-bep20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "BEP-20", chain: "evm" },
-];
+].filter((o) => o.kind !== "card" || PAYOUT_CARD_ENABLED);
+
 const PAYOUT_ADDRESS_RE = {
   tron: /^T[1-9A-HJ-NP-Za-km-z]{33}$/,
   evm: /^0x[0-9a-fA-F]{40}$/,
@@ -138,6 +143,12 @@ const payoutAddress = document.getElementById("payoutAddress");
 const payoutError = document.getElementById("payoutError");
 
 let payoutChoice = PAYOUT_OPTIONS[0];
+// Без картки перший спосіб — крипта, і стан має збігатись із ним одразу:
+// інакше кошик лишався б у режимі картки з прихованими полями.
+if (payoutChoice.kind === "crypto") {
+  payoutMethod = "crypto";
+  payoutNetwork = payoutChoice.id;
+}
 
 function payoutOptionTitle(opt) {
   return opt.kind === "card" ? CFG.payoutCardTitle || "CARD UAH" : opt.title;
