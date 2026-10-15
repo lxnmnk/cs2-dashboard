@@ -13,6 +13,37 @@
   --gold-soft: rgba(215, 168, 78, 0.14);
   --gold-line: rgba(215, 168, 78, 0.35);
   --red: #e0605a;
+
+  /* Шкала кеглів. Раніше розміри підбирались на око в кожному місці — через
+     це сторінки виглядали зібраними з різних шматків. Крок ~1.25, значення
+     заокруглені до цілих пікселів, бо дробові на Windows мажуться. */
+  --t-xs: 11px;
+  --t-sm: 13px;
+  --t-md: 15px;
+  --t-lg: 19px;
+  --t-xl: 24px;
+  --t-2xl: 32px;
+  --t-3xl: 44px;
+
+  /* Відступи кратні 4: будь-яка пара елементів стає в один ритм без
+     підбирання "ще два пікселі". */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+
+  /* Одна тінь на весь сайт: підняті поверхні відрізняються від фону глибиною,
+     а не рамкою яскравішого кольору. */
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 * { box-sizing: border-box; }
@@ -75,7 +106,7 @@ a { color: var(--gold); }
 
 /* ---- Hero ---- */
 .hero {
-  padding: 48px 20px 32px;
+  padding: var(--s-8) var(--s-5) var(--s-5);
   text-align: center;
 }
 .eyebrow {
@@ -91,16 +122,125 @@ a { color: var(--gold); }
   margin-bottom: 18px;
 }
 .hero h1 {
-  font-size: 34px;
-  line-height: 1.25;
-  margin: 0 0 12px;
-  font-weight: 700;
+  /* Один розмір на всі екрани виглядав дрібно на десктопі й ламався на
+     телефоні. clamp замість двох медіазапитів: між 28 і 44 пікселями
+     заголовок росте разом із шириною. */
+  font-size: clamp(28px, 4.4vw, var(--t-3xl));
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--s-4);
+  font-weight: 800;
 }
 .hero h1 .accent { color: var(--gold); }
 .hero-sub {
   color: var(--muted);
-  font-size: 15px;
+  font-size: var(--t-md);
+  line-height: 1.6;
   margin: 0;
+}
+/* Рядок опису розтягувався на всю ширину сторінки — очей не вистачало, щоб
+   повернутись на початок наступного рядка. 60 символів — звичний максимум. */
+.hero-lead { max-width: 580px; margin: 0 auto; }
+
+/* ---- Вітрина під героєм ----
+   Ми торгуємо скінами, а на першому екрані був самий текст. Шість живих
+   карток із каталогу показують товар і ціну одразу, і це переконує краще за
+   будь-який опис. Дані ті самі, що в каталозі, — не картинка-заглушка. */
+.hero-showcase {
+  max-width: 1100px;
+  margin: 0 auto var(--s-8);
+  padding: 0 var(--s-5);
+}
+.hero-showcase-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.hero-showcase-title {
+  font-size: var(--t-xs);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.hero-showcase-all { font-size: var(--t-sm); text-decoration: none; white-space: nowrap; }
+.hero-showcase-all:hover { text-decoration: underline; }
+.hero-showcase-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--s-3);
+}
+.show-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.18s var(--ease), border-color 0.18s var(--ease);
+}
+.show-card:hover { transform: translateY(-3px); border-color: var(--gold-line); }
+.show-card-img {
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(60% 60% at 50% 45%, rgba(215, 168, 78, 0.10), transparent 70%);
+}
+.show-card-img img { width: 86%; height: auto; display: block; }
+.show-card-body { padding: var(--s-2) var(--s-3) var(--s-3); }
+.show-card-name {
+  font-size: var(--t-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.show-card-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-top: var(--s-1);
+}
+.show-card-price { font-size: var(--t-sm); font-weight: 700; color: var(--gold); }
+.show-card-wear {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+/* Поки ціни вантажаться, місце вже зайняте картками-привидами: сторінка не
+   стрибає, коли приходять дані. */
+.show-card.skeleton { pointer-events: none; }
+.show-card.skeleton .show-card-img,
+.show-card.skeleton .show-card-name,
+.show-card.skeleton .show-card-price {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03), rgba(255,255,255,0.07), rgba(255,255,255,0.03));
+  background-size: 200% 100%;
+  animation: show-shimmer 1.4s linear infinite;
+  color: transparent;
+  border-radius: var(--r-sm);
+}
+.show-card.skeleton .show-card-name { height: 10px; }
+.show-card.skeleton .show-card-price { height: 13px; width: 60%; margin-top: var(--s-1); display: block; }
+@keyframes show-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+@media (max-width: 980px) {
+  .hero-showcase-grid { grid-template-columns: repeat(3, 1fr); }
+  .show-card:nth-child(n + 7) { display: none; }
+}
+@media (max-width: 560px) {
+  .hero-showcase { padding: 0 var(--s-4); }
+  .hero-showcase-grid { grid-template-columns: repeat(2, 1fr); gap: var(--s-2); }
+  .show-card:nth-child(n + 5) { display: none; }
 }
 
 /* ---- Trust badges ---- */
@@ -884,6 +1024,22 @@ a.btn-small { display: inline-block; text-decoration: none; }
 }
 @media (max-width: 620px) {
   .nav-profile-user span { display: none; }
+  /* Меню прокручувалось убік, і "Обмін" обрізався правим краєм — перший
+     екран для людини з телеграму виглядав недоробленим. Три рівні колонки
+     вміщають усі розділи на 360 пікселях без прокрутки. */
+  .site-nav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--s-1);
+    overflow: visible;
+  }
+  .site-nav a {
+    justify-content: center;
+    padding: var(--s-2) var(--s-1);
+    font-size: var(--t-xs);
+    white-space: nowrap;
+  }
+  .site-nav .nav-icon { font-size: var(--t-sm); }
 }
 
 /* ---- Підвал сайту ---- */
@@ -1627,8 +1783,14 @@ a.sender-line { color: var(--gold); }
 
 .chooser-four { flex-wrap: wrap; }
 
-.landing-block { max-width: 1100px; margin: 0 auto 48px; padding: 0 24px; text-align: center; }
-.landing-block h2 { font-size: 22px; margin: 0 0 6px; }
+.landing-block { max-width: 1100px; margin: 0 auto var(--s-8); padding: 0 var(--s-5); text-align: center; }
+.landing-block h2 {
+  font-size: var(--t-2xl);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--s-2);
+  font-weight: 800;
+}
 .landing-block > .card-hint { margin: 0 0 20px; }
 
 .how-steps { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-top: 22px; }
@@ -1669,12 +1831,25 @@ a.sender-line { color: var(--gold); }
 /* Логотип, если файл лежит в public/pay/; подпись — всегда. */
 .pay-badge { gap: 9px; }
 .pay-badge img { height: 20px; width: auto; display: block; }
-.pay-mono { color: #f2f2f2; border-color: rgba(242, 242, 242, 0.3); }
-.pay-privat24 { color: #6fc04a; border-color: rgba(111, 192, 74, 0.45); }
-.pay-abank { color: #15d06a; border-color: rgba(21, 208, 106, 0.45); }
-.pay-binance { color: #f0b90b; border-color: rgba(240, 185, 11, 0.45); }
-.pay-usdt { color: #26a17b; border-color: rgba(38, 161, 123, 0.45); }
-.pay-usdc { color: #2775ca; border-color: rgba(39, 117, 202, 0.5); }
+/* Шість різнокольорових рамок читались як теги, а не як блок довіри:
+   кожна тягнула увагу на себе й жодна не виглядала надійно. Тепер усі
+   однакові й спокійні, а колір бренду лишився точкою зліва — упізнається,
+   але не кричить. */
+.pay-badge { color: var(--text); border-color: var(--border); }
+.pay-badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot, var(--muted));
+}
+.pay-badge:hover { border-color: var(--gold-line); }
+.pay-mono { --dot: #f2f2f2; }
+.pay-privat24 { --dot: #6fc04a; }
+.pay-abank { --dot: #15d06a; }
+.pay-binance { --dot: #f0b90b; }
+.pay-usdt { --dot: #26a17b; }
+.pay-usdc { --dot: #2775ca; }
 
 .trust-grid { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-top: 20px; }
 .trust-item {

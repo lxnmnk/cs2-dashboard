@@ -40,6 +40,16 @@
     </div>
   </section>
 
+  <!-- Живий товар під героєм: шість карток із того самого каталогу. Перший
+       екран без жодного скіна нічого не продавав. -->
+  <section class="hero-showcase" id="heroShowcase">
+    <div class="hero-showcase-head">
+      <span class="hero-showcase-title">In the catalogue now</span>
+      <a class="hero-showcase-all" href="/en/buy">See all →</a>
+    </div>
+    <div class="hero-showcase-grid" id="showcaseGrid"></div>
+  </section>
+
   <section class="landing-block">
     <h2>How it works</h2>
     <div class="how-steps">
@@ -120,6 +130,7 @@
   </footer>
 
   <script>
+    window.LANDING_CONFIG = {"buyUrl":"/en/buy"};
     window.NAV_CONFIG = {"signInLabel":"Sign in","accountUrl":"/en/account","loginUrl":"/auth/steam?lang=en","balanceTitle":"Available for payout","holdTitle":"On hold"};
   </script>
   <script src="/currency.js"></script>
