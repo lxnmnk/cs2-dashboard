@@ -1248,16 +1248,23 @@ const FEATURED_KNIFE_SKINS = new Set(["Doppler", "Gamma Doppler", "Tiger Tooth",
 const FEATURED_GUNS = new Set(["AK-47", "M4A4", "M4A1-S"]);
 const FEATURED_GUN_SKINS = new Set(["Printstream", "Neo-Noir", "Neon Rider", "Neon Revolution"]);
 
-// Рідкісні фази доплера коштують як автомобіль і чекають покупця тижнями —
-// для вітрини "ось що в нас є" це найгірший приклад: ціна лякає, а швидкої
-// угоди по ній не буде.
-const FEATURED_SKIP_PHASES = new Set(["Ruby", "Sapphire", "Emerald", "Black Pearl"]);
+// Рідкісні фази доплера (рубін, сапфір, смарагд, чорна перлина) пускаємо у
+// вітрину, але тільки доступні: дорога фаза чекає покупця тижнями, і в ряду
+// "ось що йде в будь-який день" їй не місце. Поріг у гривнях, бо саме в них
+// на нього дивляться; у долари переводимо за тим самим курсом, що й усі
+// ціни на сайті.
+const FEATURED_RARE_PHASES = new Set(["Ruby", "Sapphire", "Emerald", "Black Pearl"]);
+const FEATURED_RARE_PHASE_MAX_UAH = 80000;
+
+function isRarePhase(marketHashName) {
+  const { phase } = parseItemName(marketHashName);
+  return !!phase && FEATURED_RARE_PHASES.has(phase);
+}
 
 function isFeatured(marketHashName) {
   if (marketHashName.includes("StatTrak\u2122") || marketHashName.startsWith("Souvenir ")) return false;
   // baseName — назва без якості й без синтетичного суфікса фази.
-  const { baseName, phase } = parseItemName(marketHashName);
-  if (phase && FEATURED_SKIP_PHASES.has(phase)) return false;
+  const { baseName } = parseItemName(marketHashName);
   const [weapon, skin] = baseName.split(" | ");
   if (!skin) return false;
   if (FEATURED_KNIVES.has(weapon)) return FEATURED_KNIFE_SKINS.has(skin);
@@ -1303,6 +1310,9 @@ function catalogItems(query) {
 
     const quote = computeBuyQuote(row, { markup });
     if (!quote.ok) continue;
+    // Рідкісну фазу показуємо у вітрині тільки до порога: дорожче — це вже
+    // не "купи сьогодні", а місяць очікування покупця.
+    if (query.featured === "1" && isRarePhase(name) && quote.price * config.uahRate > FEATURED_RARE_PHASE_MAX_UAH) continue;
     if (!isLiquid(row, quote.price)) continue;
     if (Number.isFinite(min) && quote.price < min) continue;
     if (Number.isFinite(max) && quote.price > max) continue;
