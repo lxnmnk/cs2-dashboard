@@ -13,6 +13,7 @@
   <header class="site-header">
     <a class="site-brand" href="/en">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
+      <a href="/en/my-skins" class="active"><span class="nav-icon">📦</span> In stock</a>
       <a href="/en/buy"><span class="nav-icon">🛒</span> Buy skins</a>
       <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
       <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
@@ -40,7 +41,7 @@
         <h2>List</h2>
         <p class="card-hint">🔒 — still trade-locked, with the unlock date.</p>
 
-        <div id="skinsList" class="inventory-grid"></div>
+        <div id="skinsList" class="skins-groups"></div>
         <p id="emptyState" class="card-hint" style="display: none;">Nothing in stock right now — check back a bit later.</p>
       </div>
 
@@ -83,6 +84,11 @@
 
   <script>
     window.MY_SKINS_CONFIG = {
+      groupTitles: {
+        knife: "Knives and gloves",
+        rich: "Weapons from $50",
+        cheap: "Weapons under $50",
+      },
       filtersTitle: "Filters",
       resetLabel: "Reset",
       searchPlaceholder: "Search by name...",

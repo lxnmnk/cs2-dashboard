@@ -13,6 +13,7 @@
   <header class="site-header">
     <a class="site-brand" href="/ru">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
+      <a href="/ru/my-skins" class="active"><span class="nav-icon">📦</span> Наши скины</a>
       <a href="/ru/buy"><span class="nav-icon">🛒</span> Купить скины</a>
       <a href="/ru/account"><span class="nav-icon">💰</span> Продать скины</a>
       <a href="/ru/trade"><span class="nav-icon">🔄</span> Обмен</a>
@@ -40,7 +41,7 @@
         <h2>Список</h2>
         <p class="card-hint">🔒 — предмет ещё в трейд-бане, с датой разблокировки.</p>
 
-        <div id="skinsList" class="inventory-grid"></div>
+        <div id="skinsList" class="skins-groups"></div>
         <p id="emptyState" class="card-hint" style="display: none;">Сейчас ничего нет в наличии — загляни чуть позже.</p>
       </div>
 
@@ -83,6 +84,11 @@
 
   <script>
     window.MY_SKINS_CONFIG = {
+      groupTitles: {
+        knife: "Ножи и перчатки",
+        rich: "Оружие от $50",
+        cheap: "Оружие до $50",
+      },
       filtersTitle: "Фильтры",
       resetLabel: "Сбросить",
       searchPlaceholder: "Поиск по названию...",

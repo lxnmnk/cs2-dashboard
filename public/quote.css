@@ -1051,7 +1051,9 @@ a.btn-small { display: inline-block; text-decoration: none; }
      вміщають усі розділи на 360 пікселях без прокрутки. */
   .site-nav {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* Чотири пункти в один рядок на телефоні не влазять — дві колонки по
+       два. Раніше було три в ряд, поки розділів було три. */
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--s-1);
     overflow: visible;
   }
@@ -2286,4 +2288,26 @@ a.sender-line { color: var(--gold); }
 }
 @media (prefers-reduced-motion: reduce) {
   .skeleton-box { animation: none; }
+}
+
+
+/* ---- Групи на вітрині "Наші скіни" ----
+   Ножі з рукавицями, дороге й дешеве рахуються за різним відсотком, тож і
+   стоять окремо: інакше незрозуміло, чому в одному списку різна націнка. */
+.skins-groups { display: flex; flex-direction: column; gap: var(--s-5); }
+.skins-group {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0;
+  font-size: var(--t-lg);
+  font-weight: 700;
+}
+.skins-group-count {
+  font-size: var(--t-xs);
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
 }

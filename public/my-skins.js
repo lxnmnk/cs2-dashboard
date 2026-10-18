@@ -115,12 +115,18 @@ function renderSkinsList() {
     return;
   }
 
-  skinsListEl.innerHTML = visible
-    .map((s) => {
-      const idx = s.idx;
-      return renderCard(s, idx);
-    })
-    .join("");
+  // Три группы: ножи с перчатками, потом дорогое, потом дешёвое. Один
+  // сплошной список из полутора сотен предметов читать невозможно, а цена
+  // внутри каждой группы считается по своему проценту — разделение не
+  // украшение, оно объясняет, почему числа разные.
+  const GROUPS = ["knife", "rich", "cheap"];
+  const titles = window.MY_SKINS_CONFIG.groupTitles || {};
+  skinsListEl.innerHTML = GROUPS.map((bucket) => {
+    const part = visible.filter((s) => (s.bucket || "rich") === bucket);
+    if (!part.length) return "";
+    return `<h3 class="skins-group">${escapeHtml(titles[bucket] || bucket)}<span class="skins-group-count">${part.length}</span></h3>
+      <div class="inventory-grid">${part.map((s) => renderCard(s, s.idx)).join("")}</div>`;
+  }).join("");
 
   skinsListEl.querySelectorAll(".skin-item-add").forEach((btn) => {
     btn.addEventListener("click", () => addItem(Number(btn.getAttribute("data-idx"))));

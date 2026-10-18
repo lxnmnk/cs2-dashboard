@@ -5,6 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { getSteamImages } = require("./steamImages");
+const { categoryOf } = require("./itemCategory");
 
 // TRADES_FILE — чтобы посмотреть чужой/серверный файл сделок, не подменяя свой:
 // `TRADES_FILE=./trades-server.json node report-sellable.js`. Сайт переменную
@@ -461,7 +462,28 @@ function computeBalances(owner, sourcesConfig) {
   return balances;
 }
 
-const MY_SKINS_MARKUP = 0.06;
+// Запасная наценка на случай, если по предмету нет цены Youpin: тогда
+// считать не от чего, и берём старое правило от своей закупки.
+const MY_SKINS_FALLBACK_MARKUP = 0.06;
+
+/**
+ * Категория предмета на витрине и процент к цене Youpin.
+ *
+ * Ножи и перчатки идут своей группой при любой цене: их покупают иначе,
+ * чем стволы, и наценка у них своя. Остальное делится по порогу цены —
+ * дешёвое держит больший процент, потому что возня с ним та же, а деньги
+ * меньше.
+ */
+function mySkinsBucket(marketHashName, youpinPrice, rules) {
+  const category = categoryOf(marketHashName);
+  if (category === "knife" || category === "gloves") {
+    return { bucket: "knife", percent: rules.knifePercent };
+  }
+  if (youpinPrice != null && youpinPrice < rules.thresholdUsd) {
+    return { bucket: "cheap", percent: rules.cheapPercent };
+  }
+  return { bucket: "rich", percent: rules.richPercent };
+}
 
 /**
  * Публичная витрина "Мої скіни в наявності" (my-skins.html) — то, что
@@ -476,9 +498,24 @@ const MY_SKINS_MARKUP = 0.06;
  * используем его, иначе подтягиваем автоматически по названию со Steam
  * Community Market (см. steamImages.js). Поэтому функция асинхронная.
  */
-async function listPublicHoldings(owner, config) {
+async function listPublicHoldings(owner, config, rows = []) {
   const lockDays = config.portfolio?.tradeLockDays ?? 7;
+  const rules = {
+    thresholdUsd: config.mySkins?.thresholdUsd ?? 50,
+    cheapPercent: config.mySkins?.cheapPercent ?? 103,
+    richPercent: config.mySkins?.richPercent ?? 101,
+    knifePercent: config.mySkins?.knifePercent ?? 101,
+  };
   const now = new Date();
+
+  // Цена Youpin по названию: витрина считается от рынка, а не от того, по
+  // чём куплено. Два одинаковых ножа, купленных с разницей в месяц, должны
+  // стоить одинаково — покупателю наша история закупок ни к чему.
+  const youpinByName = new Map();
+  for (const row of rows) {
+    const ask = row.prices?.youpin?.ask;
+    if (ask != null) youpinByName.set(row.marketHashName, ask);
+  }
 
   const holdings = loadTrades().filter((t) => t.owner === owner && t.status === "holding");
 
@@ -489,11 +526,19 @@ async function listPublicHoldings(owner, config) {
         : new Date(new Date(t.buyDate).getTime() + lockDays * 24 * 60 * 60 * 1000);
 
       const auto = t.image ? null : await getSteamImages(t.marketHashName);
+      const youpin = youpinByName.get(t.marketHashName) ?? null;
+      const { bucket, percent } = mySkinsBucket(t.marketHashName, youpin, rules);
+      const price = youpin != null ? round2((youpin * percent) / 100) : round2(t.buyPrice * (1 + MY_SKINS_FALLBACK_MARKUP));
 
       return {
         marketHashName: t.marketHashName,
         wear: t.wear,
-        price: round2(t.buyPrice * (1 + MY_SKINS_MARKUP)),
+        price,
+        bucket,
+        percent,
+        // Откуда взялась цена — видно только нам, для разбора странных чисел.
+        priceBasis: youpin != null ? "youpin" : "buy",
+        youpinPrice: youpin,
         isLocked: now < unlockAt,
         unlockAt: unlockAt.toISOString(),
         image: t.image || auto?.thumb || null,
@@ -502,7 +547,10 @@ async function listPublicHoldings(owner, config) {
     })
   );
 
-  return items.sort((a, b) => a.marketHashName.localeCompare(b.marketHashName));
+  // Внутри группы — от дорогих к дешёвым: так витрина начинается с того, на
+  // что приходят смотреть.
+  const order = { knife: 0, rich: 1, cheap: 2 };
+  return items.sort((a, b) => order[a.bucket] - order[b.bucket] || b.price - a.price);
 }
 
 /** Идентификаторы уже импортированных сделок владельца — чтобы не задваивать. */

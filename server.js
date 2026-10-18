@@ -397,6 +397,11 @@ const CLEAN_PUBLIC_ROUTES = {
   "/trade": "swap.html",
   "/ru/trade": "swap-ru.html",
   "/en/trade": "swap-en.html",
+  // Вітрина "Наші скіни" повернулась: у каталозі на /buy весь прайс під
+  // замовлення, а тут те, що лежить на руках і їде сьогодні.
+  "/my-skins": "my-skins.html",
+  "/ru/my-skins": "my-skins-ru.html",
+  "/en/my-skins": "my-skins-en.html",
 };
 for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
   app.get(route, (req, res) => res.sendFile(path.join(__dirname, "public", file)));
@@ -405,10 +410,6 @@ for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
 // Старые адреса этих же страниц — редирект на чистые (ссылка на trade.html
 // уже могла разойтись, например в рекламном посте в Telegram-группе).
 const OLD_PUBLIC_REDIRECTS = {
-  // Вітрина "Наші скіни" знята: усе, що продаємо, тепер у каталозі на /buy.
-  "/my-skins": "/buy",
-  "/ru/my-skins": "/ru/buy",
-  "/en/my-skins": "/en/buy",
   "/trade.html": "/",
   "/trade-ru.html": "/ru",
   "/trade-en.html": "/en",
@@ -1491,7 +1492,7 @@ app.get("/api/public/trade-search", async (req, res) => {
 const MY_SKINS_OWNER = SITE_OWNER;
 
 app.get("/api/public/my-skins", async (req, res) => {
-  const holdings = await trades.listPublicHoldings(MY_SKINS_OWNER, config);
+  const holdings = await trades.listPublicHoldings(MY_SKINS_OWNER, config, cache.rows);
   res.json(holdings.map((h) => ({ ...h, searchAlt: localizedAlt(h.marketHashName) })));
 });
 
