@@ -575,6 +575,10 @@ async function listPublicHoldings(owner, config, rows = []) {
       return {
         marketHashName: t.marketHashName,
         wear: t.wear,
+        // Float покупателю важен не меньше цены: два одинаковых ножа с
+        // 0.0312 и 0.0699 — разные предметы и разные деньги. В трекере он
+        // есть почти у всех позиций, а на витрину до сих пор не доезжал.
+        floatValue: t.floatValue ?? null,
         price,
         bucket,
         percent,

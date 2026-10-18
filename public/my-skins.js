@@ -134,6 +134,35 @@ function renderSkinsList() {
   });
 }
 
+// Верхняя строка карточки: качество кодом, float и фаза — те же три вещи и
+// в том же виде, что в кабинете и в каталоге, чтобы предмет узнавался
+// одинаково на всех страницах.
+const WEAR_CODES = {
+  "Factory New": "FN",
+  "Minimal Wear": "MW",
+  "Field-Tested": "FT",
+  "Well-Worn": "WW",
+  "Battle-Scarred": "BS",
+};
+
+function cardTopHtml(s) {
+  // Качество берём из самого названия, а не из поля wear: название — это
+  // настоящий market_hash_name, а поле могло остаться от ручного ввода и
+  // разойтись с ним. Если в названии качества нет, падаем на поле.
+  const fromName = (s.marketHashName.match(/\(([^()]+)\)/) || [])[1];
+  const plainWear = fromName || String(s.wear || "").split(" · ")[0];
+  const code = WEAR_CODES[plainWear] || "";
+  // Фаза живёт суффиксом в названии (" - Black Pearl"), см. itemName.js.
+  const phase = (s.marketHashName.match(/ - ([^-]+)$/) || [])[1] || "";
+
+  const parts = [];
+  if (code) parts.push(`<span class="wear-code wear-${code}">${code}</span>`);
+  // Четырёх знаков хватает: дальше цифры не решают ни для цены, ни для глаза.
+  if (s.floatValue != null) parts.push(`<span class="item-float">${Number(s.floatValue).toFixed(4)}</span>`);
+  if (phase) parts.push(`<span class="item-phase">${escapeHtml(phase)}</span>`);
+  return parts.length ? `<div class="inventory-card-top">${parts.join('<span class="dot">·</span>')}</div>` : "";
+}
+
 function renderCard(s, idx) {
   const tag = s.isLocked
     ? `<span class="lock-tag locked">🔒 ${lockedLabel} ${formatUnlockDate(s.unlockAt)}</span>`
@@ -144,6 +173,7 @@ function renderCard(s, idx) {
 
   return `
     <div class="inventory-card">
+      ${cardTopHtml(s)}
       ${img}
       <div class="inventory-card-name">${escapeHtml(s.marketHashName)}</div>
       ${tag}
