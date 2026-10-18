@@ -664,6 +664,13 @@ itemSearchInput.addEventListener("input", () => {
   }, 200);
 });
 
+// Нажатие на подсказку не должно уводить фокус из поля: иначе форма
+// перестаёт быть "в фокусе" ещё до того, как клик дойдёт до списка, и в
+// старых браузерах без :has() он снова проваливается в блок под ним.
+document.addEventListener("mousedown", (e) => {
+  if (e.target.closest(".autocomplete-item")) e.preventDefault();
+});
+
 // Общий обработчик для всех автокомплитов сразу — и верхнего "Add a Trade",
 // и любого числа строк внутри формы прямого трейда (modalTradeItems).
 document.addEventListener("click", (e) => {
