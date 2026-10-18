@@ -151,10 +151,11 @@
     "maxSpread": 0.3
   },
   "mySkins": {
-    "_note": "Витрина 'Наші скіни': цена считается от цены Youpin, а не от нашей закупки — на складе лежат предметы, купленные по разной цене, и покупателю важна рыночная, а не наша. Проценты: до thresholdUsd — cheapPercent, дороже — richPercent, ножи и перчатки по любой цене — knifePercent.",
+    "_note": "Витрина 'Наші скіни': цена считается от рынка, а не от нашей закупки. Берём большее из двух: цена Youpin с процентом по группе (до thresholdUsd — cheapPercent, дороже — richPercent, ножи и перчатки — knifePercent) и выкуп Skinbux плюс skinbuxPercent. Второе нужно, чтобы не продать человеку дешевле, чем за предмет прямо сейчас платит Skinbux.",
     "thresholdUsd": 50,
     "cheapPercent": 103,
     "richPercent": 101,
-    "knifePercent": 101
+    "knifePercent": 101,
+    "skinbuxPercent": 1
   }
 }

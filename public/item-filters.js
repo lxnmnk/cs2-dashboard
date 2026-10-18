@@ -23,7 +23,10 @@ const PRICE_PRESETS = [
 // showSearch: false — поле пошуку живе не в панелі, а в рядку над сіткою
 // (сторінка продажу). Два однакові поля на одному екрані плутають, тому
 // панель своє просто не малює, а запит приходить ззовні через setQuery.
-function createItemFilters({ mount, labels, showStatus = false, showSearch = true, onChange }) {
+// showBuckets: true — группы витрины "Наші скіни" (ножи с перчатками,
+// оружие дороже и дешевле порога). Это те же три группы, по которым считается
+// наценка, поэтому фильтр и заголовки на странице говорят об одном и том же.
+function createItemFilters({ mount, labels, showStatus = false, showSearch = true, showBuckets = false, onChange }) {
   const state = {
     query: "",
     min: null,
@@ -31,6 +34,7 @@ function createItemFilters({ mount, labels, showStatus = false, showSearch = tru
     wears: new Set(),
     special: new Set(),
     status: new Set(),
+    buckets: new Set(),
   };
 
   mount.innerHTML = `
@@ -69,6 +73,17 @@ function createItemFilters({ mount, labels, showStatus = false, showSearch = tru
       <label class="filters-check"><input type="checkbox" data-special="souvenir" /> <span class="tag-souvenir">Souvenir</span></label>
       <label class="filters-check"><input type="checkbox" data-special="normal" /> ${escapeHtml(labels.normalLabel)}</label>
     </div>
+
+    ${
+      showBuckets
+        ? `<div class="filters-group">
+             <h4>${escapeHtml(labels.bucketTitle || "")}</h4>
+             <label class="filters-check"><input type="checkbox" data-bucket="knife" /> ${escapeHtml(labels.groupTitles?.knife || "")}</label>
+             <label class="filters-check"><input type="checkbox" data-bucket="rich" /> ${escapeHtml(labels.groupTitles?.rich || "")}</label>
+             <label class="filters-check"><input type="checkbox" data-bucket="cheap" /> ${escapeHtml(labels.groupTitles?.cheap || "")}</label>
+           </div>`
+        : ""
+    }
 
     ${
       showStatus
@@ -140,7 +155,11 @@ function createItemFilters({ mount, labels, showStatus = false, showSearch = tru
     });
   });
 
-  for (const [attr, bucket] of [["data-special", state.special], ["data-status", state.status]]) {
+  for (const [attr, bucket] of [
+    ["data-special", state.special],
+    ["data-status", state.status],
+    ["data-bucket", state.buckets],
+  ]) {
     mount.querySelectorAll(`[${attr}]`).forEach((box) => {
       box.addEventListener("change", () => {
         const key = box.getAttribute(attr);
@@ -158,6 +177,7 @@ function createItemFilters({ mount, labels, showStatus = false, showSearch = tru
     state.wears.clear();
     state.special.clear();
     state.status.clear();
+    state.buckets.clear();
     if (searchEl) searchEl.value = "";
     minEl.value = maxEl.value = "";
     mount.querySelectorAll(".filters-chip").forEach((b) => b.classList.remove("active"));
@@ -200,6 +220,10 @@ function createItemFilters({ mount, labels, showStatus = false, showSearch = tru
         (state.special.has("normal") && !isStatTrak && !isSouvenir);
       if (!ok) return false;
     }
+
+    // Группа приходит с сервера (trades.js mySkinsBucket) — здесь её не
+    // пересчитываем, иначе фильтр и цена могли бы разойтись.
+    if (state.buckets.size && !state.buckets.has(item.bucket || "rich")) return false;
 
     if (state.status.size) {
       const ok = (state.status.has("locked") && item.isLocked) || (state.status.has("ready") && !item.isLocked);

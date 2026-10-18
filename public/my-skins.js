@@ -77,6 +77,7 @@ const filters = createItemFilters({
     lockedLabel: window.MY_SKINS_CONFIG.filtersLockedLabel,
   },
   showStatus: true,
+  showBuckets: true,
   onChange: renderSkinsList,
 });
 

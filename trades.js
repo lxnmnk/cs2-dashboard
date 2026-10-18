@@ -173,6 +173,26 @@ function setFloat(id, owner, floatValue) {
   return trade;
 }
 
+/**
+ * Сменить название предмета у позиции.
+ *
+ * Нужно для фаз Doppler: в трекере предмет записан настоящим
+ * market_hash_name, одинаковым для всех фаз, а внутри сайта фаза живёт
+ * суффиксом " - Black Pearl" — под ним есть и своя цена, и своя картинка.
+ * Больше менять название руками неоткуда, поэтому функция узкая и проверяет
+ * только то, что имя непустое.
+ */
+function renameItem(id, owner, marketHashName) {
+  const name = String(marketHashName || "").trim();
+  if (!name) throw new Error("Название не может быть пустым");
+
+  const all = loadTrades();
+  const trade = findOwnedTrade(all, id, owner);
+  trade.marketHashName = name;
+  saveTrades(all);
+  return trade;
+}
+
 /** Пакетная простановка float'ов (импорт из инвентаря) — одна запись на все. */
 function setFloatMany(owner, assignments) {
   const trades = loadTrades();
@@ -505,6 +525,7 @@ async function listPublicHoldings(owner, config, rows = []) {
     cheapPercent: config.mySkins?.cheapPercent ?? 103,
     richPercent: config.mySkins?.richPercent ?? 101,
     knifePercent: config.mySkins?.knifePercent ?? 101,
+    skinbuxPercent: config.mySkins?.skinbuxPercent ?? 1,
   };
   const now = new Date();
 
@@ -512,9 +533,16 @@ async function listPublicHoldings(owner, config, rows = []) {
   // чём куплено. Два одинаковых ножа, купленных с разницей в месяц, должны
   // стоить одинаково — покупателю наша история закупок ни к чему.
   const youpinByName = new Map();
+  // Skinbux выкупает предмет прямо сейчас и без ожидания покупателя. Если он
+  // даёт больше, чем выходит по Youpin, продавать человеку дешевле — значит
+  // отдать свои же деньги: мы бы заработали больше, просто сдав предмет туда.
+  // Поэтому его выкуп плюс процент работает как пол цены.
+  const skinbuxByName = new Map();
   for (const row of rows) {
     const ask = row.prices?.youpin?.ask;
     if (ask != null) youpinByName.set(row.marketHashName, ask);
+    const bid = row.prices?.skinbux?.bid;
+    if (bid != null) skinbuxByName.set(row.marketHashName, bid);
   }
 
   const holdings = loadTrades().filter((t) => t.owner === owner && t.status === "holding");
@@ -527,8 +555,22 @@ async function listPublicHoldings(owner, config, rows = []) {
 
       const auto = t.image ? null : await getSteamImages(t.marketHashName);
       const youpin = youpinByName.get(t.marketHashName) ?? null;
+      const skinbux = skinbuxByName.get(t.marketHashName) ?? null;
       const { bucket, percent } = mySkinsBucket(t.marketHashName, youpin, rules);
-      const price = youpin != null ? round2((youpin * percent) / 100) : round2(t.buyPrice * (1 + MY_SKINS_FALLBACK_MARKUP));
+
+      const byYoupin = youpin != null ? round2((youpin * percent) / 100) : null;
+      const bySkinbux = skinbux != null ? round2((skinbux * (100 + rules.skinbuxPercent)) / 100) : null;
+
+      let price = byYoupin;
+      let priceBasis = "youpin";
+      if (bySkinbux != null && (price == null || bySkinbux > price)) {
+        price = bySkinbux;
+        priceBasis = "skinbux";
+      }
+      if (price == null) {
+        price = round2(t.buyPrice * (1 + MY_SKINS_FALLBACK_MARKUP));
+        priceBasis = "buy";
+      }
 
       return {
         marketHashName: t.marketHashName,
@@ -537,8 +579,9 @@ async function listPublicHoldings(owner, config, rows = []) {
         bucket,
         percent,
         // Откуда взялась цена — видно только нам, для разбора странных чисел.
-        priceBasis: youpin != null ? "youpin" : "buy",
+        priceBasis,
         youpinPrice: youpin,
+        skinbuxPrice: skinbux,
         isLocked: now < unlockAt,
         unlockAt: unlockAt.toISOString(),
         image: t.image || auto?.thumb || null,
@@ -573,6 +616,7 @@ module.exports = {
   setBuyDate,
   setFloat,
   setFloatMany,
+  renameItem,
   deleteTrade,
   listTrades,
   listPublicHoldings,
