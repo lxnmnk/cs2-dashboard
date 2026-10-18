@@ -2261,6 +2261,16 @@ app.post("/api/trades/:id/float", (req, res) => {
   }
 });
 
+// Своя цена позиции на витрине "Наші скіни" (пустая — вернуть расчёт).
+app.post("/api/trades/:id/ask-price", (req, res) => {
+  try {
+    const trade = trades.setAskPrice(req.params.id, req.session.username, (req.body || {}).askPrice);
+    res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
 app.delete("/api/trades/:id", (req, res) => {
   try {
     trades.deleteTrade(req.params.id, req.session.username);

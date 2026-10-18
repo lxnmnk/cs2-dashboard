@@ -1338,10 +1338,20 @@ function floatCell(r) {
   return `${value} <button class="btn-small btn-secondary" data-action="edit-float" data-id="${r.id}" title="Edit float">✎</button>`;
 }
 
+// Цена, по которой позиция стоит на публичной витрине. Пусто — считается
+// по формуле; вписанное число её перебивает.
+function askPriceCell(r) {
+  const value =
+    r.askPrice != null
+      ? `<b class="profit">${fmtMoney(r.askPrice)}</b>`
+      : '<span class="na">auto</span>';
+  return `${value} <button class="btn-small btn-secondary" data-action="edit-ask" data-id="${r.id}" title="Set the price for the Our Skins page">✎</button>`;
+}
+
 function renderHolding(rows) {
   const tbody = document.getElementById("holdingBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
     document.getElementById("holdingSelectAll").checked = false;
     return;
   }
@@ -1367,6 +1377,7 @@ function renderHolding(rows) {
           <td class="float-cell">${floatCell(r)}</td>
           <td>${sourceLabel(r.buySource)}</td>
           <td>${fmtMoney(r.buyPrice)}</td>
+          <td>${askPriceCell(r)}</td>
           <td>${fmtDate(r.buyDate)} <button class="btn-small btn-secondary" data-action="edit-buy-date" data-id="${r.id}" title="Edit buy date">✎</button></td>
           <td>${lockCell} <button class="btn-small btn-secondary" data-action="edit-unlock" data-id="${r.id}" title="Set exact time from Steam">✎</button></td>
           <td><button class="btn-small btn-danger" data-action="delete" data-id="${r.id}">Delete</button></td>
@@ -1406,6 +1417,40 @@ function renderHolding(rows) {
       editFloat(btn.dataset.id, trade?.floatValue);
     });
   });
+  tbody.querySelectorAll("[data-action='edit-ask']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const trade = lastTrades.find((t) => t.id === btn.dataset.id);
+      editAskPrice(btn.dataset.id, trade?.askPrice);
+    });
+  });
+}
+
+async function editAskPrice(id, current) {
+  const input = prompt(
+    "Price for this item on the public Our Skins page, in dollars.\nLeave empty to go back to the calculated one (Youpin + bracket percent, never below the Skinbux buyback).",
+    current != null ? String(current) : ""
+  );
+  if (input === null) return;
+
+  const value = input.trim();
+  if (value && !(Number(value) > 0)) {
+    alert("Price must be a positive number");
+    return;
+  }
+
+  const res = await fetch(`/api/trades/${id}/ask-price`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ askPrice: value === "" ? null : Number(value) }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `Could not save: ${data.error}`;
+    return;
+  }
+  errorBox.style.display = "none";
+  loadTrades();
 }
 
 async function editFloat(id, current) {

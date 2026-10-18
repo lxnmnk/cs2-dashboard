@@ -193,6 +193,31 @@ function renameItem(id, owner, marketHashName) {
   return trade;
 }
 
+/**
+ * Своя цена позиции на витрине "Наші скіни".
+ *
+ * Формула (Youpin с процентом, но не ниже выкупа Skinbux) хороша для
+ * оборота, но не для всего: часть предметов куплена под конкретную цель —
+ * под buy order на CSFloat, под обмен, — и отдавать их по рыночной цене
+ * не хочется. Вписанная руками цена перебивает расчёт, пустая — возвращает
+ * его обратно.
+ */
+function setAskPrice(id, owner, askPrice) {
+  const all = loadTrades();
+  const trade = findOwnedTrade(all, id, owner);
+
+  if (askPrice === null || askPrice === undefined || askPrice === "") {
+    delete trade.askPrice;
+  } else {
+    const value = Number(askPrice);
+    if (!Number.isFinite(value) || value <= 0) throw new Error("Цена должна быть положительным числом");
+    trade.askPrice = round2(value);
+  }
+
+  saveTrades(all);
+  return trade;
+}
+
 /** Пакетная простановка float'ов (импорт из инвентаря) — одна запись на все. */
 function setFloatMany(owner, assignments) {
   const trades = loadTrades();
@@ -571,6 +596,12 @@ async function listPublicHoldings(owner, config, rows = []) {
         price = round2(t.buyPrice * (1 + MY_SKINS_FALLBACK_MARKUP));
         priceBasis = "buy";
       }
+      // Цена, вписанная руками, перебивает любой расчёт: предмет мог быть
+      // куплен под конкретную сделку, и рыночная цена к нему не относится.
+      if (t.askPrice != null) {
+        price = round2(t.askPrice);
+        priceBasis = "manual";
+      }
 
       return {
         marketHashName: t.marketHashName,
@@ -621,6 +652,7 @@ module.exports = {
   setFloat,
   setFloatMany,
   renameItem,
+  setAskPrice,
   deleteTrade,
   listTrades,
   listPublicHoldings,
