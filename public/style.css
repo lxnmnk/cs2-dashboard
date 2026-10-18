@@ -322,6 +322,13 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 .trade-form #buyQuantityInput { width: 70px; }
 .field-hint { font-weight: 400; opacity: 0.7; }
 
+/* Каждая .trade-form выше получает z-index: 1 и становится собственным
+   контекстом наложения. Из-за этого подсказка автодополнения (z-index: 20
+   ВНУТРИ своей формы) всё равно оказывалась под следующей формой — блок
+   импорта с CSFloat накрывал список, и выбрать предмет было нельзя.
+   Пока в форме есть фокус, поднимаем её над соседями. */
+.trade-form:focus-within { z-index: 10; }
+
 .autocomplete-wrap { position: relative; }
 .autocomplete-list {
   position: absolute;
