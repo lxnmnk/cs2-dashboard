@@ -59,6 +59,21 @@ const SALES = [
   { float: 0.6477757096290588, cny: 161.4, soldAt: "2026-10-18T10:14:03", name: "M4A4 | Neo-Noir (BS)", cn: "M4A4 | 黑色魅影" },
   { float: 0.1611234098672867, cny: 216.0, soldAt: "2026-10-18T09:59:06", name: "★ Shadow Daggers | Bright Water (FT)", cn: "暗影双匕（★）| 澄澈之水" },
   { float: 0.1358852088451385, cny: 252.99, soldAt: "2026-10-18T08:19:30", name: "AWP | Neo-Noir (MW)", cn: "AWP | 黑色魅影" },
+
+  // --- вторая пачка скриншотов: 08-09.10 ---
+  { float: 0.3394696116447449, cny: 774.5, soldAt: "2026-10-08T01:28:36", name: "M4A1-S | Hyper Beast (FT)", cn: "M4A1消音版 | 暴怒野兽" },
+  { float: 0.0308950878679752, cny: 1049.0, soldAt: "2026-10-08T01:22:44", name: "M4A1-S | ? (FN), fade 96.5%", cn: "M4A1消音版 | 渐变之色" },
+  { float: 0.1155628934502602, cny: 763.0, soldAt: "2026-10-08T01:17:07", name: "MAC-10 | Neon Rider (MW)", cn: "MAC-10 | 霓虹骑士" },
+  { float: 0.1959762722253799, cny: 195.5, soldAt: "2026-10-08T01:16:44", name: "M4A4 | Neo-Noir (FT)", cn: "M4A4 | 黑色魅影" },
+
+  { float: 0.1197829023003578, cny: 1889.5, soldAt: "2026-10-09T02:02:56", name: "★ Talon Knife | Damascus Steel (MW)", cn: "锯齿爪刀（★）| 大马士革钢" },
+  { float: 0.1615714728832245, cny: 452.5, soldAt: "2026-10-08T15:35:22", name: "★ Classic Knife | Urban Masked (FT)", cn: "海豹短刀（★）| 都市伪装" },
+  { float: 0.0686034634709358, cny: 1063.99, soldAt: "2026-10-08T06:45:29", name: "Glock-18 | Neo-Noir (FN)", cn: "格洛克 18 型 | 黑色魅影" },
+  { float: 0.2808093428611755, cny: 26.89, soldAt: "2026-10-08T06:42:58", name: "UMP-45 | Neo-Noir (FT)", cn: "UMP-45 | 黑色魅影" },
+
+  { float: 0.1207750886678696, cny: 208.96, soldAt: "2026-10-09T08:05:15", name: "AWP | Chrome Cannon (MW)", cn: "AWP | 镀铬大炮" },
+  { float: 0.2090659588575363, cny: 241.95, soldAt: "2026-10-09T07:49:09", name: "AWP | Neo-Noir (FT)", cn: "AWP | 黑色魅影" },
+  { float: 0.575280487537384, cny: 161.38, soldAt: "2026-10-09T06:55:07", name: "M4A4 | Temukau (BS)", cn: "M4A4 | 反冲精英" },
 ];
 
 function arg(name) {
@@ -83,23 +98,33 @@ function usd(cny) {
   return Math.round(((cny * (1 - feePercent / 100)) / rate) * 100) / 100;
 }
 
-const holdings = trades.listRawTrades(OWNER).filter((t) => t.status === "holding");
+const all = trades.listRawTrades(OWNER);
+const holdings = all.filter((t) => t.status === "holding");
+// Продажи, уже закрытые прошлым запуском: список скриншотов дополняется, и
+// без этого прежние записи каждый раз попадали бы в "не нашлось".
+const alreadySold = all.filter((t) => t.status === "sold" && t.sellSource === "youpin");
 
 const matched = [];
 const unmatched = [];
+const already = [];
 const ambiguous = [];
 const taken = new Set();
 
+const sameFloat = (t, value) => t.floatValue != null && Math.abs(Number(t.floatValue) - value) < FLOAT_EPS;
+
 for (const sale of SALES) {
-  const hits = holdings.filter(
-    (t) => t.floatValue != null && Math.abs(Number(t.floatValue) - sale.float) < FLOAT_EPS && !taken.has(t.id)
-  );
-  if (!hits.length) unmatched.push(sale);
-  else if (hits.length > 1) ambiguous.push({ sale, hits });
-  else {
+  const hits = holdings.filter((t) => sameFloat(t, sale.float) && !taken.has(t.id));
+  if (hits.length > 1) {
+    ambiguous.push({ sale, hits });
+    continue;
+  }
+  if (hits.length === 1) {
     taken.add(hits[0].id);
     matched.push({ sale, trade: hits[0] });
+    continue;
   }
+  if (alreadySold.some((t) => sameFloat(t, sale.float))) already.push(sale);
+  else unmatched.push(sale);
 }
 
 const money = (n) => `$${n.toFixed(2)}`;
@@ -123,6 +148,10 @@ if (matched.length) {
     );
   }
   console.log(`  ИТОГО: вложено ${money(bought)} · получено ${money(sold)} · ${sold - bought >= 0 ? "+" : ""}${(sold - bought).toFixed(2)}\n`);
+}
+
+if (already.length) {
+  console.log(`Уже записаны прошлым запуском: ${already.length}\n`);
 }
 
 if (ambiguous.length) {
