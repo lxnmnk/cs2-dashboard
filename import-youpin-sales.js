@@ -116,9 +116,16 @@ function usd(cny) {
 
 const all = trades.listRawTrades(OWNER);
 const holdings = all.filter((t) => t.status === "holding");
-// Продажи, уже закрытые прошлым запуском: список скриншотов дополняется, и
-// без этого прежние записи каждый раз попадали бы в "не нашлось".
-const alreadySold = all.filter((t) => t.status === "sold" && t.sellSource === "youpin");
+// Продажи, уже закрытые раньше — этим скриптом или руками в панели. Список
+// скриншотов дополняется, и без этого прежние записи каждый раз попадали бы
+// в "не нашлось". Площадку сравниваем нестрого: руками её подписывают и
+// "Youpin898", и "youpin 898", и через поле "Other".
+const isYoupin = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+    .startsWith("youpin");
+const alreadySold = all.filter((t) => t.status === "sold" && isYoupin(t.sellSource));
 
 const matched = [];
 const unmatched = [];
