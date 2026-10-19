@@ -218,6 +218,36 @@ function setAskPrice(id, owner, askPrice) {
   return trade;
 }
 
+/**
+ * Сколько клиенту за этот предмет уже выплачено.
+ *
+ * Ручная покупка у клиента (Bought On: gaben.market) не всегда
+ * оплачивается целиком и сразу: часть денег уходит человеку до конца
+ * трейд-бана, остальное — когда предмет продан. Без этой записи и панель,
+ * и банк считали, что мы должны всю цену покупки, хотя половина уже у него.
+ *
+ * Ноль и пустое значение означают "ничего не платили" — поле просто
+ * исчезает из записи.
+ */
+function setClientPaid(id, owner, amount) {
+  const all = loadTrades();
+  const trade = findOwnedTrade(all, id, owner);
+
+  if (amount === null || amount === undefined || amount === "" || Number(amount) === 0) {
+    delete trade.clientPaid;
+  } else {
+    const value = Number(amount);
+    if (!Number.isFinite(value) || value < 0) throw new Error("Сумма должна быть числом не меньше нуля");
+    if (value > Number(trade.buyPrice) + 0.009) {
+      throw new Error(`Выплачено больше цены покупки ($${trade.buyPrice}) — проверь сумму`);
+    }
+    trade.clientPaid = round2(value);
+  }
+
+  saveTrades(all);
+  return trade;
+}
+
 /** Пакетная простановка float'ов (импорт из инвентаря) — одна запись на все. */
 function setFloatMany(owner, assignments) {
   const trades = loadTrades();
@@ -653,6 +683,7 @@ module.exports = {
   setFloatMany,
   renameItem,
   setAskPrice,
+  setClientPaid,
   deleteTrade,
   listTrades,
   listPublicHoldings,

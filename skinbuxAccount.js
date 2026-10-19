@@ -144,12 +144,21 @@ function matchTracker(tx, index) {
   if (!found.length) return null;
 
   const fromClient = found.some(boughtFromClient);
-  const payout = round2(found.reduce((sum, t) => sum + (Number(t.buyPrice) || 0), 0));
+  // Долг клиенту — цена покупки за вычетом того, что ему уже отдали:
+  // часть денег нередко уходит человеку ещё до конца трейд-бана, и без
+  // этого банк считал бы своими деньгами то, что уже выплачено.
+  const payout = round2(
+    found.reduce((sum, t) => sum + Math.max(0, (Number(t.buyPrice) || 0) - (Number(t.clientPaid) || 0)), 0)
+  );
   // Если из нескольких предметов транзакции нашлась только часть, относить
   // к клиенту всю сумму нельзя: выручка считалась бы по всем предметам, а
   // выплата по найденным, и маржа выходила бы завышенной.
   const matchedAmount = round2(found.reduce((sum, t) => sum + (Number(t.sellPrice) || 0), 0));
-  return { trades: found, fromClient, payout, matchedAmount };
+  // cost — полная цена покупки у клиента. Долг (payout) от неё отличается на
+  // уже выплаченное, но заработок считается именно от цены покупки: частичная
+  // выплата меняет сроки расчёта, а не маржу.
+  const cost = round2(found.reduce((sum, t) => sum + (Number(t.buyPrice) || 0), 0));
+  return { trades: found, fromClient, payout, cost, matchedAmount };
 }
 
 function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partners = {}, holdDays = HOLD_DAYS }) {
@@ -194,7 +203,7 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       const known = round2(Math.min(matched.matchedAmount, amount));
       result.clients.gross = round2(result.clients.gross + known);
       result.clients.payout = round2(result.clients.payout + matched.payout);
-      result.clients.margin = round2(result.clients.margin + (known - matched.payout));
+      result.clients.margin = round2(result.clients.margin + (known - matched.cost));
       // Не опознанный остаток транзакции остаётся в "моё" (см. ниже).
       result.identifiedRest = round2((result.identifiedRest || 0) + (amount - known));
     } else if (!steamId) {

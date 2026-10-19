@@ -1425,6 +1425,35 @@ function renderHolding(rows) {
   });
 }
 
+async function editClientPaid(id, current, stillOwed) {
+  const input = prompt(
+    "How much of this purchase is already paid to the client, in dollars." +
+      (stillOwed != null ? `\nStill owed right now: $${Number(stillOwed).toFixed(2)}.` : "") +
+      "\nLeave empty or type 0 if nothing was paid yet.",
+    current ? String(current) : ""
+  );
+  if (input === null) return;
+
+  const value = input.trim();
+  if (value && !(Number(value) >= 0)) {
+    alert("Amount must be a number, zero or more");
+    return;
+  }
+
+  const res = await fetch(`/api/trades/${id}/client-paid`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientPaid: value === "" ? 0 : Number(value) }),
+  });
+  const data = await res.json();
+  if (!data.ok) {
+    alert(data.error);
+    return;
+  }
+  loadClientSales();
+  loadTrades();
+}
+
 async function editAskPrice(id, current) {
   const input = prompt(
     "Price for this item on the public Our Skins page, in dollars.\nLeave empty to go back to the calculated one (Youpin + bracket percent, never below the Skinbux buyback).",
@@ -1980,7 +2009,7 @@ async function loadClientSales() {
   const body = document.getElementById("clientSalesBody");
 
   if (!data.sales.length) {
-    body.innerHTML = '<tr><td colspan="9" class="empty-row">Nobody has sold you anything through the site yet.</td></tr>';
+    body.innerHTML = '<tr><td colspan="10" class="empty-row">Nobody has sold you anything through the site yet.</td></tr>';
     return;
   }
 
@@ -2034,6 +2063,15 @@ async function loadClientSales() {
           }</td>
           <td>${escapeHtml(s.items.join(", "))}</td>
           <td>${fmtMoney(s.totalPrice)}</td>
+          <td>${
+            // Частичная выплата бывает только у ручной покупки: в продажах
+            // через сайт деньги идут одной суммой по кнопке "Mark paid".
+            isManual
+              ? `${s.clientPaid ? fmtMoney(s.clientPaid) : '<span class="na">—</span>'} <button class="btn-small btn-secondary" data-action="edit-client-paid" data-id="${escapeHtml(
+                  s.tradeId || ""
+                )}" title="How much of this purchase is already paid to the client">✎</button>`
+              : '<span class="na">—</span>'
+          }</td>
           <td>${s.skinbuxTotal ? fmtMoney(s.skinbuxTotal) : '<span class="na">—</span>'}</td>
           <td class="${s.profit >= 0 ? "profit" : "loss"}">${s.skinbuxTotal ? fmtMoney(s.profit) : '<span class="na">—</span>'}</td>
           <td>${escapeHtml(status)}</td>
@@ -2041,6 +2079,13 @@ async function loadClientSales() {
         </tr>`;
     })
     .join("");
+
+  body.querySelectorAll('[data-action="edit-client-paid"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const sale = data.sales.find((x) => x.tradeId === btn.dataset.id);
+      editClientPaid(btn.dataset.id, sale?.clientPaid, sale?.totalPrice);
+    });
+  });
 
   body.querySelectorAll('[data-action="mark-paid"]').forEach((btn) => {
     btn.addEventListener("click", () =>

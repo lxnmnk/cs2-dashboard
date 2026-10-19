@@ -1563,14 +1563,19 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
     .filter((t) => skinbuxAccount.boughtFromClient(t))
     .map((t) => ({
       id: t.id.slice(0, 8),
+      // Полный id нужен, чтобы отметить частичную выплату именно этой сделке.
+      tradeId: t.id,
       steamId: null,
       customerName: null,
       manual: true,
       kind: "manual",
       items: [t.marketHashName],
-      // "Должны клиенту" — это то, что мы за предмет заплатили.
-      totalPrice: round2(t.buyPrice),
+      // "Должны клиенту" — цена покупки минус то, что ему уже отдали.
+      clientPaid: round2(t.clientPaid || 0),
+      totalPrice: round2(Math.max(0, t.buyPrice - (t.clientPaid || 0))),
       skinbuxTotal: t.status === "sold" ? round2(t.sellPrice) : 0,
+      // Прибыль считается от полной цены покупки: частичная выплата — это
+      // про сроки расчёта с человеком, а не про то, сколько мы заработали.
       profit: t.status === "sold" ? round2(t.sellPrice - t.buyPrice) : 0,
       status: t.status === "sold" ? "completed" : "holding",
       paidAt: null,
@@ -2255,6 +2260,16 @@ app.post("/api/trades/inventory-check", requireSiteOwner, async (req, res) => {
 app.post("/api/trades/:id/float", (req, res) => {
   try {
     const trade = trades.setFloat(req.params.id, req.session.username, (req.body || {}).floatValue);
+    res.json({ ok: true, trade });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Сколько клиенту уже выплачено по ручной покупке (0 — ничего).
+app.post("/api/trades/:id/client-paid", (req, res) => {
+  try {
+    const trade = trades.setClientPaid(req.params.id, req.session.username, (req.body || {}).clientPaid);
     res.json({ ok: true, trade });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
