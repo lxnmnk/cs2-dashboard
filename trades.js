@@ -248,6 +248,25 @@ function setClientPaid(id, owner, amount) {
   return trade;
 }
 
+/**
+ * Поправить цену покупки позиции.
+ *
+ * Нужно при импорте продаж со Skinbux: там видно, за сколько предмет ушёл,
+ * и сразу становится заметно, что своя цена записана неверно — например,
+ * с клиентом сошлись на другой сумме. Чинить это после закрытия позиции
+ * дороже, чем до.
+ */
+function setBuyPrice(id, owner, buyPrice) {
+  const value = Number(buyPrice);
+  if (!Number.isFinite(value) || value <= 0) throw new Error("Цена покупки должна быть положительным числом");
+
+  const all = loadTrades();
+  const trade = findOwnedTrade(all, id, owner);
+  trade.buyPrice = round2(value);
+  saveTrades(all);
+  return trade;
+}
+
 /** Пакетная простановка float'ов (импорт из инвентаря) — одна запись на все. */
 function setFloatMany(owner, assignments) {
   const trades = loadTrades();
@@ -684,6 +703,7 @@ module.exports = {
   renameItem,
   setAskPrice,
   setClientPaid,
+  setBuyPrice,
   deleteTrade,
   listTrades,
   listPublicHoldings,

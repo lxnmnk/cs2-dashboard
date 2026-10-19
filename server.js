@@ -2014,11 +2014,24 @@ app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
     if (req.body?.dryRun) return res.json({ ok: true, dryRun: true, floats, ...plan });
 
     const filled = trades.setFloatMany(req.session.username, fill.assignments);
+
+    // Цены покупки, поправленные прямо в предпросмотре: записываем их ДО
+    // закрытия позиций, иначе прибыль посчиталась бы по старой цене.
+    const edited = [];
+    for (const [holdingId, value] of Object.entries(req.body?.buyPrices || {})) {
+      try {
+        trades.setBuyPrice(holdingId, req.session.username, value);
+        edited.push(holdingId);
+      } catch (err) {
+        console.error(`[skinbux-import] Цена покупки ${holdingId}: ${err.message}`);
+      }
+    }
+
     const { closed, failed } = skinbuxSalesImport.applyImport(plan, {
       owner: req.session.username,
       sourcesConfig: config.sources,
     });
-    res.json({ ok: true, closed, failed, floats: { ...floats, filled }, ...plan });
+    res.json({ ok: true, closed, failed, editedPrices: edited.length, floats: { ...floats, filled }, ...plan });
   } catch (err) {
     console.error("[skinbux-import] Ошибка:", err.message);
     res.status(400).json({ ok: false, error: err.message });

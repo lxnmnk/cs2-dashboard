@@ -961,6 +961,10 @@ const skinbuxImportBtn = document.getElementById("skinbuxImportBtn");
 const skinbuxImportStatus = document.getElementById("skinbuxImportStatus");
 const skinbuxImportPreview = document.getElementById("skinbuxImportPreview");
 
+// Поправленные в предпросмотре цены покупки: holdingId -> новая цена.
+// Живут до подтверждения импорта, на сервер уходят вместе с ним.
+let skinbuxBuyPriceEdits = {};
+
 async function skinbuxImport(dryRun) {
   skinbuxImportBtn.disabled = true;
   skinbuxImportStatus.textContent = dryRun ? "Asking Skinbux..." : "Closing positions...";
@@ -969,7 +973,11 @@ async function skinbuxImport(dryRun) {
     const res = await fetch("/api/trades/import/skinbux", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ dryRun, days: Number(document.getElementById("skinbuxImportDays").value) || 90 }),
+      body: JSON.stringify({
+        dryRun,
+        days: Number(document.getElementById("skinbuxImportDays").value) || 90,
+        buyPrices: dryRun ? undefined : skinbuxBuyPriceEdits,
+      }),
     });
     data = await res.json();
   } catch (err) {
@@ -1059,8 +1067,18 @@ function renderSkinbuxPreview(plan) {
               <td>${escapeHtml(r.marketHashName)}${r.viaSite ? ' <span class="na">via site</span>' : ""}</td>
               <td>${r.floatValue != null ? r.floatValue.toFixed(6) : '<span class="na">—</span>'}</td>
               <td>${fmtMoney(r.price)}</td>
-              <td>${r.buyPrice != null ? fmtMoney(r.buyPrice) : '<span class="na">—</span>'}</td>
-              <td class="${r.profit >= 0 ? "profit" : "loss"}">${r.profit != null ? fmtMoney(r.profit) : '<span class="na">—</span>'}</td>
+              <td>${
+                // Свою цену можно поправить прямо здесь: продажа уже видна, и
+                // ошибку в закупке дешевле исправить до закрытия позиции.
+                r.holdingId
+                  ? `<input class="import-buy-price" type="number" step="0.01" min="0" value="${r.buyPrice ?? ""}" data-id="${escapeHtml(
+                      r.holdingId
+                    )}" data-price="${r.price}" title="Your buy price. Change it and the profit below updates; it is saved when you confirm the import." />`
+                  : '<span class="na">—</span>'
+              }</td>
+              <td class="${r.profit >= 0 ? "profit" : "loss"}" data-profit-for="${escapeHtml(r.holdingId || "")}">${
+                r.profit != null ? fmtMoney(r.profit) : '<span class="na">—</span>'
+              }</td>
               <td class="na">${escapeHtml(SKINBUX_ROW_LABELS[r.status] || r.status)}${
                 r.matchedBy ? `, ${escapeHtml(SKINBUX_MATCH_LABELS[r.matchedBy] || r.matchedBy)}` : ""
               }</td>
@@ -1071,6 +1089,28 @@ function renderSkinbuxPreview(plan) {
     </table>
     ${plan.matched ? `<button id="skinbuxImportConfirm" class="btn-small">Close these ${plan.matched} position(s)</button>` : ""}`;
 
+  skinbuxBuyPriceEdits = {};
+  skinbuxImportPreview.querySelectorAll(".import-buy-price").forEach((input) => {
+    const original = input.value;
+    input.addEventListener("input", () => {
+      const value = Number(input.value);
+      const cell = skinbuxImportPreview.querySelector(`[data-profit-for="${input.dataset.id}"]`);
+      if (!(value > 0)) {
+        delete skinbuxBuyPriceEdits[input.dataset.id];
+        if (cell) cell.textContent = "—";
+        return;
+      }
+      if (input.value === original) delete skinbuxBuyPriceEdits[input.dataset.id];
+      else skinbuxBuyPriceEdits[input.dataset.id] = value;
+
+      const profit = Number(input.dataset.price) - value;
+      if (cell) {
+        cell.textContent = fmtMoney(Math.round(profit * 100) / 100);
+        cell.className = profit >= 0 ? "profit" : "loss";
+      }
+    });
+  });
+
   document.getElementById("skinbuxImportConfirm")?.addEventListener("click", async () => {
     const result = await skinbuxImport(false);
     if (!result.ok) {
@@ -1080,8 +1120,9 @@ function renderSkinbuxPreview(plan) {
     }
     skinbuxImportPreview.style.display = "none";
     skinbuxImportStatus.textContent = `Closed ${result.closed}${
-      result.failed?.length ? `, ${result.failed.length} failed: ${result.failed[0]}` : ""
-    }`;
+      result.editedPrices ? `, ${result.editedPrices} buy price(s) updated` : ""
+    }${result.failed?.length ? `, ${result.failed.length} failed: ${result.failed[0]}` : ""}`;
+    skinbuxBuyPriceEdits = {};
     await loadTrades();
   });
 }
@@ -2044,7 +2085,15 @@ async function loadClientSales() {
       } else if (s.paidAt) {
         action = `<button class="btn-small btn-secondary" data-action="unmark-paid" data-id="${s.id}">Undo</button>`;
       }
-      if (isManual) action = "";
+      // Ручная сделка живёт в трекере, а не в журнале сайта: её можно просто
+      // удалить, если завёл по ошибке или дважды. Продажи через сайт отсюда
+      // не удаляются — это настоящие обязательства перед клиентом, и строка
+      // в журнале должна остаться даже когда деньги уже выплачены.
+      if (isManual) {
+        action = `<button class="btn-small btn-danger" data-action="delete-manual" data-id="${escapeHtml(
+          s.tradeId || ""
+        )}">Delete</button>`;
+      }
 
       // Номер сделки — тот же, что клиент пишет в Telegram ("Угода #..."),
       // по нему строку и находишь.
@@ -2079,6 +2128,13 @@ async function loadClientSales() {
         </tr>`;
     })
     .join("");
+
+  body.querySelectorAll('[data-action="delete-manual"]').forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      await deleteTrade(btn.dataset.id);
+      loadClientSales();
+    });
+  });
 
   body.querySelectorAll('[data-action="edit-client-paid"]').forEach((btn) => {
     btn.addEventListener("click", () => {

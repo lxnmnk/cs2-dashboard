@@ -710,3 +710,19 @@ tr.row-gone { background: rgba(224, 96, 90, 0.08); }
   font-size: 11px;
   color: var(--gold, #d7a84e);
 }
+
+
+/* Цена покупки, которую правят прямо в предпросмотре импорта со Skinbux:
+   поле должно читаться как число в таблице, а не как форма. */
+.import-buy-price {
+  width: 90px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+}
+.import-buy-price:focus { border-color: var(--accent); outline: none; }
