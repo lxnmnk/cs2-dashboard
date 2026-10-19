@@ -74,6 +74,22 @@ const SALES = [
   { float: 0.1207750886678696, cny: 208.96, soldAt: "2026-10-09T08:05:15", name: "AWP | Chrome Cannon (MW)", cn: "AWP | 镀铬大炮" },
   { float: 0.2090659588575363, cny: 241.95, soldAt: "2026-10-09T07:49:09", name: "AWP | Neo-Noir (FT)", cn: "AWP | 黑色魅影" },
   { float: 0.575280487537384, cny: 161.38, soldAt: "2026-10-09T06:55:07", name: "M4A4 | Temukau (BS)", cn: "M4A4 | 反冲精英" },
+
+  // --- третья пачка скриншотов: 18-19.10 ---
+  { float: 0.0625025629997253, cny: 257.85, soldAt: "2026-10-19T14:52:38", name: "★ Shadow Daggers | Bright Water (FN)", cn: "暗影双匕（★）| 澄澈之水" },
+  { float: 0.1259768903255463, cny: 38.4, soldAt: "2026-10-19T14:21:12", name: "AK-47 | ? (MW)", cn: "AK-47 | 午夜层压板" },
+  { float: 0.3584056794643402, cny: 335.0, soldAt: "2026-10-19T13:35:17", name: "★ Moto Gloves | Turtle (FT)", cn: "摩托手套（★）| 玳瑁" },
+  { float: 0.2451740354299545, cny: 196.76, soldAt: "2026-10-19T12:31:47", name: "StatTrak™ M4A4 | Neo-Noir (FT)", cn: "M4A4（StatTrak™）| 黑色魅影" },
+  { float: 0.1226486414670944, cny: 48.3, soldAt: "2026-10-19T13:16:16", name: "Desert Eagle | Mecha Industries (MW)", cn: "沙漠之鹰 | 机械工业" },
+  { float: 0.1169273853302002, cny: 290.0, soldAt: "2026-10-19T13:05:22", name: "M4A4 | Temukau (MW)", cn: "M4A4 | 反冲精英" },
+  { float: 0.105718769133091, cny: 59.18, soldAt: "2026-10-19T12:37:31", name: "P90 | ? (MW)", cn: "P90 | 美杜莎之视" },
+  { float: 0.126557007431984, cny: 723.0, soldAt: "2026-10-19T11:48:43", name: "StatTrak™ AWP | Hyper Beast (MW)", cn: "AWP（StatTrak™）| 暴怒野兽" },
+  { float: 0.0952870398759842, cny: 2982.0, soldAt: "2026-10-19T11:37:01", name: "★ Talon Knife | Case Hardened (MW)", cn: "锯齿爪刀（★）| 表面淬火" },
+  { float: 0.3679559230804443, cny: 267.0, soldAt: "2026-10-19T02:24:53", name: "★ Broken Fang Gloves | Needle Point (FT)", cn: "狂牙手套（★）| 针尖" },
+  { float: 0.2853803336620331, cny: 178.1, soldAt: "2026-10-18T14:14:51", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.1695018261671066, cny: 650.98, soldAt: "2026-10-18T13:56:08", name: "★ Flip Knife | Safari Mesh (FT)", cn: "折叠刀（★）| 狩猎网格" },
+  { float: 0.0995782613754273, cny: 2647.99, soldAt: "2026-10-18T21:19:26", name: "★ Talon Knife | Blue Steel (MW)", cn: "锯齿爪刀（★）| 蓝钢" },
+  { float: 0.0317849405109882, cny: 7293.0, soldAt: "2026-10-18T16:33:30", name: "★ Karambit | Doppler (FN) Phase 3", cn: "爪子刀（★）| 多普勒" },
 ];
 
 function arg(name) {
