@@ -1024,14 +1024,19 @@ app.get("/auth/logout", (req, res) => {
 });
 
 // Картинки не меняются — браузер держит их неделю и не перекачивает фон и
-// скриншоты на каждом переходе. Стили и скрипты кешем не держим, чтобы
-// обновления сайта доходили сразу (там браузер проверяет изменения по ETag).
+// скриншоты на каждом переходе. Стили, скрипты и страницы — no-cache: без
+// него браузер сам решает держать старую копию (тем дольше, чем давно файл
+// не менялся), и после деплоя новая кнопка не появлялась без Ctrl+F5.
+// no-cache не значит "качать заново": браузер спрашивает по ETag и получает
+// 304, если файл тот же.
 const LONG_CACHE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg", ".ico"]);
 app.use(
   express.static(path.join(__dirname, "public"), {
     setHeaders(res, filePath) {
       if (LONG_CACHE_EXT.has(path.extname(filePath).toLowerCase())) {
         res.setHeader("Cache-Control", "public, max-age=604800");
+      } else {
+        res.setHeader("Cache-Control", "no-cache");
       }
     },
   })
