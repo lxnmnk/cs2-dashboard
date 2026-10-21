@@ -3,6 +3,7 @@ const SOURCE_LABELS = {
   youpin: "Youpin898",
   buff: "Buff163",
   skinbux: "Skinbux",
+  skinplace: "Skin.place",
   csmoney: "CS.Money",
   trade: "Direct Trade",
   gabenmarket: "Gaben.Market",
@@ -12,6 +13,7 @@ const errorBox = document.getElementById("errorBox");
 const updatedAtEl = document.getElementById("updatedAt");
 
 let lastTrades = [];
+let isSiteOwner = false; // кнопка skin.place работает от сессии владельца — только у него
 let selectedItem = null; // { marketHashName, name, wear } chosen from autocomplete
 
 // ---- "Where to sell" modal ----
@@ -138,6 +140,8 @@ function renderModalOptions() {
         .join("")
     : `<div class="empty-state">No markets selected — check at least one above</div>`;
 
+  if (isSiteOwner) optionsEl.insertAdjacentHTML("beforeend", skinplaceRowHtml(trade));
+
   const calloutEl = document.getElementById("modalCallout");
   if (bestUnselected && (!bestSelected || bestUnselected.price > bestSelected.price)) {
     calloutEl.style.display = "block";
@@ -147,11 +151,71 @@ function renderModalOptions() {
     calloutEl.style.display = "none";
   }
 
+  optionsEl.querySelector("[data-action='skinplace-check']")?.addEventListener("click", () => checkSkinplace(trade.id));
+
   optionsEl.querySelectorAll("[data-action='sell-here']").forEach((btn) => {
     btn.addEventListener("click", () =>
       showModalSellForm(btn.dataset.source, btn.dataset.price, btn.dataset.side, Number(btn.dataset.fee) || 0)
     );
   });
+}
+
+// ---- Skin.place: цена только по кнопке ----
+// Общего прайса у них нет, каждая проверка — запрос к CSFloat и к skin.place
+// (у них лимит 15 в минуту), поэтому не грузим сами при открытии окна.
+// Результат держим по id позиции, пока страница открыта: закрыл-открыл окно —
+// цена осталась.
+const skinplaceResults = {}; // tradeId -> { loading } | { error } | result
+
+function skinplaceRowHtml(trade) {
+  const r = skinplaceResults[trade.id];
+  const label = `Skin.place <span class="side-tag instant" title="Instant buyout price on skin.place — what they pay right now">Instant</span>`;
+  const locked = trade.isLocked ? "disabled title='Still locked by trade-hold'" : "";
+
+  if (!r || r.error || r.loading) {
+    const note = r?.error ? `<div class="skinplace-note skinplace-error">${escapeHtml(r.error)}</div>` : "";
+    return `
+      <div class="modal-option skinplace-option">
+        <span>${label}</span>
+        <span class="na">—</span>
+        <span class="section-hint">${r?.loading ? "asking CSFloat and skin.place…" : "on request"}</span>
+        <button class="btn-small btn-secondary" data-action="skinplace-check" ${r?.loading ? "disabled" : ""}>${
+          r?.loading ? "Checking…" : r?.error ? "Retry" : "Check price"
+        }</button>
+      </div>${note}`;
+  }
+
+  const profitClass = r.profitUsd >= 0 ? "profit-positive" : "profit-negative";
+  const details = [
+    r.matchedBy === "float" ? `same float as a CSFloat listing (${r.float.toFixed(4)})` : "similar item on CSFloat",
+    r.floatRange === "any" ? "nobody sells one with a close float — any float of this wear" : null,
+    r.csfloatPrice != null ? `CSFloat ask ${fmtMoney(r.csfloatPrice)}` : null,
+    `checked ${new Date(r.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+  ].filter(Boolean);
+  return `
+    <div class="modal-option skinplace-option ${r.instant ? "" : "skinplace-blocked"}">
+      <span>${label}</span>
+      <span>${fmtMoney(r.price)}</span>
+      <span class="${profitClass}">${fmtMoney(r.profitUsd)} (${r.profitPercent != null ? r.profitPercent.toFixed(1) + "%" : "—"})</span>
+      <span class="skinplace-actions">
+        <button class="btn-small btn-secondary" data-action="skinplace-check" title="Ask again">↻</button>
+        <button class="btn-small" data-action="sell-here" data-source="skinplace" data-side="bid" data-price="${r.price}" data-fee="0" ${locked}>Sell here</button>
+      </span>
+    </div>
+    <div class="skinplace-note">${r.instant ? "" : `⚠ ${escapeHtml(r.skipReason)}<br />`}${details.join(" · ")}</div>`;
+}
+
+async function checkSkinplace(tradeId) {
+  skinplaceResults[tradeId] = { loading: true };
+  if (modalTradeId === tradeId) renderModalOptions();
+  try {
+    const res = await fetch(`/api/trades/${tradeId}/skinplace`, { method: "POST" });
+    const data = await res.json();
+    skinplaceResults[tradeId] = data.ok ? data : { error: data.error || data.reason || "No price" };
+  } catch (err) {
+    skinplaceResults[tradeId] = { error: err.message };
+  }
+  if (modalTradeId === tradeId) renderModalOptions();
 }
 
 document.querySelectorAll(".modal-filters input[data-market]").forEach((cb) => {
@@ -2316,6 +2380,7 @@ fetch("/api/me")
   .then((r) => r.json())
   .then((me) => {
     if (!me.isSiteOwner) return;
+    isSiteOwner = true;
     document.getElementById("siteOwnerSections").style.display = "block";
     loadOverrides();
     loadClientSales();

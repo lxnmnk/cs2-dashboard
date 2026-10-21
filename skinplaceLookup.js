@@ -56,18 +56,30 @@ async function csfloatListings(baseName, { phase, minFloat, maxFloat }) {
     }));
 }
 
-// Поля предмета у skin.place не описаны, берём устойчиво: первый найденный
-// вариант. Если понадобится — скрипт проверки печатает ключи предмета.
+// Поля предмета у skin.place (сверено по живому ответу):
+//   market_hash_name — без фазы, фаза отдельно в phase;
+//   floatvalue — float, округлённый до 6 знаков;
+//   price — сколько они платят; price_real — их цена до своей комиссии;
+//   skip_reason — почему сейчас не выкупят (цена при этом есть).
+// pick оставлен на случай, если они переименуют поле.
 const pick = (o, keys) => keys.map((k) => o?.[k]).find((v) => v !== undefined && v !== null);
 const itemName = (it) => pick(it, ["market_hash_name", "market_name", "name"]);
 const itemFloat = (it) => {
-  const v = pick(it, ["float", "float_value", "paintwear", "wear"]);
+  const v = pick(it, ["floatvalue", "float", "float_value", "paintwear"]);
   return v != null && Number.isFinite(Number(v)) ? Number(v) : null;
 };
 const itemPrice = (it) => {
-  const v = pick(it, ["price", "instant_price", "price_instant", "amount", "value"]);
+  const v = pick(it, ["price", "price_original", "instant_price"]);
   return v != null && Number.isFinite(Number(v)) ? Number(v) : null;
 };
+
+// float у них округлён до 6 знаков — сравниваем с таким же допуском.
+const FLOAT_TOLERANCE = 2e-6;
+
+const SKIP_REASONS = {
+  item_liquidity_limit: "сейчас моментально не выкупают — лимит по ликвидности этого предмета",
+};
+const skipText = (reason) => (reason ? SKIP_REASONS[reason] || reason : null);
 
 /**
  * Цена skin.place за предмет.
@@ -80,7 +92,14 @@ async function skinplacePrice(marketHashName, { minFloat = null, maxFloat = null
   if (!debug && hit && Date.now() - hit.at < RESULT_TTL_MS) return { ...hit.result, cached: true };
 
   const { base, phase } = stripPhaseSuffix(marketHashName);
-  const listings = await csfloatListings(base, { phase, minFloat, maxFloat });
+  let listings = await csfloatListings(base, { phase, minFloat, maxFloat });
+  // Рядом по float никто не продаёт — берём любой экземпляр того же качества:
+  // цена чуть менее точная, но лучше, чем ничего.
+  let floatRange = minFloat != null || maxFloat != null ? "near" : "any";
+  if (!listings.length && floatRange === "near") {
+    listings = await csfloatListings(base, { phase });
+    floatRange = "any";
+  }
   if (!listings.length) {
     return { ok: false, reason: "На CSFloat нет открытых лотов с таким предметом — не у кого посмотреть цену" };
   }
@@ -98,11 +117,14 @@ async function skinplacePrice(marketHashName, { minFloat = null, maxFloat = null
       continue;
     }
 
-    // Ищем именно этот экземпляр: то же название и тот же float, что у лота.
-    const candidates = inv.items.filter((it) => itemName(it) === base);
+    // Ищем именно этот экземпляр: то же название, та же фаза и тот же float,
+    // что у лота. Фазу проверяем отдельно — в названии у skin.place её нет.
+    const candidates = inv.items.filter(
+      (it) => itemName(it) === base && (!phase || !it.phase || it.phase === phase)
+    );
     const exact =
       listing.float != null
-        ? candidates.find((it) => itemFloat(it) != null && Math.abs(itemFloat(it) - listing.float) < 1e-6)
+        ? candidates.find((it) => itemFloat(it) != null && Math.abs(itemFloat(it) - listing.float) < FLOAT_TOLERANCE)
         : null;
     const item = exact || candidates[0];
     if (!item) {
@@ -111,14 +133,19 @@ async function skinplacePrice(marketHashName, { minFloat = null, maxFloat = null
     }
 
     const price = itemPrice(item);
+    const priceReal = Number(item.price_real);
     const result = {
-      ok: price != null && !item.skip_reason,
+      ok: price != null,
       price,
-      // skin.place не берёт часть предметов: "низкая ликвидность", "попробуйте позже".
-      skipReason: item.skip_reason || null,
+      priceReal: Number.isFinite(priceReal) ? priceReal : null,
+      // Цена есть всегда, но часть предметов они сейчас не берут.
+      instant: !item.skip_reason,
+      skipReason: skipText(item.skip_reason),
       matchedBy: exact ? "float" : "name",
+      floatRange,
       csfloatPrice: listing.csfloatPrice,
       float: itemFloat(item) ?? listing.float,
+      phase: item.phase || phase || null,
       limits: inv.limits,
       checkedAt: new Date().toISOString(),
     };

@@ -42,6 +42,7 @@ const capital = require("./capital");
 const capitalBank = require("./capitalBank");
 const csfloatAccount = require("./csfloatAccount");
 const skinbuxAccount = require("./skinbuxAccount");
+const { skinplacePrice } = require("./skinplaceLookup");
 const crypto = require("crypto");
 
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
@@ -1670,6 +1671,36 @@ app.get("/api/item-search", (req, res) => {
 app.get("/api/trades", (req, res) => {
   res.json(trades.listTrades({ owner: req.session.username, rows: cache.rows, config }));
 });
+
+// Цена skin.place для позиции — только по кнопке. Общего прайса у них нет:
+// ищем такой же предмет на CSFloat и смотрим, сколько skin.place даёт за него
+// в инвентаре продавца (skinplaceLookup.js). Запрос идёт от сессии владельца
+// на skin.place, поэтому и кнопка только у владельца.
+// float ±0.02 от нашего: ближе по float — ближе и цена.
+const SKINPLACE_FLOAT_SPREAD = 0.02;
+app.post("/api/trades/:id/skinplace", requireSiteOwner, async (req, res) => {
+  const trade = trades.listRawTrades(req.session.username).find((t) => t.id === req.params.id);
+  if (!trade) return res.status(404).json({ ok: false, error: "Позиция не найдена" });
+
+  const f = Number(trade.floatValue);
+  const range = Number.isFinite(f)
+    ? { minFloat: round4(Math.max(0, f - SKINPLACE_FLOAT_SPREAD)), maxFloat: round4(Math.min(1, f + SKINPLACE_FLOAT_SPREAD)) }
+    : {};
+  try {
+    const result = await skinplacePrice(trade.marketHashName, range);
+    if (result.ok) {
+      result.profitUsd = round2(result.price - trade.buyPrice);
+      result.profitPercent = trade.buyPrice > 0 ? round2(((result.price - trade.buyPrice) / trade.buyPrice) * 100) : null;
+    }
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
+function round4(n) {
+  return Math.round(n * 10000) / 10000;
+}
 
 // Сколько денег с продаж сейчас в холде/доступно/зависло по каждой площадке
 // (см. trades.js computeBalances — прикидка по истории продаж, не реальный
