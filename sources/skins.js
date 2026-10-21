@@ -202,6 +202,10 @@ async function findItems(partner, opts) {
   const id = await saveTradeUrl(partner, opts.steamId);
   try {
     return await searchPages(partner, opts);
+  } catch (err) {
+    // Отдельный текст: иначе не отличить "не сохранили" от "сохранили, но не помогло".
+    if (err.notSaved) throw new Error("ссылку сохранил в Custom Delivery, но skins.com всё равно ответил «not saved»");
+    throw err;
   } finally {
     await deleteTradeUrl(id);
   }
