@@ -27,3 +27,6 @@ trades-server.json
 # выплат, Steam-профили), а не код
 skinbuxSales.json
 customers.json
+
+# Скопированный из браузера cURL с кукой skin.place — живёт секунду, но в git попадать не должен
+curl.txt
