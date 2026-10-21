@@ -740,3 +740,4 @@ body.show-buyout .buyout-col { display: table-cell; }
 .buyout-btn { padding: 2px 8px; font-size: 11px; }
 .buyout-blocked { opacity: 0.6; }
 .buyout-vs { font-size: 11px; }
+.buyout-error { cursor: pointer; text-decoration: underline dotted; }

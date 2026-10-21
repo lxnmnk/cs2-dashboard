@@ -68,6 +68,24 @@ async function csfloatListings(baseName, { phase, minFloat, maxFloat }) {
 }
 
 /**
+ * Почему у продавца не нашёлся предмет — с тем, что у него есть похожего.
+ * Без этого "нет предмета" не отличить от того, что площадка пишет фазу или
+ * название не так, как мы ждём.
+ */
+function missText(items, base, phase) {
+  const label = (it) => `${it.name}${it.phase ? ` [${it.phase}]` : ""}`;
+  const sameName = items.filter((it) => it.name === base);
+  if (sameName.length) {
+    return `у продавца есть ${base}, но не ${phase}: ${[...new Set(sameName.map(label))].slice(0, 4).join(", ")}`;
+  }
+  const skin = base.split(" | ")[1]?.replace(/\s*\(.*$/, "") || base;
+  const similar = [...new Set(items.filter((it) => it.name?.includes(skin)).map(label))].slice(0, 4);
+  return similar.length
+    ? `в инвентаре продавца нет ${base}${phase ? ` [${phase}]` : ""}; похожее: ${similar.join(", ")}`
+    : "в инвентаре продавца этого предмета уже нет";
+}
+
+/**
  * Цена выкупа предмета на площадке.
  * source — "skinplace" | "skins".
  * marketHashName — как на сайте, с суффиксом фазы для доплеров
@@ -123,7 +141,7 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
         : null;
     const item = exact || candidates[0];
     if (!item) {
-      tried.push("в инвентаре продавца этого предмета уже нет");
+      tried.push(missText(inv.items, base, phase));
       continue;
     }
 

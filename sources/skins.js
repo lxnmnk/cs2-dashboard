@@ -177,17 +177,19 @@ function searchTermFor(base) {
 
 async function searchPages(partner, { base, isWanted, hintPrice }) {
   const search = searchTermFor(base);
-  const found = [];
+  // Отдаём всё найденное поиском, а не только подходящее: если нужного не
+  // окажется, buyoutLookup покажет, что у продавца есть похожего.
+  const all = [];
   for (let page = 1; page <= MAX_PAGES; page++) {
     const { items, totalPages } = await fetchPage(partner, search, page);
     const normalized = items.map(normalize);
-    found.push(...normalized.filter(isWanted));
-    if (found.length || page >= totalPages || !normalized.length) break;
+    all.push(...normalized);
+    if (normalized.some(isWanted) || page >= totalPages || !normalized.length) break;
 
     const cheapest = Math.min(...normalized.map((it) => it.price ?? Infinity));
     if (hintPrice && cheapest < hintPrice * PASSED_RATIO) break;
   }
-  return { items: found, limits: null };
+  return { items: all, limits: null };
 }
 
 /**

@@ -198,7 +198,11 @@ function buyoutCell(r, source) {
 
   if (!res) return button("Request");
   if (res.loading) return '<span class="na">checking…</span>';
-  if (res.error) return `<span class="profit-negative" title="${escapeHtml(res.error)}">error</span> ${button("↻")}`;
+  if (res.error) {
+    return `<span class="profit-negative buyout-error" data-error="${escapeHtml(res.error)}" title="${escapeHtml(
+      res.error
+    )}">error</span> ${button("↻")}`;
+  }
 
   // Сколько это к лучшей цене покупки в строке: купил там — сразу сдал сюда.
   const vsBuy =
@@ -242,6 +246,12 @@ fetch("/api/me")
   .catch(() => {});
 
 tbody.addEventListener("click", (e) => {
+  // Подсказка при наведении легко теряется — по клику показываем текст целиком.
+  const buyoutError = e.target.closest(".buyout-error");
+  if (buyoutError) {
+    alert(buyoutError.dataset.error);
+    return;
+  }
   const buyoutBtn = e.target.closest("[data-buyout]");
   if (buyoutBtn) {
     requestBuyout(buyoutBtn.dataset.buyout, buyoutBtn.dataset.name);
