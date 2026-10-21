@@ -141,7 +141,7 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
         : null;
     const item = exact || candidates[0];
     if (!item) {
-      tried.push(missText(inv.items, base, phase));
+      tried.push(missText(inv.items, base, phase) + (inv.note ? ` (${inv.note})` : ""));
       continue;
     }
 

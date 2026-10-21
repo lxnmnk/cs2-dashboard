@@ -31,6 +31,9 @@ const MAX_PAGES = 4;
 // Страница, где самый дешёвый предмет дешевле 40% цены на CSFloat, — значит,
 // наш (он дороже) уже пролистан.
 const PASSED_RATIO = 0.4;
+// Инвентарь нового продавца skins.com подтягивает из Steam уже после
+// сохранения ссылки: первые ответы приходят пустыми. Ждём до ~20 секунд.
+const INVENTORY_WAIT_TRIES = 6;
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 
@@ -115,8 +118,25 @@ async function fetchPage(partner, search, page) {
     items: Array.isArray(data.data) ? data.data : [],
     totalPages: data.pagination?.totalPages ?? 1,
   };
-  pageCache.set(key, entry);
+  // Пустой ответ не кэшируем: это может быть ещё не загруженный инвентарь.
+  if (entry.items.length) pageCache.set(key, entry);
   return entry;
+}
+
+/** Сколько всего предметов skins.com видит у продавца (без поиска). */
+async function inventoryCount(partner) {
+  const query = new URLSearchParams({ page: "1", limit: "1", customTradeUrl: tradeLinkFor(partner) });
+  const data = await api("GET", `/inventory?${query}`);
+  return data.pagination?.count ?? (Array.isArray(data.data) ? data.data.length : 0);
+}
+
+/** После сохранения ссылки ждём, пока skins.com загрузит инвентарь. */
+async function waitForInventory(partner) {
+  for (let i = 0; i < INVENTORY_WAIT_TRIES; i++) {
+    const count = await inventoryCount(partner); // запросы и так идут с паузой 3 с
+    if (count > 0) return count;
+  }
+  return 0;
 }
 
 /**
@@ -192,7 +212,8 @@ async function searchPages(partner, { base, isWanted, hintPrice }) {
     const cheapest = Math.min(...normalized.map((it) => it.price ?? Infinity));
     if (hintPrice && cheapest < hintPrice * PASSED_RATIO) break;
   }
-  return { items: all, limits: null };
+  // В тексте ошибки будет видно, что поиск вообще вернул.
+  return { items: all, limits: null, note: `поиск «${search}» на skins.com вернул ${all.length} предм.` };
 }
 
 /**
@@ -209,6 +230,9 @@ async function findItems(partner, opts) {
 
   const id = await saveTradeUrl(partner, opts.steamId);
   try {
+    if (!(await waitForInventory(partner))) {
+      throw new Error("skins.com так и не загрузил инвентарь продавца за ~20 с (пустой или закрыт)");
+    }
     return await searchPages(partner, opts);
   } catch (err) {
     // Отдельный текст: иначе не отличить "не сохранили" от "сохранили, но не помогло".
