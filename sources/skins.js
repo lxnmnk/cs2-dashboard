@@ -21,6 +21,7 @@
 // обычно хватает одной страницы. Если нет, листаем и останавливаемся, как
 // только нашли или цены ушли сильно ниже цены лота на CSFloat.
 const { tradeLinkFor } = require("../steamId");
+const { stripPhaseSuffix } = require("../itemName");
 
 const API = "https://api.skins.com/secure/user";
 const MIN_GAP_MS = 3000;
@@ -151,9 +152,11 @@ const num = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : null);
 
 function normalize(it) {
   const meta = it.metadata || {};
+  // Если фаза дописана к имени через " - Phase 3", как у нас, — отделяем.
+  const split = it.marketHashName ? stripPhaseSuffix(it.marketHashName) : { base: null, phase: null };
   return {
-    name: it.marketHashName ?? null,
-    phase: pick(meta, ["phase", "dopplerPhase"]) ?? pick(it, ["phase", "dopplerPhase"]) ?? null,
+    name: split.base,
+    phase: pick(meta, ["phase", "dopplerPhase"]) ?? pick(it, ["phase", "dopplerPhase"]) ?? split.phase,
     float: num(pick(meta, ["wear", "float", "floatValue"]) ?? pick(it, ["float", "floatValue"])),
     price: num(it.price),
     priceReal: null,
