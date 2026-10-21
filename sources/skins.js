@@ -139,22 +139,25 @@ async function deleteTradeUrl(id) {
   }
 }
 
-// Формат предмета skins.com не описан, и живой ответ мы пока видели только
-// сверху (id, slug). Берём устойчиво — первый найденный вариант поля; точные
-// имена сверим по выводу price-check.js --fields.
+// Поля предмета skins.com (сверено по живому ответу):
+//   marketHashName — полное имя с качеством;
+//   metadata.wear — float (в самом предмете его нет);
+//   price — сколько они платят сразу; marketPrice — их цена на маркете;
+//   accepted — false, когда на карточке "Not Accepted".
+// Фазу доплеров в ответе пока не видели — берём из metadata или из самого
+// предмета, что найдётся.
 const pick = (o, keys) => keys.map((k) => o?.[k]).find((v) => v !== undefined && v !== null);
 const num = (v) => (v != null && Number.isFinite(Number(v)) ? Number(v) : null);
 
 function normalize(it) {
-  // "Not Accepted" на карточке — они этот предмет сейчас не берут.
-  const accepted = pick(it, ["accepted", "isAccepted", "canSell", "sellable", "isSellable"]);
+  const meta = it.metadata || {};
   return {
-    name: pick(it, ["marketHashName", "market_hash_name", "fullName", "name"]) ?? null,
-    phase: pick(it, ["phase", "dopplerPhase"]) ?? null,
-    float: num(pick(it, ["float", "floatValue", "paintWear", "wear"])),
-    price: num(pick(it, ["price", "instantPrice", "sellPrice", "value"])),
+    name: it.marketHashName ?? null,
+    phase: pick(meta, ["phase", "dopplerPhase"]) ?? pick(it, ["phase", "dopplerPhase"]) ?? null,
+    float: num(pick(meta, ["wear", "float", "floatValue"]) ?? pick(it, ["float", "floatValue"])),
+    price: num(it.price),
     priceReal: null,
-    skipReason: accepted === false ? "skins.com сейчас этот предмет не принимает (Not Accepted)" : null,
+    skipReason: it.accepted === false ? "skins.com сейчас этот предмет не принимает (Not Accepted)" : null,
     raw: it,
   };
 }
