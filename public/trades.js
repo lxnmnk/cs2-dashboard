@@ -4,6 +4,7 @@ const SOURCE_LABELS = {
   buff: "Buff163",
   skinbux: "Skinbux",
   skinplace: "Skin.place",
+  skins: "Skins.com",
   csmoney: "CS.Money",
   trade: "Direct Trade",
   gabenmarket: "Gaben.Market",
@@ -13,7 +14,7 @@ const errorBox = document.getElementById("errorBox");
 const updatedAtEl = document.getElementById("updatedAt");
 
 let lastTrades = [];
-let isSiteOwner = false; // кнопка skin.place работает от сессии владельца — только у него
+let isSiteOwner = false; // кнопки skin.place/skins.com работают от входа владельца — только у него
 let selectedItem = null; // { marketHashName, name, wear } chosen from autocomplete
 
 // ---- "Where to sell" modal ----
@@ -140,7 +141,9 @@ function renderModalOptions() {
         .join("")
     : `<div class="empty-state">No markets selected — check at least one above</div>`;
 
-  if (isSiteOwner) optionsEl.insertAdjacentHTML("beforeend", skinplaceRowHtml(trade));
+  if (isSiteOwner) {
+    optionsEl.insertAdjacentHTML("beforeend", BUYOUT_SOURCES.map((src) => buyoutRowHtml(trade, src)).join(""));
+  }
 
   const calloutEl = document.getElementById("modalCallout");
   if (bestUnselected && (!bestSelected || bestUnselected.price > bestSelected.price)) {
@@ -151,7 +154,9 @@ function renderModalOptions() {
     calloutEl.style.display = "none";
   }
 
-  optionsEl.querySelector("[data-action='skinplace-check']")?.addEventListener("click", () => checkSkinplace(trade.id));
+  optionsEl.querySelectorAll("[data-action='buyout-check']").forEach((btn) => {
+    btn.addEventListener("click", () => checkBuyout(trade.id, btn.dataset.source));
+  });
 
   optionsEl.querySelectorAll("[data-action='sell-here']").forEach((btn) => {
     btn.addEventListener("click", () =>
@@ -160,26 +165,27 @@ function renderModalOptions() {
   });
 }
 
-// ---- Skin.place: цена только по кнопке ----
-// Общего прайса у них нет, каждая проверка — запрос к CSFloat и к skin.place
-// (у них лимит 15 в минуту), поэтому не грузим сами при открытии окна.
-// Результат держим по id позиции, пока страница открыта: закрыл-открыл окно —
-// цена осталась.
-const skinplaceResults = {}; // tradeId -> { loading } | { error } | result
+// ---- Skin.place и Skins.com: цена выкупа только по кнопке ----
+// Общего прайса у них нет, каждая проверка — запросы к CSFloat и к площадке
+// (у них свои лимиты), поэтому не грузим сами при открытии окна.
+// Результат держим по позиции и площадке, пока страница открыта: закрыл-открыл
+// окно — цена осталась.
+const BUYOUT_SOURCES = ["skinplace", "skins"];
+const buyoutResults = {}; // `${tradeId}|${source}` -> { loading } | { error } | result
 
-function skinplaceRowHtml(trade) {
-  const r = skinplaceResults[trade.id];
-  const label = `Skin.place <span class="side-tag instant" title="Instant buyout price on skin.place — what they pay right now">Instant</span>`;
+function buyoutRowHtml(trade, source) {
+  const r = buyoutResults[`${trade.id}|${source}`];
+  const label = `${sourceLabel(source)} <span class="side-tag instant" title="Instant buyout price — what they pay right now">Instant</span>`;
   const locked = trade.isLocked ? "disabled title='Still locked by trade-hold'" : "";
 
   if (!r || r.error || r.loading) {
-    const note = r?.error ? `<div class="skinplace-note skinplace-error">${escapeHtml(r.error)}</div>` : "";
+    const note = r?.error ? `<div class="buyout-note buyout-error">${escapeHtml(r.error)}</div>` : "";
     return `
-      <div class="modal-option skinplace-option">
+      <div class="modal-option buyout-option">
         <span>${label}</span>
         <span class="na">—</span>
-        <span class="section-hint">${r?.loading ? "asking CSFloat and skin.place…" : "on request"}</span>
-        <button class="btn-small btn-secondary" data-action="skinplace-check" ${r?.loading ? "disabled" : ""}>${
+        <span class="section-hint">${r?.loading ? `asking CSFloat and ${sourceLabel(source)}…` : "on request"}</span>
+        <button class="btn-small btn-secondary" data-action="buyout-check" data-source="${source}" ${r?.loading ? "disabled" : ""}>${
           r?.loading ? "Checking…" : r?.error ? "Retry" : "Check price"
         }</button>
       </div>${note}`;
@@ -193,27 +199,28 @@ function skinplaceRowHtml(trade) {
     `checked ${new Date(r.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
   ].filter(Boolean);
   return `
-    <div class="modal-option skinplace-option ${r.instant ? "" : "skinplace-blocked"}">
+    <div class="modal-option buyout-option ${r.instant ? "" : "buyout-blocked"}">
       <span>${label}</span>
       <span>${fmtMoney(r.price)}</span>
       <span class="${profitClass}">${fmtMoney(r.profitUsd)} (${r.profitPercent != null ? r.profitPercent.toFixed(1) + "%" : "—"})</span>
-      <span class="skinplace-actions">
-        <button class="btn-small btn-secondary" data-action="skinplace-check" title="Ask again">↻</button>
-        <button class="btn-small" data-action="sell-here" data-source="skinplace" data-side="bid" data-price="${r.price}" data-fee="0" ${locked}>Sell here</button>
+      <span class="buyout-actions">
+        <button class="btn-small btn-secondary" data-action="buyout-check" data-source="${source}" title="Ask again">↻</button>
+        <button class="btn-small" data-action="sell-here" data-source="${source}" data-side="bid" data-price="${r.price}" data-fee="0" ${locked}>Sell here</button>
       </span>
     </div>
-    <div class="skinplace-note">${r.instant ? "" : `⚠ ${escapeHtml(r.skipReason)}<br />`}${details.join(" · ")}</div>`;
+    <div class="buyout-note">${r.instant ? "" : `⚠ ${escapeHtml(r.skipReason)}<br />`}${details.join(" · ")}</div>`;
 }
 
-async function checkSkinplace(tradeId) {
-  skinplaceResults[tradeId] = { loading: true };
+async function checkBuyout(tradeId, source) {
+  const key = `${tradeId}|${source}`;
+  buyoutResults[key] = { loading: true };
   if (modalTradeId === tradeId) renderModalOptions();
   try {
-    const res = await fetch(`/api/trades/${tradeId}/skinplace`, { method: "POST" });
+    const res = await fetch(`/api/trades/${tradeId}/buyout/${source}`, { method: "POST" });
     const data = await res.json();
-    skinplaceResults[tradeId] = data.ok ? data : { error: data.error || data.reason || "No price" };
+    buyoutResults[key] = data.ok ? data : { error: data.error || data.reason || "No price" };
   } catch (err) {
-    skinplaceResults[tradeId] = { error: err.message };
+    buyoutResults[key] = { error: err.message };
   }
   if (modalTradeId === tradeId) renderModalOptions();
 }
