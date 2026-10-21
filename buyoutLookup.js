@@ -145,14 +145,17 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
       continue;
     }
 
+    // Цена 0 — площадка этот предмет не берёт совсем (у skins.com так
+    // приходит "Not Accepted"), это не цена.
+    const price = item.price > 0 ? item.price : null;
     const result = {
-      ok: item.price != null,
+      ok: true,
       source,
-      price: item.price,
+      price,
       priceReal: item.priceReal ?? null,
-      // Цена есть всегда, но часть предметов площадка сейчас не берёт.
-      instant: !item.skipReason,
-      skipReason: item.skipReason || null,
+      // Часть предметов площадка сейчас не берёт — цена при этом бывает.
+      instant: !item.skipReason && price != null,
+      skipReason: item.skipReason || (price == null ? "не берёт этот предмет — цену не назвали" : null),
       matchedBy: exact ? "float" : "name",
       floatRange,
       csfloatPrice: listing.csfloatPrice,

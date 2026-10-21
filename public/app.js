@@ -204,6 +204,10 @@ function buyoutCell(r, source) {
     )}">error</span> ${button("↻")}`;
   }
 
+  if (res.price == null) {
+    return `<span class="na" title="${escapeHtml(res.skipReason || "")}">⚠ not buying</span>`;
+  }
+
   // Сколько это к лучшей цене покупки в строке: купил там — сразу сдал сюда.
   const vsBuy =
     r.bestBuyPrice > 0 ? ((res.price - r.bestBuyPrice) / r.bestBuyPrice) * 100 : null;

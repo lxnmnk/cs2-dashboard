@@ -1694,7 +1694,7 @@ app.post("/api/trades/:id/buyout/:source", requireSiteOwner, async (req, res) =>
     : {};
   try {
     const result = await buyoutPrice(req.params.source, trade.marketHashName, range);
-    if (result.ok) {
+    if (result.ok && result.price != null) {
       result.profitUsd = round2(result.price - trade.buyPrice);
       result.profitPercent = trade.buyPrice > 0 ? round2(((result.price - trade.buyPrice) / trade.buyPrice) * 100) : null;
     }

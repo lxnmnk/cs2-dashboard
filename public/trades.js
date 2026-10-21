@@ -191,6 +191,17 @@ function buyoutRowHtml(trade, source) {
       </div>${note}`;
   }
 
+  if (r.price == null) {
+    return `
+      <div class="modal-option buyout-option buyout-blocked">
+        <span>${label}</span>
+        <span class="na">—</span>
+        <span class="section-hint">not buying</span>
+        <button class="btn-small btn-secondary" data-action="buyout-check" data-source="${source}" title="Ask again">↻</button>
+      </div>
+      <div class="buyout-note">⚠ ${escapeHtml(r.skipReason || "")}</div>`;
+  }
+
   const profitClass = r.profitUsd >= 0 ? "profit-positive" : "profit-negative";
   const details = [
     r.matchedBy === "float" ? `same float as a CSFloat listing (${r.float.toFixed(4)})` : "similar item on CSFloat",
