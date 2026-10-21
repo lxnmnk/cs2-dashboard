@@ -24,19 +24,27 @@ if (!fs.existsSync(CURL_FILE)) {
 const curl = fs.readFileSync(CURL_FILE, "utf8");
 
 // Chrome кладёт куки либо в -b '...', либо в -H 'cookie: ...'.
-const cookieMatch = curl.match(/-b '([^']+)'/) || curl.match(/-H '[Cc]ookie: ([^']+)'/);
+const cookieMatch =
+  curl.match(/(?:-b|--cookie) '([^']+)'/) || curl.match(/-H '[Cc]ookie: ([^']+)'/);
 if (!cookieMatch) {
   console.error("В curl.txt не нашлось куки. Скопируй именно «Copy as cURL (bash)» по запросу inventory?project=csgo.");
   process.exit(1);
 }
-const cookie = cookieMatch[1].trim();
+let cookie = cookieMatch[1].trim();
+// Если XSRF-TOKEN нет среди кук, но есть в заголовке — достаточно и его:
+// в куке он лежит закодированным, в заголовке раскодированным.
+const xsrfHeader = curl.match(/-H '[Xx]-[Xx][Ss][Rr][Ff]-[Tt][Oo][Kk][Ee][Nn]: ([^']+)'/);
+if (!/XSRF-TOKEN=/.test(cookie) && xsrfHeader) {
+  cookie += `; XSRF-TOKEN=${encodeURIComponent(xsrfHeader[1].trim())}`;
+}
 if (!/XSRF-TOKEN=/.test(cookie)) {
   console.error("В куке нет XSRF-TOKEN — похоже, скопирован не тот запрос. Нужен inventory?project=csgo с api.skin.place.");
   process.exit(1);
 }
 
 // Ключ и account берём из адреса запроса, чтобы не переписывать руками.
-const urlMatch = curl.match(/curl '([^']+)'/);
+// Новый Chrome пишет адрес как curl --url '...', старый — curl '...'.
+const urlMatch = curl.match(/curl (?:--url )?'([^']+)'/);
 let publicKey = null;
 let account = null;
 if (urlMatch) {
