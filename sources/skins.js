@@ -1,11 +1,16 @@
 // Цены skins.com — сколько они платят за предмет при моментальной продаже.
 //
 // В их Trading API моментальной продажи нет. Цены видны только на странице
-// skins.com/inventory, а её можно открыть на чужой инвентарь: Custom Delivery
-// и трейд-ссылка. Страница грузит его запросом /secure/user/inventory с
-// параметром customTradeUrl — им и пользуемся, по одному аккаунту за раз и
-// только когда цену спросили (см. buyoutLookup.js). Настройку аккаунта при
-// этом не трогаем: ссылка идёт только в запросе.
+// skins.com/inventory, а её можно открыть на чужой инвентарь через Custom
+// Delivery: в аккаунте сохраняется трейд-ссылка, и страница грузит инвентарь
+// запросом /secure/user/inventory с параметром customTradeUrl. Без
+// сохранённой ссылки они отвечают 400 "Custom delivery URL is not saved".
+//
+// Поэтому на одну проверку: сохранить ссылку продавца → взять цену → удалить
+// её (в finally — даже если цена не получилась), по одному аккаунту за раз и
+// только когда цену спросили (см. buyoutLookup.js). Удаляем только ту
+// ссылку, которую добавили сами: если инвентарь отдался и без сохранения
+// (ссылку на этот аккаунт владелец сохранил сам), ничего не трогаем.
 //
 // Авторизация — заголовок Authorization от залогиненного владельца
 // (SKINS_AUTH в .env, записывает skins-auth.js из скопированного cURL).
@@ -17,7 +22,7 @@
 // только нашли или цены ушли сильно ниже цены лота на CSFloat.
 const { tradeLinkFor } = require("../steamId");
 
-const API = "https://api.skins.com/secure/user/inventory";
+const API = "https://api.skins.com/secure/user";
 const MIN_GAP_MS = 3000;
 const PAGE_TTL_MS = 10 * 60 * 1000;
 const PAGE_LIMIT = 100;
@@ -47,35 +52,21 @@ function throttled(fn) {
   return run;
 }
 
-const pageCache = new Map(); // `${partner}|${search}|${page}` -> { at, items, totalPages }
-
-async function fetchPage(partner, search, page) {
-  const key = `${partner}|${search}|${page}`;
-  const cached = pageCache.get(key);
-  if (cached && Date.now() - cached.at < PAGE_TTL_MS) return cached;
-
+/** Запрос к их API от имени владельца; ошибки — понятным текстом. */
+function api(method, path, body) {
   const auth = process.env.SKINS_AUTH;
-  if (!auth) throw authError("SKINS_AUTH не задан в .env — запусти node skins-auth.js");
-
-  const query = new URLSearchParams({
-    search,
-    sortBy: "price",
-    sortOrder: "desc",
-    page: String(page),
-    limit: String(PAGE_LIMIT),
-    customTradeUrl: tradeLinkFor(partner),
-  });
+  if (!auth) return Promise.reject(authError("SKINS_AUTH не задан в .env — запусти node skins-auth.js"));
 
   return throttled(async () => {
-    const res = await fetch(`${API}?${query}`, {
-      headers: {
-        Accept: "application/json",
-        Authorization: auth,
-        Origin: "https://skins.com",
-        Referer: "https://skins.com/",
-        "User-Agent": USER_AGENT,
-      },
-    });
+    const headers = {
+      Accept: "application/json",
+      Authorization: auth,
+      Origin: "https://skins.com",
+      Referer: "https://skins.com/",
+      "User-Agent": USER_AGENT,
+    };
+    if (body) headers["Content-Type"] = "application/json";
+    const res = await fetch(`${API}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
     const text = await res.text();
 
     if (res.status === 401 || res.status === 403) {
@@ -93,17 +84,59 @@ async function fetchPage(partner, search, page) {
       throw new Error(`skins.com ответил не JSON (HTTP ${res.status}) — возможно, проверка Cloudflare`);
     }
     if (!res.ok || data.success === false) {
-      throw new Error(`skins.com: ${data.message || data.error || "ошибка"} (HTTP ${res.status})`);
+      const message = data.message || data.error || "ошибка";
+      throw Object.assign(new Error(`skins.com: ${message} (HTTP ${res.status})`), {
+        notSaved: /not saved/i.test(message),
+      });
     }
-
-    const entry = {
-      at: Date.now(),
-      items: Array.isArray(data.data) ? data.data : [],
-      totalPages: data.pagination?.totalPages ?? 1,
-    };
-    pageCache.set(key, entry);
-    return entry;
+    return data;
   });
+}
+
+const pageCache = new Map(); // `${partner}|${search}|${page}` -> { at, items, totalPages }
+
+async function fetchPage(partner, search, page) {
+  const key = `${partner}|${search}|${page}`;
+  const cached = pageCache.get(key);
+  if (cached && Date.now() - cached.at < PAGE_TTL_MS) return cached;
+
+  const query = new URLSearchParams({
+    search,
+    sortBy: "price",
+    sortOrder: "desc",
+    page: String(page),
+    limit: String(PAGE_LIMIT),
+    customTradeUrl: tradeLinkFor(partner),
+  });
+  const data = await api("GET", `/inventory?${query}`);
+  const entry = {
+    at: Date.now(),
+    items: Array.isArray(data.data) ? data.data : [],
+    totalPages: data.pagination?.totalPages ?? 1,
+  };
+  pageCache.set(key, entry);
+  return entry;
+}
+
+/**
+ * Сохраняет ссылку продавца в Custom Delivery и возвращает её id для
+ * удаления. В ответе приходит весь список ссылок — свою находим по steamId.
+ */
+async function saveTradeUrl(partner, steamId) {
+  const data = await api("POST", "/custom-delivery/urls", { tradeUrl: tradeLinkFor(partner) });
+  const urls = data.data?.urls || [];
+  const saved = urls.find((u) => String(u.steamId) === String(steamId));
+  if (!saved?.id) throw new Error("skins.com сохранил ссылку, но не вернул её id — не смогу удалить, остановился");
+  return saved.id;
+}
+
+async function deleteTradeUrl(id) {
+  try {
+    await api("DELETE", `/custom-delivery/urls/${encodeURIComponent(id)}`);
+  } catch (err) {
+    // Не роняем проверку цены, но и не молчим: ссылка осталась в аккаунте.
+    console.error(`skins.com: не удалось удалить сохранённую ссылку ${id} — удали её вручную в Custom Delivery:`, err.message);
+  }
 }
 
 // Формат предмета skins.com не описан, и живой ответ мы пока видели только
@@ -139,8 +172,7 @@ function searchTermFor(base) {
   return noWear.slice(bar + 3).split(/ \(| \| /)[0];
 }
 
-/** Для buyoutLookup: ищем предмет и листаем страницы, пока не найдём. */
-async function findItems(partner, { base, isWanted, hintPrice }) {
+async function searchPages(partner, { base, isWanted, hintPrice }) {
   const search = searchTermFor(base);
   const found = [];
   for (let page = 1; page <= MAX_PAGES; page++) {
@@ -153,6 +185,26 @@ async function findItems(partner, { base, isWanted, hintPrice }) {
     if (hintPrice && cheapest < hintPrice * PASSED_RATIO) break;
   }
   return { items: found, limits: null };
+}
+
+/**
+ * Для buyoutLookup: ищем предмет в инвентаре продавца. Сначала без
+ * сохранения — вдруг ссылка уже есть в аккаунте; иначе сохраняем, смотрим и
+ * удаляем.
+ */
+async function findItems(partner, opts) {
+  try {
+    return await searchPages(partner, opts);
+  } catch (err) {
+    if (!err.notSaved) throw err;
+  }
+
+  const id = await saveTradeUrl(partner, opts.steamId);
+  try {
+    return await searchPages(partner, opts);
+  } finally {
+    await deleteTradeUrl(id);
+  }
 }
 
 module.exports = { findItems, searchTermFor };

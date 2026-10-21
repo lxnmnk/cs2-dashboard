@@ -100,7 +100,13 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
     const isWanted = (it) => it.name === base && (!phase || !it.phase || it.phase === phase);
     let inv;
     try {
-      inv = await adapter.findItems(partner, { base, phase, isWanted, hintPrice: listing.csfloatPrice });
+      inv = await adapter.findItems(partner, {
+        steamId: listing.steamId,
+        base,
+        phase,
+        isWanted,
+        hintPrice: listing.csfloatPrice,
+      });
     } catch (err) {
       // Протухший вход — дальше пробовать бессмысленно.
       if (err.auth) throw err;
