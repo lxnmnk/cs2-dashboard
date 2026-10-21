@@ -59,7 +59,7 @@ function fmtSide(value, source, marketHashName) {
 
 function renderRows(rows) {
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="15" class="loading">No items match the current filters</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="17" class="loading">No items match the current filters</td></tr>`;
     return;
   }
 
@@ -78,6 +78,8 @@ function renderRows(rows) {
           <td class="${cellRole("buff", "ask", r)}">${fmtSide(r.prices.buff.ask, "buff", r.linkName)}</td>
           <td class="${cellRole("buff", "bid", r)}">${fmtSide(r.prices.buff.bid, "buff", r.linkName)}</td>
           <td class="${cellRole("skinbux", "bid", r)}">${fmtSide(r.prices.skinbux.bid, "skinbux", r.linkName)}</td>
+          <td class="buyout-col">${buyoutCell(r, "skinplace")}</td>
+          <td class="buyout-col">${buyoutCell(r, "skins")}</td>
           <td class="${cellRole("csmoney", "ask", r)}">${fmtSide(r.prices.csmoney.ask, "csmoney", r.linkName)}</td>
           <td class="${cellRole("csmoney", "bid", r)}">${fmtSide(r.prices.csmoney.bid, "csmoney", r.linkName)}</td>
           <td>${fmtSourceSide(r.bestBuySource, r.bestBuySide)}</td>
@@ -180,7 +182,71 @@ function renderCurrentView() {
   updateSortArrows();
 }
 
+// ---- Skin.place и Skins.com: цена выкупа по кнопке ----
+// Общего прайса у них нет: сервер ищет такой же предмет на CSFloat и смотрит,
+// сколько площадка даёт за него в инвентаре продавца (buyoutLookup.js).
+// Каждая проверка — несколько запросов с паузами, поэтому только по кнопке.
+// Колонки видит только владелец: запрос идёт от его входа на площадках.
+// Результаты держим, пока страница открыта, — таблица перерисовывается раз в
+// минуту, и цена не должна пропадать.
+const buyoutResults = {}; // `${source}|${marketHashName}` -> { loading } | { error } | result
+
+function buyoutCell(r, source) {
+  const res = buyoutResults[`${source}|${r.marketHashName}`];
+  const button = (label) =>
+    `<button class="btn-small btn-secondary buyout-btn" data-buyout="${source}" data-name="${escapeHtml(r.marketHashName)}">${label}</button>`;
+
+  if (!res) return button("Request");
+  if (res.loading) return '<span class="na">checking…</span>';
+  if (res.error) return `<span class="profit-negative" title="${escapeHtml(res.error)}">error</span> ${button("↻")}`;
+
+  // Сколько это к лучшей цене покупки в строке: купил там — сразу сдал сюда.
+  const vsBuy =
+    r.bestBuyPrice > 0 ? ((res.price - r.bestBuyPrice) / r.bestBuyPrice) * 100 : null;
+  const details = [
+    res.instant ? null : `⚠ ${res.skipReason}`,
+    res.matchedBy === "float" ? `float ${res.float.toFixed(4)}, same as a CSFloat listing` : "similar item on CSFloat",
+    res.csfloatPrice != null ? `CSFloat ask $${res.csfloatPrice.toFixed(2)}` : null,
+    vsBuy != null ? `${vsBuy >= 0 ? "+" : ""}${vsBuy.toFixed(1)}% vs best buy $${r.bestBuyPrice.toFixed(2)}` : null,
+    `checked ${new Date(res.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+  ].filter(Boolean);
+  const vsClass = vsBuy == null ? "" : vsBuy >= 0 ? "profit-positive" : "profit-negative";
+  return `<span class="${res.instant ? "" : "buyout-blocked"}" title="${escapeHtml(details.join(" · "))}">${res.instant ? "" : "⚠ "}$${res.price.toFixed(2)}</span>${
+    vsBuy != null ? ` <span class="buyout-vs ${vsClass}">${vsBuy >= 0 ? "+" : ""}${vsBuy.toFixed(1)}%</span>` : ""
+  }`;
+}
+
+async function requestBuyout(source, marketHashName) {
+  const key = `${source}|${marketHashName}`;
+  buyoutResults[key] = { loading: true };
+  renderCurrentView();
+  try {
+    const res = await fetch(`/api/buyout/${source}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ marketHashName }),
+    });
+    const data = await res.json();
+    buyoutResults[key] = data.ok ? data : { error: data.error || data.reason || "No price" };
+  } catch (err) {
+    buyoutResults[key] = { error: err.message };
+  }
+  renderCurrentView();
+}
+
+fetch("/api/me")
+  .then((r) => r.json())
+  .then((me) => {
+    if (me.isSiteOwner) document.body.classList.add("show-buyout");
+  })
+  .catch(() => {});
+
 tbody.addEventListener("click", (e) => {
+  const buyoutBtn = e.target.closest("[data-buyout]");
+  if (buyoutBtn) {
+    requestBuyout(buyoutBtn.dataset.buyout, buyoutBtn.dataset.name);
+    return; // кнопка — не клик по строке, подсветку не трогаем
+  }
   if (e.target.closest("a")) return; // клик по цене — открываем площадку, не трогаем подсветку
   const row = e.target.closest("tr[data-row-key]");
   if (!row) return;

@@ -1704,6 +1704,22 @@ app.post("/api/trades/:id/buyout/:source", requireSiteOwner, async (req, res) =>
   }
 });
 
+// Та же цена выкупа для строки на странице Arbitrage — по названию, без
+// своей позиции: float любой в пределах качества. Только для предметов из
+// нашего прайса, чтобы кнопкой нельзя было гонять запросы по чему угодно.
+app.post("/api/buyout/:source", requireSiteOwner, async (req, res) => {
+  if (!BUYOUT_SOURCES[req.params.source]) return res.status(400).json({ ok: false, error: "Неизвестная площадка" });
+  const name = String(req.body?.marketHashName || "");
+  if (!cache.rows.some((r) => r.marketHashName === name)) {
+    return res.status(404).json({ ok: false, error: "Нет такого предмета в прайсе" });
+  }
+  try {
+    res.json(await buyoutPrice(req.params.source, name));
+  } catch (err) {
+    res.status(502).json({ ok: false, error: err.message });
+  }
+});
+
 function round4(n) {
   return Math.round(n * 10000) / 10000;
 }

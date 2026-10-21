@@ -733,3 +733,10 @@ tr.row-gone { background: rgba(224, 96, 90, 0.08); }
   text-align: right;
 }
 .import-buy-price:focus { border-color: var(--accent); outline: none; }
+
+/* Arbitrage: колонки Skin.place / Skins.com — только у владельца (app.js). */
+.buyout-col { display: none; }
+body.show-buyout .buyout-col { display: table-cell; }
+.buyout-btn { padding: 2px 8px; font-size: 11px; }
+.buyout-blocked { opacity: 0.6; }
+.buyout-vs { font-size: 11px; }
