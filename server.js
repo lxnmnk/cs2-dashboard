@@ -160,6 +160,66 @@ app.use(
   })
 );
 
+// ---- Пошукові системи ----
+// У пошук мають потрапляти тільки клієнтські сторінки — по одній на мову.
+// Усе інше (панель, вхід персоналу, кабінет, API, партнерські посилання)
+// отримує заголовок noindex: Google не покаже це в пошуку, навіть якщо
+// знайде посилання десь на стороні. Адреси панелі в robots.txt не пишемо
+// навмисно — robots.txt читають усі, і це був би їхній список.
+const SITE_ORIGIN = "https://gaben.market";
+const INDEXABLE_PAGES = [
+  { uk: "/", ru: "/ru", en: "/en" },
+  { uk: "/sell", ru: "/ru/sell", en: "/en/sell" },
+  { uk: "/buy", ru: "/ru/buy", en: "/en/buy" },
+  { uk: "/trade", ru: "/ru/trade", en: "/en/trade" },
+  { uk: "/my-skins", ru: "/ru/my-skins", en: "/en/my-skins" },
+];
+const INDEXABLE_BY_PATH = new Map();
+for (const group of INDEXABLE_PAGES) {
+  for (const p of Object.values(group)) INDEXABLE_BY_PATH.set(p, group);
+}
+
+// Канонічна адреса й мовні версії — заголовком Link (Google його читає так
+// само, як теги в <head>), щоб не правити п'ятнадцять HTML-файлів. Без
+// цього /ru і /en виглядали б для Google дублями головної.
+function seoLinkHeader(selfPath, group) {
+  const links = [`<${SITE_ORIGIN}${selfPath}>; rel="canonical"`];
+  for (const [lang, p] of Object.entries(group)) {
+    links.push(`<${SITE_ORIGIN}${p}>; rel="alternate"; hreflang="${lang}"`);
+  }
+  links.push(`<${SITE_ORIGIN}${group.uk}>; rel="alternate"; hreflang="x-default"`);
+  return links.join(", ");
+}
+
+app.use((req, res, next) => {
+  const group = req.method === "GET" ? INDEXABLE_BY_PATH.get(req.path) : null;
+  if (group) res.setHeader("Link", seoLinkHeader(req.path, group));
+  else res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  next();
+});
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send(
+    ["User-agent: *", "Disallow: /api/", "Disallow: /auth/", "Allow: /", "", `Sitemap: ${SITE_ORIGIN}/sitemap.xml`, ""].join("\n")
+  );
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const urls = INDEXABLE_PAGES.flatMap((group) =>
+    Object.values(group).map((p) => {
+      const alternates = Object.entries(group)
+        .map(([lang, alt]) => `    <xhtml:link rel="alternate" hreflang="${lang}" href="${SITE_ORIGIN}${alt}"/>`)
+        .join("\n");
+      return `  <url>\n    <loc>${SITE_ORIGIN}${p}</loc>\n${alternates}\n  </url>`;
+    })
+  );
+  res.type("application/xml").send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+      `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n` +
+      `${urls.join("\n")}\n</urlset>\n`
+  );
+});
+
 // ---- Партнерські посилання: gaben.market/sicarios ----
 // Ловимо тільки те, що справді є кодом: усе інше йде далі своїм шляхом, тож
 // сторінки й файли ця перевірка не перекриває. Код лягає в сесію (30 днів,
