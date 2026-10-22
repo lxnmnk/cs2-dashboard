@@ -41,9 +41,9 @@
       optWalletTitle: "На гаманець",
       optWalletSub: "USDT або USDC · від {min}",
       optWalletLocked: "Ще {left} — і можна виводити. Зараз доступно {amount}.",
-      optSaleTitle: "До свого продажу +{bonus}%",
-      optSaleText: "Продаєш свій скін — ми додаємо до виплати за нього твої реферальні гроші і ще {bonus}% зверху. Наприклад, $20 стають $22.",
-      optSaleNow: "Зараз це {amount} → {total}",
+      optSaleTitle: "До свого продажу",
+      optSaleText: "Продаєш свій скін — ми додаємо реферальні гроші до виплати за нього. Без мінімальної суми.",
+      optSaleNow: "Зараз додамо {amount}",
       optSaleEmpty: "Спрацює, коли на балансі з'являться гроші",
       optSaleBtn: "Продати скін",
       optSaleHint: "У кошику постав галочку «Додати реферальні».",
@@ -57,7 +57,7 @@
       payoutCols: ["Дата", "Сума", "Куди", "Статус"],
       states: { pending: "чекає 7 днів", available: "нараховано", cancelled: "скасовано (відкат)" },
       payoutStates: { requested: "чекає переказу", paid: "виплачено", rejected: "відхилено" },
-      toSale: "до продажу (+{bonus}%)",
+      toSale: "до продажу",
       empty: "Поки порожньо",
       creatorEyebrow: "Для стрімерів і каналів",
       creatorTitle: "Подай заявку на підвищену ставку",
@@ -110,9 +110,9 @@
       optWalletTitle: "На кошелёк",
       optWalletSub: "USDT или USDC · от {min}",
       optWalletLocked: "Ещё {left} — и можно выводить. Сейчас доступно {amount}.",
-      optSaleTitle: "К своей продаже +{bonus}%",
-      optSaleText: "Продаёшь свой скин — мы добавляем к выплате за него твои реферальные деньги и ещё {bonus}% сверху. Например, $20 становятся $22.",
-      optSaleNow: "Сейчас это {amount} → {total}",
+      optSaleTitle: "К своей продаже",
+      optSaleText: "Продаёшь свой скин — мы добавляем реферальные деньги к выплате за него. Без минимальной суммы.",
+      optSaleNow: "Сейчас добавим {amount}",
       optSaleEmpty: "Сработает, когда на балансе появятся деньги",
       optSaleBtn: "Продать скин",
       optSaleHint: "В корзине поставь галочку «Добавить реферальные».",
@@ -126,7 +126,7 @@
       payoutCols: ["Дата", "Сумма", "Куда", "Статус"],
       states: { pending: "ждёт 7 дней", available: "начислено", cancelled: "отменено (откат)" },
       payoutStates: { requested: "ждёт перевода", paid: "выплачено", rejected: "отклонено" },
-      toSale: "к продаже (+{bonus}%)",
+      toSale: "к продаже",
       empty: "Пока пусто",
       creatorEyebrow: "Для стримеров и каналов",
       creatorTitle: "Подай заявку на повышенную ставку",
@@ -179,9 +179,9 @@
       optWalletTitle: "To a wallet",
       optWalletSub: "USDT or USDC · from {min}",
       optWalletLocked: "{left} more and you can withdraw. Available now: {amount}.",
-      optSaleTitle: "Onto your own sale +{bonus}%",
-      optSaleText: "Sell one of your skins and we add your referral money to its payout, plus {bonus}% on top. For example, $20 becomes $22.",
-      optSaleNow: "Right now that's {amount} → {total}",
+      optSaleTitle: "Onto your own sale",
+      optSaleText: "Sell one of your skins and we add your referral money to its payout. No minimum.",
+      optSaleNow: "We'd add {amount} now",
       optSaleEmpty: "Works once there's money on the balance",
       optSaleBtn: "Sell a skin",
       optSaleHint: "Tick “Add your referral” in the cart.",
@@ -195,7 +195,7 @@
       payoutCols: ["Date", "Amount", "Where", "Status"],
       states: { pending: "waiting 7 days", available: "earned", cancelled: "cancelled (trade reverted)" },
       payoutStates: { requested: "waiting for transfer", paid: "paid", rejected: "rejected" },
-      toSale: "added to a sale (+{bonus}%)",
+      toSale: "added to a sale",
       empty: "Nothing yet",
       creatorEyebrow: "For streamers and channels",
       creatorTitle: "Apply for a higher rate",
@@ -376,7 +376,6 @@
     const b = data.balance;
     const r = data.rules;
     const canWithdraw = b.available >= r.minWithdraw;
-    const withTopUp = Math.round(b.available * (100 + r.saleTopUpBonusPercent)) / 100;
 
     const wallet = canWithdraw
       ? `<div class="ref-withdraw">
@@ -409,11 +408,11 @@
           </div>
           <div class="ref-option is-featured">
             <div class="ref-option-head"><span class="ref-option-icon">🎁</span><div>
-              <div class="ref-option-title">${esc(fill(T.optSaleTitle, { bonus: r.saleTopUpBonusPercent }))}</div>
+              <div class="ref-option-title">${esc(T.optSaleTitle)}</div>
             </div></div>
-            <p class="ref-option-text">${esc(fill(T.optSaleText, { bonus: r.saleTopUpBonusPercent }))}</p>
+            <p class="ref-option-text">${esc(T.optSaleText)}</p>
             <p class="ref-option-now">${esc(
-              b.available > 0 ? fill(T.optSaleNow, { amount: usd(b.available), total: usd(withTopUp) }) : T.optSaleEmpty
+              b.available > 0 ? fill(T.optSaleNow, { amount: usd(b.available) }) : T.optSaleEmpty
             )}</p>
             ${
               b.available > 0
@@ -450,8 +449,8 @@
         T.payoutCols,
         data.payouts.map((p) => [
           date(p.createdAt),
-          usd(p.amount + (p.bonus || 0)),
-          esc(p.method === "sale" ? fill(T.toSale, { bonus: data.rules.saleTopUpBonusPercent }) : (p.network || "").toUpperCase()),
+          usd(p.amount),
+          esc(p.method === "sale" ? T.toSale : (p.network || "").toUpperCase()),
           esc(p.method === "sale" ? T.payoutStates.paid : T.payoutStates[p.status] || p.status),
         ])
       );

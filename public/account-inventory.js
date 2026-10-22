@@ -92,24 +92,24 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
 
 // ---- Реферальні гроші — до цієї виплати ----
 // Хто запрошує друзів (вкладка "Реферали" в профілі), може не виводити
-// зароблене окремо, а додати до виплати за свій продаж — з бонусом. Тексти
+// зароблене окремо, а додати до виплати за свій продаж — без мінімуму. Тексти
 // тут, а не в ACCOUNT_CONFIG трьох сторінок: це один рядок на одну галочку.
 const REF_TEXT = {
   uk: {
-    add: "Додати реферальні {amount} до цієї виплати — з бонусом +{bonus}% вийде {total}",
+    add: "Додати реферальні {amount} до цієї виплати",
     notNew: "Цей код діє тільки для нових клієнтів — ти вже продавав у нас",
   },
   ru: {
-    add: "Добавить реферальные {amount} к этой выплате — с бонусом +{bonus}% получится {total}",
+    add: "Добавить реферальные {amount} к этой выплате",
     notNew: "Этот код действует только для новых клиентов — ты уже продавал у нас",
   },
   en: {
-    add: "Add your referral {amount} to this payout — with the +{bonus}% bonus that's {total}",
+    add: "Add your referral {amount} to this payout",
     notNew: "This code is for new clients only — you've already sold with us",
   },
 }[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
 
-let referralTopUp = 0; // разом із бонусом; 0 — нема чого додавати
+let referralTopUp = 0; // 0 — нема чого додавати
 const referralToggle = document.createElement("label");
 referralToggle.className = "cart-referral";
 referralToggle.style.display = "none";
@@ -122,14 +122,10 @@ async function loadReferralBalance() {
   try {
     const data = await (await fetch("/api/account/referral")).json();
     const available = data.ok ? data.balance?.available || 0 : 0;
-    const bonus = data.rules?.saleTopUpBonusPercent || 0;
-    referralTopUp = available > 0 ? Math.round(available * (100 + bonus)) / 100 : 0;
+    referralTopUp = available > 0 ? available : 0;
     referralToggle.style.display = referralTopUp > 0 ? "" : "none";
     if (!referralTopUp) useReferralInput.checked = false;
-    referralToggle.querySelector("span").textContent = REF_TEXT.add
-      .replace("{amount}", `$${available.toFixed(2)}`)
-      .replace("{bonus}", bonus)
-      .replace("{total}", `$${referralTopUp.toFixed(2)}`);
+    referralToggle.querySelector("span").textContent = REF_TEXT.add.replace("{amount}", `$${available.toFixed(2)}`);
     renderCart();
   } catch {
     // не увійшов чи мережа — галочки просто не буде

@@ -50,7 +50,7 @@ function saveAll(sales) {
 // referrerSteamId/referralPercent — клієнт, який запросив цього (referrals.js),
 // і його відсоток на момент продажу: з них рахується реферальне нарахування.
 // referralTopUp — реферальні гроші самого продавця, які він додав до цієї
-// виплати (разом із бонусом): ми винні йому totalPrice + referralTopUp.
+// виплати: ми винні йому totalPrice + referralTopUp.
 function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode, referrerSteamId, referralPercent, referralTopUp }) {
   const sales = loadAll();
   sales.push({

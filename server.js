@@ -1061,7 +1061,7 @@ async function notifyPayableSales() {
       sale.payoutDetails?.method === "card"
         ? `Сумма: $${owed.toFixed(2)} ≈ ${uah.toLocaleString("uk-UA")} ₴`
         : `Сумма: $${owed.toFixed(2)}`,
-      sale.referralTopUp ? `  (в т.ч. реферальные $${Number(sale.referralTopUp).toFixed(2)} с бонусом)` : null,
+      sale.referralTopUp ? `  (в т.ч. реферальные $${Number(sale.referralTopUp).toFixed(2)})` : null,
       `Куда: ${payoutDetails.describe(sale.payoutDetails) || "реквизиты не указаны — спроси в Telegram"}`,
       `Предметы: ${(sale.items || []).map((it) => it.name).join(", ")}`,
       "",

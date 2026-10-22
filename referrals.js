@@ -38,10 +38,9 @@ const LEVELS = [
   { key: "silver", minVolume: 500, percent: 0.75 },
   { key: "gold", minVolume: 2000, percent: 1 },
 ];
+// Вивід окремим переказом — від $10. Додати до виплати за свій продаж
+// можна будь-яку суму: переказ однаково один, тож мінімум там ні до чого.
 const MIN_WITHDRAW = 10;
-// Якщо реферальні гроші не виводити, а додати до виплати за свій продаж —
-// +10%: гроші лишаються в обороті, нам це вигідніше за окремий переказ.
-const SALE_TOPUP_BONUS_PERCENT = 10;
 
 const ACCEPTED = new Set(["hold", "completed"]);
 
@@ -310,12 +309,11 @@ function summary(steamId, { displayName, customerName } = {}) {
     accruals,
     payouts: data.payouts
       .filter((p) => p.steamId === String(steamId))
-      .map(({ id, amount, method, network, status, createdAt, paidAt, bonus }) => ({ id, amount, method, network, status, createdAt, paidAt, bonus }))
+      .map(({ id, amount, method, network, status, createdAt, paidAt }) => ({ id, amount, method, network, status, createdAt, paidAt }))
       .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)),
     rules: {
       friendBonusPercent: FRIEND_BONUS_PERCENT,
       minWithdraw: MIN_WITHDRAW,
-      saleTopUpBonusPercent: SALE_TOPUP_BONUS_PERCENT,
     },
     referredBy: m.referredBy ? true : false,
   };
@@ -342,19 +340,17 @@ function requestWithdraw(steamId, { network, address }) {
 }
 
 /**
- * Реферальні гроші — до виплати за власний продаж, з бонусом. Повертає,
- * скільки додати до суми продажу (разом із бонусом), або 0, якщо нічого.
+ * Реферальні гроші — до виплати за власний продаж. Повертає, скільки
+ * додати до суми продажу, або 0, якщо нічого.
  */
 function spendOnSale(steamId, saleId) {
   const data = load();
   const { available } = balanceOf(steamId, data);
   if (available <= 0) return 0;
-  const bonus = round2((available * SALE_TOPUP_BONUS_PERCENT) / 100);
   data.payouts.push({
     id: crypto.randomUUID(),
     steamId: String(steamId),
     amount: available,
-    bonus,
     method: "sale",
     saleId: String(saleId),
     status: "paid",
@@ -362,7 +358,7 @@ function spendOnSale(steamId, saleId) {
     paidAt: new Date().toISOString(),
   });
   save(data);
-  return round2(available + bonus);
+  return available;
 }
 
 function setPayoutStatus(id, status) {
