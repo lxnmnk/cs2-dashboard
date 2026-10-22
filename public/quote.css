@@ -795,26 +795,52 @@ a { color: var(--gold); }
   margin-top: 14px;
 }
 .deal-card {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px 14px;
-}
-.deal-card-head {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  font-size: 13px;
+  align-items: center;
+  gap: var(--s-4);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
 }
-.deal-items { color: var(--text); }
-.deal-price { color: var(--gold); font-weight: 700; white-space: nowrap; }
-.deal-status {
-  margin: 8px 0 0;
-  font-size: 13px;
+/* Колір смужки зліва — той самий, що в плашки статусу: список угод читається
+   з першого погляду, де вже все, а де ще треба щось зробити. */
+.deal-card.is-done { border-left-color: #5fbf77; }
+.deal-card.is-ready { border-left-color: var(--gold); }
+.deal-card.is-hold { border-left-color: rgba(215, 168, 78, 0.5); }
+.deal-card-main { min-width: 0; display: flex; flex-direction: column; gap: var(--s-2); }
+.deal-items { display: flex; flex-direction: column; gap: 2px; font-size: var(--t-sm); font-weight: 600; color: var(--text); }
+.deal-item { overflow: hidden; text-overflow: ellipsis; }
+.deal-qty { color: var(--gold); font-weight: 700; }
+.deal-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); }
+.deal-meta .card-hint { margin: 0; font-size: var(--t-xs); }
+.deal-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: var(--t-xs);
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--muted);
 }
-.deal-status-unlocked { color: var(--gold); font-weight: 600; }
-.deal-card .btn-small { margin-top: 8px; padding: 8px 16px; }
+.deal-pill.is-done { background: rgba(95, 191, 119, 0.14); color: #5fbf77; }
+.deal-pill.is-ready { background: var(--gold); color: #14100a; }
+.deal-pill.is-hold { background: var(--gold-soft); color: var(--gold); }
+.deal-card-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--s-2); flex-shrink: 0; }
+.deal-price { font-size: var(--t-lg); font-weight: 800; color: var(--gold); white-space: nowrap; }
+.deal-card .btn-small { padding: 7px 14px; }
+@media (max-width: 560px) {
+  .deal-card { flex-direction: column; align-items: stretch; }
+  .deal-card-side { flex-direction: row; justify-content: space-between; align-items: center; }
+}
+
+/* Профіль: підказка під заголовком посилання на обмін окремим рядком, і без
+   лінії знизу — в кабінеті після неї йде кошик, а тут нічого. */
+.trade-url-section label .section-hint { display: block; margin-top: 2px; font-size: var(--t-xs); }
+.profile-pane .trade-url-section { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
 
 /* ---- Умови ---- */
 .terms-list {
@@ -2316,7 +2342,7 @@ a.sender-line { color: var(--gold); }
 /* Вкладка ширша за решту профілю: дві колонки карток у 760 px не влазять. */
 #profileCard.is-wide { max-width: 1120px; }
 
-.ref-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4); }
+.ref-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4); }
 .ref-card {
   background: var(--panel-2);
   border: 1px solid var(--border);
@@ -2324,10 +2350,89 @@ a.sender-line { color: var(--gold); }
   padding: var(--s-5);
   min-width: 0;
 }
-.ref-card h3 { margin: 0 0 var(--s-3); font-size: var(--t-lg); }
-.ref-label { display: block; margin: var(--s-3) 0 var(--s-1); font-size: var(--t-sm); color: var(--muted); }
-.ref-row { display: flex; gap: var(--s-2); }
-.ref-row input,
+.ref-card h3 { margin: 0; font-size: var(--t-md); font-weight: 700; }
+.ref-income > h3 { margin-bottom: var(--s-3); }
+
+/* Шапка картки: іконка в квадраті, над заголовком — дрібний підпис капсом. */
+.ref-head { display: flex; gap: var(--s-3); align-items: flex-start; margin-bottom: var(--s-2); }
+.ref-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.ref-icon.is-gold { color: var(--gold); background: var(--gold-soft); border-color: var(--gold-line); }
+.ref-eyebrow { font-size: var(--t-xs); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 2px 0 4px; }
+.ref-eyebrow.is-gold { color: var(--gold); }
+.ref-lead { margin: 0 0 var(--s-4); font-size: var(--t-sm); line-height: 1.5; color: var(--muted); }
+
+/* Посилання — у рамці з однією кнопкою, як головна дія картки. */
+.ref-linkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 6px 6px 6px var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+}
+.ref-linkbox-icon { display: inline-flex; color: var(--muted); }
+.ref-linkbox code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: var(--t-sm);
+  color: var(--text);
+}
+.ref-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--gold);
+  color: #14100a;
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ref-copy-btn:hover { opacity: 0.88; }
+.ref-copy-btn svg { width: 15px; height: 15px; }
+
+.ref-code-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin-top: var(--s-3); font-size: var(--t-sm); color: var(--muted); }
+.ref-code-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px dashed var(--gold-line);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--gold);
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.ref-code-chip svg { width: 13px; height: 13px; }
+.ref-code-chip:hover { background: var(--gold-soft); }
+.ref-linkish { border: none; background: none; padding: 0; color: var(--muted); font: inherit; font-size: var(--t-sm); text-decoration: underline; cursor: pointer; }
+.ref-linkish:hover { color: var(--text); }
+.ref-code-edit { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+.ref-code-edit input,
 .ref-withdraw input,
 .ref-withdraw select {
   flex: 1;
@@ -2343,47 +2448,63 @@ a.sender-line { color: var(--gold); }
 .btn-small.ref-alt { background: transparent; border-color: var(--border); color: var(--text); }
 .btn-small.ref-alt:hover { background: var(--gold-soft); border-color: var(--gold-line); color: var(--gold); }
 
-.ref-invite { display: flex; gap: var(--s-5); }
-.ref-invite-main { flex: 1; min-width: 0; }
-.ref-share { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-2) 0 var(--s-1); }
-.ref-share .btn-small { text-decoration: none; }
-.ref-text {
-  margin-bottom: var(--s-2);
-  padding: var(--s-3);
-  border: 1px dashed var(--border);
-  border-radius: var(--r-sm);
-  font-size: var(--t-sm);
-  line-height: 1.5;
-  color: var(--text);
-}
-.ref-qr { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); }
-.ref-qr-box { padding: var(--s-2); background: #fff; border-radius: var(--r-sm); line-height: 0; }
-.ref-qr-box img, .ref-qr-box canvas { width: 160px; height: 160px; }
+/* Ставка */
+.ref-rate-box { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4); border-radius: var(--r-sm); background: var(--panel); border: 1px solid var(--border); }
+.ref-rate-value { font-size: var(--t-2xl); font-weight: 800; color: #5fbf77; line-height: 1; }
+.ref-rate-text { font-size: var(--t-sm); color: var(--muted); line-height: 1.4; }
+.ref-levels-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); margin-top: var(--s-3); }
+.ref-level-chip { display: flex; flex-direction: column; gap: 2px; padding: var(--s-2); border-radius: var(--r-sm); border: 1px solid var(--border); font-size: var(--t-xs); color: var(--muted); }
+.ref-level-chip b { color: var(--text); font-size: var(--t-sm); }
+.ref-level-chip.is-current { border-color: var(--gold-line); background: var(--gold-soft); }
+.ref-level-chip.is-current b { color: var(--gold); }
+.ref-progress { height: 6px; margin: var(--s-3) 0 var(--s-2); border-radius: 999px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.ref-progress span { display: block; min-width: 6px; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b9832a, var(--gold)); }
+.ref-rate .card-hint { margin: 0; }
 
-.ref-level-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-3); }
-.ref-level-name { font-size: var(--t-xl); font-weight: 800; }
-.ref-level-right { text-align: right; }
-.ref-level-pct { font-size: var(--t-2xl); font-weight: 800; color: var(--gold); }
-.ref-progress { height: 8px; margin: var(--s-3) 0 var(--s-2); border-radius: 999px; background: var(--panel); overflow: hidden; }
-.ref-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b9832a, var(--gold)); }
-
-.ref-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
-.ref-table th { text-align: left; font-weight: 600; color: var(--muted); padding: var(--s-2); border-bottom: 1px solid var(--border); }
-.ref-table td { padding: var(--s-2); border-bottom: 1px solid var(--border); }
-.ref-levels { margin: var(--s-3) 0; }
-.ref-levels tr.is-current td { color: var(--gold); font-weight: 700; }
-
+/* Цифри */
 .ref-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-3); margin-bottom: var(--s-4); }
+.ref-stat { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-4); border-radius: var(--r-md); background: var(--panel-2); border: 1px solid var(--border); }
+.ref-stat-value { font-size: var(--t-lg); font-weight: 800; }
+.ref-stat-value.is-gold { color: var(--gold); }
+.ref-stat-label { font-size: var(--t-xs); color: var(--muted); }
 
+/* Дохід */
 .ref-money { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); margin-bottom: var(--s-3); }
 .ref-money > div { padding: var(--s-3); border-radius: var(--r-sm); background: var(--panel); }
+.ref-money .card-hint { margin: 0; }
 .ref-money-value { margin: 2px 0; font-size: var(--t-xl); font-weight: 800; }
 .ref-money-value.is-pending { color: var(--gold); }
 .ref-money-value.is-available { color: #5fbf77; }
 .ref-withdraw { display: flex; gap: var(--s-2); flex-wrap: wrap; }
-.ref-withdraw select { flex: 0 0 150px; }
 .ref-note { margin: 0 0 var(--s-3); font-size: var(--t-sm); color: var(--gold); }
 
+.ref-how-title { margin: var(--s-4) 0 var(--s-2); font-size: var(--t-sm); font-weight: 700; color: var(--text); }
+.ref-options { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); }
+.ref-option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--panel);
+}
+.ref-option.is-featured { border-color: var(--gold-line); background: linear-gradient(180deg, var(--gold-soft), transparent 70%), var(--panel); }
+.ref-option-head { display: flex; gap: var(--s-2); align-items: center; }
+.ref-option-icon { font-size: 22px; line-height: 1; }
+.ref-option-title { font-weight: 700; }
+.ref-option .card-hint { margin: 0; }
+.ref-option-text { margin: 0; font-size: var(--t-sm); line-height: 1.5; color: var(--muted); }
+.ref-option-now { margin: 0; font-size: var(--t-sm); font-weight: 700; color: var(--gold); }
+.ref-option .btn-small { align-self: flex-start; text-decoration: none; }
+.ref-option .ref-progress { margin: var(--s-1) 0 0; }
+.ref-option .ref-withdraw { flex-direction: column; }
+.ref-option .ref-withdraw select { flex: none; }
+
+/* Історія */
+.ref-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.ref-table th { text-align: left; font-weight: 600; color: var(--muted); padding: var(--s-2); border-bottom: 1px solid var(--border); }
+.ref-table td { padding: var(--s-2); border-bottom: 1px solid var(--border); }
 .ref-tabs { display: flex; gap: var(--s-1); margin-bottom: var(--s-3); }
 .ref-tab {
   padding: 7px 14px;
@@ -2401,10 +2522,22 @@ a.sender-line { color: var(--gold); }
 .ref-state.is-pending { color: var(--gold); }
 .ref-state.is-cancelled { color: var(--red); }
 
-.ref-rules ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--s-2); font-size: var(--t-sm); line-height: 1.5; color: var(--muted); }
-.ref-locked { text-align: center; padding: var(--s-5) var(--s-3); }
-.ref-locked h3 { margin: 0 0 var(--s-2); }
-.ref-locked .btn-small { display: inline-block; margin-top: var(--s-2); text-decoration: none; }
+/* Стрімерам */
+.ref-creator { margin-bottom: var(--s-4); border-color: var(--gold-line); }
+.ref-perks { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); margin-bottom: var(--s-4); }
+.ref-perk { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3); border-radius: var(--r-sm); background: var(--panel); border: 1px solid var(--border); font-size: var(--t-sm); }
+.ref-perk svg { flex-shrink: 0; color: var(--gold); width: 16px; height: 16px; }
+.ref-creator-btn svg { width: 16px; height: 16px; }
+
+/* Правило */
+.ref-rule { display: flex; gap: var(--s-3); align-items: flex-start; }
+.ref-rule h3 { margin-bottom: var(--s-2); }
+.ref-rule p { margin: 0 0 var(--s-2); font-size: var(--t-sm); line-height: 1.55; color: var(--muted); }
+.ref-rule p.ref-rule-warn { margin: 0; color: var(--gold); }
+.ref-footnote { margin: var(--s-3) 2px 0; font-size: var(--t-xs); line-height: 1.6; color: var(--muted); opacity: 0.8; }
+
+.ref-locked { margin-bottom: var(--s-4); }
+.ref-locked .btn-small { display: inline-block; text-decoration: none; }
 
 .cart-referral { display: flex; gap: var(--s-2); align-items: flex-start; margin-top: var(--s-3); font-size: var(--t-sm); cursor: pointer; }
 .cart-referral input { margin-top: 2px; accent-color: var(--gold); }
@@ -2412,13 +2545,16 @@ a.sender-line { color: var(--gold); }
 @media (max-width: 900px) {
   .ref-grid { grid-template-columns: 1fr; }
   .ref-stats { grid-template-columns: repeat(2, 1fr); }
+  .ref-perks { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
-  .ref-invite { flex-direction: column; }
+  .ref-card { padding: var(--s-4); }
   .ref-money { gap: var(--s-2); }
   .ref-money > div { padding: var(--s-2); }
   .ref-money-value { font-size: var(--t-lg); }
-  .ref-row { flex-wrap: wrap; }
-  .ref-withdraw select { flex: 1 1 100%; }
+  .ref-options { grid-template-columns: 1fr; }
+  .ref-levels-row { gap: var(--s-1); }
+  .ref-stat { padding: var(--s-3); }
+  .ref-linkbox-icon { display: none; }
   #profileCard.is-wide { padding: var(--s-4); }
 }
