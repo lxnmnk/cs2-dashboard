@@ -362,7 +362,10 @@ a { color: var(--gold); }
 .cart-sidebar .btn-clear { text-align: center; }
 
 @media (max-width: 860px) {
-  .inventory-layout { flex-direction: column; }
+  /* stretch, а не flex-start з основного правила: у колонці flex-start
+     означає "ширина за вмістом", і блок інвентарю роздувався до довжини
+     найдовшого рядка — сторінка на телефоні їхала вбік. */
+  .inventory-layout { flex-direction: column; align-items: stretch; }
   .inventory-side { width: 100%; position: static; }
 }
 .cart-list {
@@ -2719,9 +2722,17 @@ a.sender-line { color: var(--gold); }
     backdrop-filter: none;
     background: rgba(10, 11, 15, 0.97);
   }
-  .site-brand { font-size: 15px; margin-right: 0; }
-  .site-header-right { gap: 6px; }
-  .nav-balance { padding: 3px 8px; }
+  .site-brand { font-size: 14px; margin-right: 0; }
+  /* Коли людина увійшла, праворуч стоять валюта, мова, баланс, аватар і
+     вихід — разом вони були на ~25 px ширші за екран. Ужимаємо все потроху,
+     нічого не ховаючи. */
+  .site-header-right { gap: 4px; min-width: 0; }
+  .header-drop-btn { padding: 6px 8px; gap: 3px; }
+  .header-drop-arrow { display: none; }
+  .nav-balance { padding: 3px 7px; }
+  .nav-balance-usd { font-size: 13px; }
+  .site-header .account-pill { padding: 2px 4px 2px 2px; gap: 2px; }
+  .site-header .account-pill img { width: 26px; height: 26px; }
   .nav-balance-uah,
   .nav-balance-hold,
   .nav-balance-trade { display: none; }
@@ -2820,7 +2831,59 @@ a.sender-line { color: var(--gold); }
     box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
   }
 
+  /* Кабінет: оновити й пошук — першим рядком, сортування й "Вибрати все" —
+     другим; в один рядок на 360 px вони не влазять. */
+  .inventory-head { flex-wrap: wrap; }
+  .inventory-search { flex: 1 1 calc(100% - 60px); min-width: 0; }
+  .inventory-sort { flex: 1 1 40%; min-width: 0; }
+  #selectAllBtn { flex: 1 1 40%; }
+  .inventory-selection { flex-basis: 100%; }
+  #inventoryCard, #skinsCard { padding: var(--s-4) var(--s-3); }
+  /* Кошик під інвентарем — на всю ширину: базове правило (300 px для колонки
+     праворуч) стоїть у файлі нижче за правило для вузьких екранів і
+     перебивало його. */
+  .inventory-side { width: 100%; position: static; }
+
   /* Значки довіри на "Продати" — сіткою 2×2, а не драбинкою різної ширини. */
   .trust-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); padding: 0 var(--s-3); }
   .trust-badge { padding: var(--s-2) var(--s-3); font-size: 12px; box-shadow: none; }
+}
+
+/* Найвужчі телефони (360 px): шапка з балансом і аватаркою, і вкладки
+   профілю — ще трохи тісніше, щоб нічого не виходило за край. */
+@media (max-width: 380px) {
+  .site-header { padding: 0 var(--s-2); }
+  .site-brand { font-size: 13px; letter-spacing: 0; }
+  .header-drop-btn { padding: 5px 6px; }
+}
+@media (max-width: 760px) {
+  .profile-tabs { overflow-x: auto; scrollbar-width: none; }
+  .profile-tabs::-webkit-scrollbar { display: none; }
+  .profile-tab { padding: 10px 12px; flex-shrink: 0; white-space: nowrap; }
+}
+
+/* Плашка кошика над нижнім меню (account-inventory.js) — тільки на телефоні. */
+.mobile-cart-bar { display: none; }
+@media (max-width: 760px) {
+  .mobile-cart-bar.is-visible {
+    position: fixed;
+    left: var(--s-3);
+    right: var(--s-3);
+    bottom: calc(74px + env(safe-area-inset-bottom));
+    z-index: 39;
+    display: flex;
+    align-items: center;
+    gap: var(--s-3);
+    padding: 12px var(--s-4);
+    border: none;
+    border-radius: var(--r-md);
+    background: linear-gradient(180deg, #f2c66b, #d9a33f);
+    color: #14100a;
+    font: inherit;
+    font-size: var(--t-sm);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+    cursor: pointer;
+  }
+  .mobile-cart-bar-sum { font-size: var(--t-md); }
+  .mobile-cart-bar-go { margin-left: auto; font-weight: 800; }
 }

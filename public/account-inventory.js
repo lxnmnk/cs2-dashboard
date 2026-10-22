@@ -872,10 +872,35 @@ function removeItem(assetId) {
   renderCart();
 }
 
+// ---- Плашка кошика внизу екрана (телефон) ----
+// На телефоні кошик стоїть під усім інвентарем: вибрав скіни — і гортай до
+// кінця списку, щоб натиснути "Продати". Плашка над нижнім меню показує,
+// скільки вибрано, і веде до кошика. На комп'ютері її ховає CSS — там кошик
+// і так поруч.
+const CART_BAR_TEXT = {
+  uk: { picked: "Вибрано: {n}", go: "До продажу →" },
+  ru: { picked: "Выбрано: {n}", go: "К продаже →" },
+  en: { picked: "Picked: {n}", go: "To checkout →" },
+}[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
+const cartBar = document.createElement("button");
+cartBar.type = "button";
+cartBar.className = "mobile-cart-bar";
+cartBar.innerHTML = '<span class="mobile-cart-bar-count"></span><b class="mobile-cart-bar-sum"></b><span class="mobile-cart-bar-go"></span>';
+cartBar.querySelector(".mobile-cart-bar-go").textContent = CART_BAR_TEXT.go;
+document.body.appendChild(cartBar);
+cartBar.addEventListener("click", () => cartSection?.scrollIntoView({ behavior: "smooth", block: "start" }));
+
+function renderCartBar(total) {
+  cartBar.classList.toggle("is-visible", cart.length > 0);
+  cartBar.querySelector(".mobile-cart-bar-count").textContent = CART_BAR_TEXT.picked.replace("{n}", cart.length);
+  cartBar.querySelector(".mobile-cart-bar-sum").textContent = price(total);
+}
+
 function renderCart() {
   saveCart();
   const sellBtn = document.getElementById("sellAutoBtn");
   const total = cart.reduce((sum, it) => sum + it.price, 0);
+  renderCartBar(total);
 
   // Назв предметів тут немає: вони вже на картках. Натомість те, чого на
   // картках не видно — скільки вийде разом, куди і коли прийдуть гроші.
