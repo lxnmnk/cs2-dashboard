@@ -12,6 +12,7 @@
 //   node import-youpin-sales.js --rate 7.15            // показать, не менять
 //   node import-youpin-sales.js --rate 7.15 --fee 2    // с комиссией площадки
 //   node import-youpin-sales.js --rate 7.15 --apply    // записать
+//   node import-youpin-sales.js --rate 7.15 --hold 7   // деньги в холде 7 дней
 //
 // --rate — сколько юаней в долларе. Трекер считает всё в долларах, а Youpin
 // платит в юанях; курс знает только владелец (он зависит от того, как и
@@ -90,6 +91,19 @@ const SALES = [
   { float: 0.1695018261671066, cny: 650.98, soldAt: "2026-10-18T13:56:08", name: "★ Flip Knife | Safari Mesh (FT)", cn: "折叠刀（★）| 狩猎网格" },
   { float: 0.0995782613754273, cny: 2647.99, soldAt: "2026-10-18T21:19:26", name: "★ Talon Knife | Blue Steel (MW)", cn: "锯齿爪刀（★）| 蓝钢" },
   { float: 0.0317849405109882, cny: 7293.0, soldAt: "2026-10-18T16:33:30", name: "★ Karambit | Doppler (FN) Phase 3", cn: "爪子刀（★）| 多普勒" },
+
+  // --- четвёртая пачка скриншотов: 19-20.10 (холд 7 дней — запускать с --hold 7) ---
+  { float: 0.1002929285168648, cny: 355.4, soldAt: "2026-10-20T21:37:13", name: "StatTrak™ Desert Eagle | Kumicho Dragon (MW)", cn: "沙漠之鹰（StatTrak™）| 大佬龙" },
+  { float: 0.1251879781484604, cny: 344.5, soldAt: "2026-10-20T16:46:10", name: "USP-S | Printstream (MW)", cn: "USP 消音版 | 印花集" },
+  { float: 0.1361593455076218, cny: 1211.91, soldAt: "2026-10-20T16:18:42", name: "★ Skeleton Knife | Damascus Steel (MW)", cn: "骷髅匕首（★）| 大马士革钢" },
+  { float: 0.4032002091407776, cny: 171.0, soldAt: "2026-10-20T12:49:17", name: "M4A4 | Neo-Noir (WW)", cn: "M4A4 | 黑色魅影" },
+  { float: 0.3933994174003601, cny: 171.0, soldAt: "2026-10-20T12:43:35", name: "M4A4 | Neo-Noir (WW)", cn: "M4A4 | 黑色魅影" },
+  { float: 0.1173418313264847, cny: 1133.91, soldAt: "2026-10-20T11:31:36", name: "★ Skeleton Knife | Stained (MW)", cn: "骷髅匕首（★）| 人工染色" },
+  { float: 0.2042149603366852, cny: 720.0, soldAt: "2026-10-20T11:15:21", name: "★ Flip Knife | Bright Water (FT)", cn: "折叠刀（★）| 澄澈之水" },
+  { float: 0.0259439703077078, cny: 661.99, soldAt: "2026-10-20T10:46:35", name: "★ Navaja Knife | Doppler (FN) Phase 3", cn: "折刀（★）| 多普勒" },
+  { float: 0.3926778137683868, cny: 744.41, soldAt: "2026-10-20T07:57:51", name: "★ Nomad Knife | Blue Steel (WW)", cn: "流浪者匕首（★）| 蓝钢" },
+  { float: 0.3832095563411713, cny: 971.41, soldAt: "2026-10-19T22:35:42", name: "★ Classic Knife | Crimson Web (WW)", cn: "海豹短刀（★）| 深红之网" },
+  { float: 0.3575927317142487, cny: 2027.91, soldAt: "2026-10-19T20:02:19", name: "★ Talon Knife | Crimson Web (FT)", cn: "锯齿爪刀（★）| 深红之网" },
 ];
 
 function arg(name) {
@@ -99,10 +113,18 @@ function arg(name) {
 
 const rate = Number(arg("rate"));
 const feePercent = Number(arg("fee") || 0);
+// Холд денег на Youpin. Без ключа — общее правило площадки из config.json
+// (90% сразу, 10% зависает); с ним — вся сумма ждёт столько дней.
+const holdRaw = arg("hold");
+const holdDays = holdRaw == null ? null : Number(holdRaw);
 const apply = process.argv.includes("--apply");
 
 if (!Number.isFinite(rate) || rate <= 0) {
   console.error("Нужен курс: --rate 7.15 (сколько юаней в долларе)");
+  process.exit(1);
+}
+if (holdDays != null && !(Number.isInteger(holdDays) && holdDays >= 0 && holdDays <= 365)) {
+  console.error("--hold — целое число дней от 0 до 365");
   process.exit(1);
 }
 if (!Number.isFinite(feePercent) || feePercent < 0 || feePercent > 50) {
@@ -153,7 +175,10 @@ for (const sale of SALES) {
 const money = (n) => `$${n.toFixed(2)}`;
 
 console.log(`Владелец: ${OWNER} · открытых позиций: ${holdings.length} · продаж в списке: ${SALES.length}`);
-console.log(`Курс: ${rate} ¥/$${feePercent ? ` · комиссия ${feePercent}%` : ""} · режим: ${apply ? "ЗАПИСЫВАЮ" : "вхолостую"}\n`);
+console.log(
+  `Курс: ${rate} ¥/$${feePercent ? ` · комиссия ${feePercent}%` : ""}` +
+    ` · холд: ${holdDays == null ? "правило площадки" : `${holdDays} дн.`} · режим: ${apply ? "ЗАПИСЫВАЮ" : "вхолостую"}\n`
+);
 
 if (matched.length) {
   console.log(`Сопоставлено по флоту: ${matched.length}`);
@@ -206,6 +231,7 @@ for (const { sale, trade } of matched) {
       sellPrice: usd(sale.cny),
       sellDate: new Date(sale.soldAt).toISOString(),
       sellSide: "ask", // на Youpin мы выставляем лот, а не сдаём в чужой бид
+      sellHoldDays: holdDays,
     });
     saved++;
   } catch (err) {
