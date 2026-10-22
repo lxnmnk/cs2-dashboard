@@ -317,12 +317,30 @@
   }
 
   // ---- Сходи ставки: три сходинки різної висоти, своя підсвічена ----
+  // Рівні — справжні сходи кольору свого металу (бронза, срібло, золото),
+  // на кожній сходинці медаль з відсотком. Досягнуті — в повному кольорі,
+  // недосягнуті — приглушені із замком. Під сходами шкала з бігунком:
+  // скільки продали друзі і де наступна межа.
+  const METALS = ["bronze", "silver", "gold"];
+
+  // Шкала нерівна: кожен відрізок між рівнями займає однакову ширину, інакше
+  // $500 із $2000 тулилися б біля самого початку.
+  function trackPosition(volume) {
+    const marks = data.levels.map((l) => l.minVolume);
+    const seg = 100 / (marks.length - 1);
+    for (let i = 0; i < marks.length - 1; i++) {
+      if (volume < marks[i + 1]) return i * seg + ((volume - marks[i]) / (marks[i + 1] - marks[i])) * seg;
+    }
+    return 100;
+  }
+
   function ladderHtml() {
     const lv = data.level;
     const next = lv.next;
-    const heights = [42, 68, 100];
     // levelFor на сервері віддає копію рівня, тож шукаємо свій за ключем.
-    const currentIndex = data.levels.findIndex((l) => l.key === lv.key);
+    const currentIndex = data.eligible ? data.levels.findIndex((l) => l.key === lv.key) : -1;
+    const pos = data.eligible ? trackPosition(data.volume) : 0;
+    const marks = data.levels.map((l, i) => ({ left: (100 / (data.levels.length - 1)) * i, label: usdWhole(l.minVolume) }));
     return `
       <div class="ref-ladder">
         <div class="ref-ladder-head">
@@ -330,21 +348,24 @@
           <div class="ref-ladder-pct">${pct(lv.percent)}</div>
           <div class="ref-ladder-sub">${esc(T.ladderSub)}</div>
         </div>
-        <div class="ref-steps">${data.levels
+        <div class="ref-stairs">${data.levels
           .map((l, i) => {
-            const current = data.eligible && l.key === lv.key;
-            return `<div class="ref-step ${current ? "is-current" : ""} ${data.eligible && currentIndex > i ? "is-passed" : ""}">
-              <div class="ref-step-col">
-                <div class="ref-step-bar" style="height:${heights[i] || 100}%">
-                  ${current ? `<span class="ref-step-you">${esc(T.youAreHere)}</span>` : ""}
-                  <span>${pct(l.percent)}</span>
-                </div>
+            const state = i === currentIndex ? "is-current" : i < currentIndex ? "is-reached" : "is-locked";
+            return `<div class="ref-stair is-${METALS[i] || "gold"} ${state}" style="--h:${56 + i * 34}px">
+              ${i === currentIndex ? `<span class="ref-stair-you">${esc(T.youAreHere)}</span>` : ""}
+              <div class="ref-medal">${state === "is-locked" ? '<span class="ref-medal-lock">🔒</span>' : ""}<b>${pct(l.percent)}</b></div>
+              <div class="ref-stair-block">
+                <div class="ref-stair-name">${esc(T.levels[l.key])}</div>
+                <div class="ref-stair-from">${esc(fill(T.levelFrom, { amount: usdWhole(l.minVolume) }))}</div>
               </div>
-              <div class="ref-step-name">${esc(T.levels[l.key])}</div>
-              <div class="ref-step-from">${esc(fill(T.levelFrom, { amount: usdWhole(l.minVolume) }))}</div>
             </div>`;
           })
           .join("")}</div>
+        <div class="ref-track">
+          <div class="ref-track-line"><span style="width:${pos.toFixed(1)}%"></span></div>
+          ${data.eligible ? `<div class="ref-track-knob" style="left:${pos.toFixed(1)}%"><span>${esc(usdWhole(data.volume))}</span></div>` : ""}
+          ${marks.map((m) => `<div class="ref-track-mark" style="left:${m.left}%"><span>${esc(m.label)}</span></div>`).join("")}
+        </div>
         <p class="ref-ladder-next">${esc(
           next ? fill(T.toNext, { amount: usd(next.minVolume - data.volume), percent: pct(next.percent) }) : T.maxLevel
         )}</p>

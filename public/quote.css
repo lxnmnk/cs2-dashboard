@@ -2456,47 +2456,115 @@ a.sender-line { color: var(--gold); }
 .ref-ladder-title { font-size: var(--t-sm); color: var(--muted); }
 .ref-ladder-pct { font-size: var(--t-3xl); font-weight: 900; line-height: 1.05; color: var(--gold); }
 .ref-ladder-sub { font-size: var(--t-sm); color: var(--muted); }
-.ref-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); padding-top: var(--s-5); }
-.ref-step { text-align: center; }
-/* Висота сходинки — від цієї колонки, а не від усієї клітинки з підписами:
-   інакше підписи "з'їдали" висоту, і найвища сходинка виходила нижчою. */
-.ref-step-col { display: flex; align-items: flex-end; height: 120px; }
-.ref-step-bar {
-  position: relative;
+/* Сходи: блоки впритул, кожен вищий за попередній, колір — свій метал */
+.ref-stairs {
+  --bronze-a: #e6a46a; --bronze-b: #9c5a2c;
+  --silver-a: #f1f3f6; --silver-b: #8f97a3;
+  --gold-a: #ffe3a3;   --gold-b: #c18b2f;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: end;
+  padding-top: var(--s-6);
+}
+.ref-stair { position: relative; display: flex; flex-direction: column; align-items: center; }
+.ref-stair.is-bronze { --a: var(--bronze-a); --b: var(--bronze-b); }
+.ref-stair.is-silver { --a: var(--silver-a); --b: var(--silver-b); }
+.ref-stair.is-gold { --a: var(--gold-a); --b: var(--gold-b); }
+
+.ref-stair-block {
   width: 100%;
+  height: var(--h);
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0 var(--s-2) var(--s-2);
+  text-align: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--b) 45%, transparent), color-mix(in srgb, var(--b) 12%, transparent));
+  border-top: 3px solid var(--a);
+}
+.ref-stair:first-child .ref-stair-block { border-radius: var(--r-sm) 0 0 var(--r-sm); }
+.ref-stair:last-child .ref-stair-block { border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.ref-stair-name { font-size: var(--t-sm); font-weight: 800; color: var(--a); }
+.ref-stair-from { font-size: var(--t-xs); color: rgba(236, 233, 226, 0.6); }
+
+/* Медаль на сходинці: металевий диск з відсотком */
+.ref-medal {
+  position: relative;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  padding-top: var(--s-2);
-  border-radius: var(--r-sm) var(--r-sm) 2px 2px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
-  border-bottom: none;
-  font-weight: 800;
-  font-size: var(--t-sm);
-  color: var(--muted);
+  width: 54px;
+  height: 54px;
+  margin-bottom: -14px;
+  z-index: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--a), var(--b) 75%);
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.45), 0 6px 16px rgba(0, 0, 0, 0.45);
+  color: #14110b;
 }
-.ref-step.is-passed .ref-step-bar { background: rgba(215, 168, 78, 0.12); color: var(--gold); }
-.ref-step.is-current .ref-step-bar {
-  background: linear-gradient(180deg, var(--gold), #b9832a);
-  border-color: var(--gold);
-  color: #14100a;
-  box-shadow: 0 0 24px rgba(215, 168, 78, 0.25);
+.ref-medal::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  border: 1px dashed rgba(20, 17, 11, 0.35);
 }
-.ref-step-name { margin-top: var(--s-2); font-size: var(--t-sm); font-weight: 700; }
-.ref-step.is-current .ref-step-name { color: var(--gold); }
-.ref-step-from { font-size: var(--t-xs); color: var(--muted); }
-.ref-step-you {
+.ref-medal b { font-size: var(--t-sm); font-weight: 900; }
+.ref-medal-lock { position: absolute; top: -6px; right: -6px; font-size: 14px; }
+
+/* Недосягнуті — приглушені; свій рівень — світиться і трохи більший */
+.ref-stair.is-locked .ref-medal,
+.ref-stair.is-locked .ref-stair-block { filter: grayscale(0.7) brightness(0.6); }
+.ref-stair.is-locked .ref-stair-name { color: var(--muted); }
+.ref-stair.is-current .ref-medal {
+  width: 64px;
+  height: 64px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.25), inset 0 2px 0 rgba(255, 255, 255, 0.5),
+    0 0 0 4px color-mix(in srgb, var(--a) 30%, transparent), 0 0 28px color-mix(in srgb, var(--a) 45%, transparent);
+}
+.ref-stair.is-current .ref-medal b { font-size: var(--t-md); }
+.ref-stair-you {
   position: absolute;
   top: -26px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 2px 8px;
+  padding: 2px 9px;
   border-radius: 999px;
   background: var(--text);
   color: var(--bg);
   font-size: var(--t-xs);
   font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Шкала під сходами */
+.ref-track { position: relative; height: 34px; margin: var(--s-2) 0 0; }
+.ref-track-line { position: absolute; top: 8px; left: 0; right: 0; height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.ref-track-line span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--bronze-b, #9c5a2c), #c0c6cf, var(--gold)); }
+.ref-track-mark { position: absolute; top: 4px; width: 2px; height: 14px; margin-left: -1px; background: rgba(255, 255, 255, 0.25); }
+.ref-track-mark span { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); font-size: var(--t-xs); color: var(--muted); white-space: nowrap; }
+.ref-track-mark:first-of-type span { transform: none; left: 0; }
+.ref-track-mark:last-child span { transform: none; left: auto; right: 0; }
+.ref-track-knob {
+  position: absolute;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  margin-left: -8px;
+  z-index: 1;
+  border-radius: 50%;
+  background: var(--text);
+  box-shadow: 0 0 0 3px var(--panel-2), 0 0 12px rgba(255, 255, 255, 0.35);
+}
+.ref-track-knob span {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  font-size: var(--t-xs);
+  font-weight: 700;
   white-space: nowrap;
 }
 .ref-ladder-next { margin: 0; font-size: var(--t-sm); color: var(--muted); }
@@ -2608,8 +2676,8 @@ a.sender-line { color: var(--gold); }
 @media (max-width: 560px) {
   .ref-coupon { padding: var(--s-4) var(--s-5); }
   .ref-coupon-code { font-size: 34px; }
-  .ref-steps { gap: var(--s-2); }
-  .ref-step-col { height: 96px; }
+  .ref-medal { width: 46px; height: 46px; }
+  .ref-stair.is-current .ref-medal { width: 54px; height: 54px; }
   .ref-panel { padding: var(--s-4); }
   .ref-fair-cols { grid-template-columns: 1fr; }
   .ref-partner-strip { flex-direction: column; align-items: flex-start; }
