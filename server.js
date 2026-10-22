@@ -357,6 +357,7 @@ const PUBLIC_PATHS = new Set([
   "/quote-common.js",
   "/bg-map.jpg",
   "/favicon.svg",
+  "/og-image.png",
   "/api/public/item-search",
   "/api/public/sell-quote",
   "/api/public/buy-quote",
