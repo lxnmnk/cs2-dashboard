@@ -334,7 +334,7 @@ function renderOurs({ searched = false } = {}) {
       const img = it.icon ? `<img src="${swapEscape(it.icon)}" alt="" />` : "";
       return `
         <div class="swap-card${qty ? " picked" : ""}" data-name="${swapEscape(it.marketHashName)}">
-          ${qty ? `<span class="swap-card-pick">× ${qty}</span>` : ""}
+          ${qty ? `<span class="swap-card-pick">× ${qty}</span><button type="button" class="swap-card-minus" aria-label="−">−</button>` : ""}
           ${img}
           <div class="swap-card-name">${swapEscape(it.name)}<span class="swap-card-wear">${swapEscape(it.wear || "")}</span></div>
           <span class="swap-card-price">${swapMoney(it.price)}</span>
@@ -342,22 +342,27 @@ function renderOurs({ searched = false } = {}) {
     })
     .join("");
 
-  // Клік додає ще один такий предмет, правий клік прибирає: однакових ножів
-  // можна взяти кілька, тому це не перемикач, як ліворуч.
+  // Клік додає ще один такий предмет; прибирає кнопка "−" на картці або
+  // правий клік: однакових ножів можна взяти кілька, тому це не перемикач,
+  // як ліворуч. Кнопка — для телефона, де правого кліку немає.
   swapOursGrid.querySelectorAll("[data-name]").forEach((card) => {
     const name = card.getAttribute("data-name");
-    card.addEventListener("click", () => {
+    const removeOne = () => {
+      const qty = (swapPickedOurs.get(name) || 0) - 1;
+      if (qty > 0) swapPickedOurs.set(name, qty);
+      else swapPickedOurs.delete(name);
+      renderOurs({ searched });
+      renderSummary();
+    };
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".swap-card-minus")) return removeOne();
       swapPickedOurs.set(name, (swapPickedOurs.get(name) || 0) + 1);
       renderOurs({ searched });
       renderSummary();
     });
     card.addEventListener("contextmenu", (e) => {
       e.preventDefault();
-      const qty = (swapPickedOurs.get(name) || 0) - 1;
-      if (qty > 0) swapPickedOurs.set(name, qty);
-      else swapPickedOurs.delete(name);
-      renderOurs({ searched });
-      renderSummary();
+      removeOne();
     });
   });
 }

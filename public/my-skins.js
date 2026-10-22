@@ -145,6 +145,18 @@ const WEAR_CODES = {
   "Battle-Scarred": "BS",
 };
 
+// Назва на картці — як у каталозі: зброя дрібно, скін основним рядком.
+// Якість і фаза вже є у верхньому рядку картки, тож з назви їх прибираємо:
+// повне "★ StatTrak™ Butterfly Knife | Doppler (Factory New) - Phase 4"
+// займало на телефоні чотири рядки.
+function cardNameHtml(marketHashName) {
+  const base = marketHashName.replace(/ - [^-]+$/, "").replace(/\s*\([^()]+\)\s*$/, "");
+  const [weapon, skin] = base.split(" | ");
+  return skin
+    ? `<span class="item-weapon">${escapeHtml(weapon)}</span><span class="item-skin">${escapeHtml(skin)}</span>`
+    : `<span class="item-skin">${escapeHtml(weapon)}</span>`;
+}
+
 function cardTopHtml(s) {
   // Качество берём из самого названия, а не из поля wear: название — это
   // настоящий market_hash_name, а поле могло остаться от ручного ввода и
@@ -175,7 +187,7 @@ function renderCard(s, idx) {
     <div class="inventory-card">
       ${cardTopHtml(s)}
       ${img}
-      <div class="inventory-card-name">${escapeHtml(s.marketHashName)}</div>
+      <div class="inventory-card-name">${cardNameHtml(s.marketHashName)}</div>
       ${tag}
       <span class="inventory-card-price">$${s.price.toFixed(2)}</span>
       <button class="skin-item-add" type="button" data-idx="${idx}" ${added ? "disabled" : ""}>${

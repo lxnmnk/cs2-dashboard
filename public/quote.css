@@ -943,7 +943,7 @@ a { color: var(--gold); }
 .site-brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0;
   margin-right: 14px;
   font-size: 16px;
   font-weight: 800;
@@ -1672,6 +1672,23 @@ a.sender-line { color: var(--gold); }
   font-size: 12px;
   color: var(--gold);
 }
+.swap-card-minus {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--gold-line);
+  background: var(--panel);
+  color: var(--gold);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.swap-card-minus:hover { background: var(--gold-soft); }
 
 /* Підсумок обміну — під заголовком і липкий одразу під шапкою (вона теж
    липка, 60px), щоб суми й різниця були перед очима, поки гортаєш предмети. */
@@ -2683,4 +2700,127 @@ a.sender-line { color: var(--gold); }
   .ref-partner-strip { flex-direction: column; align-items: flex-start; }
   .ref-withdraw select { flex: 1 1 100%; }
   #profileCard.is-wide { padding: var(--s-4); }
+}
+
+
+/* ==== Телефон ==== */
+/* Раніше шапка на телефоні була в три поверхи (логотип, окремим рядком мова
+   й вхід, меню 2×2) і липла до верху — з'їдала чверть екрана на кожній
+   сторінці. Тепер угорі один рядок: логотип і перемикачі, а розділи —
+   нижньою панеллю, як у застосунку: великий палець до неї дістає. */
+@media (max-width: 760px) {
+  /* Без backdrop-filter: він робить шапку "контейнером" для fixed-нащадків,
+     і нижня панель меню прилипала до шапки, а не до низу екрана. */
+  .site-header {
+    flex-wrap: nowrap;
+    height: 54px;
+    padding: 0 var(--s-3);
+    gap: var(--s-2);
+    backdrop-filter: none;
+    background: rgba(10, 11, 15, 0.97);
+  }
+  .site-brand { font-size: 15px; margin-right: 0; }
+  .site-header-right { gap: 6px; }
+  .nav-balance { padding: 3px 8px; }
+  .nav-balance-uah,
+  .nav-balance-hold,
+  .nav-balance-trade { display: none; }
+
+  .site-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    order: 0;
+    width: auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(10, 11, 15, 0.94);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border);
+    overflow: visible;
+  }
+  .site-nav a {
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 2px;
+    border: none;
+    border-radius: var(--r-sm);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.1;
+    white-space: normal;
+    text-align: center;
+    background: none;
+  }
+  .site-nav a.active { background: none; color: var(--gold); }
+  .site-nav a.active .nav-icon { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(215, 168, 78, 0.6)); }
+  .site-nav .nav-icon { font-size: 20px; }
+  /* Місце під нижню панель, щоб вона не закривала кінець сторінки. */
+  body:has(.site-nav) { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
+  .site-footer { margin-top: var(--s-6); }
+
+  /* Липкий підсумок обміну — одразу під шапкою, а вона тут 54px, а не 60. */
+  .swap-summary { top: 54px; }
+
+  /* Перший екран коротший: заголовок менший, відступи менші. */
+  .hero { padding-top: var(--s-5); }
+
+  /* Фільтри згорнуті в одну кнопку: розгорнуті вони займали два екрани, і
+     скіни починались аж під ними. Тиснеш "Фільтри" — розгортаються. */
+  .filters-panel { padding: var(--s-3) var(--s-4); }
+  .filters-panel .filters-head { margin-bottom: 0; }
+  .filters-panel .filters-head h3 { cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .filters-panel .filters-head h3::after { content: "▾"; color: var(--muted); font-size: 12px; transition: transform 0.15s; }
+  .filters-panel.is-open .filters-head { margin-bottom: 12px; }
+  .filters-panel.is-open .filters-head h3::after { transform: rotate(180deg); }
+  .filters-panel:not(.is-open) > :not(.filters-head) { display: none; }
+  .filters-panel:not(.is-open) .filters-head { padding-bottom: 0; border-bottom: none; }
+
+  /* Каталог і вітрини — по дві картки в ряд: в одну колонку картка була на
+     весь екран, і каталог розтягувався на десяток прокруток. */
+  .inventory-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+  .inventory-card { padding: 6px 6px var(--s-2); gap: 6px; }
+  .inventory-card-price { font-size: 14px; }
+  .item-skin { font-size: 12px; }
+
+  /* "Купити скіни": пошук на всю ширину, під ним сортування й кошик. Кошик
+     вилазив за правий край, і сторінка їздила вбік. */
+  .catalog { padding: 0 var(--s-3) var(--s-5); }
+  .catalog-toolbar { flex-wrap: wrap; gap: var(--s-2); }
+  .catalog-toolbar > :first-child { flex: 1 1 100%; }
+  .catalog-toolbar > :not(:first-child) { flex: 1 1 0; min-width: 0; }
+  .catalog-cart-btn { justify-content: center; }
+  /* Категорії — одним рядком, гортаються пальцем; перелік зброї виїжджає
+     знизу екрана (над панеллю меню), щоб рядок з прокруткою його не обрізав. */
+  .catalog-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    gap: 4px;
+    margin: 0 calc(-1 * var(--s-3)) var(--s-3);
+    padding: 0 var(--s-3) var(--s-2);
+  }
+  .catalog-tabs::-webkit-scrollbar { display: none; }
+  .catalog-tab { padding: 7px 12px; font-size: 13px; flex-shrink: 0; }
+  .catalog-menu {
+    position: fixed;
+    top: auto;
+    left: var(--s-3);
+    right: var(--s-3);
+    bottom: calc(78px + env(safe-area-inset-bottom));
+    z-index: 60;
+    min-width: 0;
+    max-height: 55vh;
+    margin: 0;
+    box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Значки довіри на "Продати" — сіткою 2×2, а не драбинкою різної ширини. */
+  .trust-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2); padding: 0 var(--s-3); }
+  .trust-badge { padding: var(--s-2) var(--s-3); font-size: 12px; box-shadow: none; }
 }

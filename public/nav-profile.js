@@ -112,3 +112,12 @@ refreshNavBalance();
   const query = params.toString();
   history.replaceState(null, "", location.pathname + (query ? "?" + query : "") + location.hash);
 })();
+
+
+// На телефоні панель фільтрів згорнута (quote.css, "Телефон") — заголовок
+// "Фільтри" розгортає її. Одним обробником на документ: панелі на різних
+// сторінках малюються різним кодом і інколи вже після завантаження.
+document.addEventListener("click", (e) => {
+  const title = e.target.closest(".filters-panel .filters-head h3");
+  if (title) title.closest(".filters-panel").classList.toggle("is-open");
+});
