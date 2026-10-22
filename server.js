@@ -194,7 +194,8 @@ function seoLinkHeader(selfPath, group) {
 app.use((req, res, next) => {
   const group = req.method === "GET" ? INDEXABLE_BY_PATH.get(req.path) : null;
   if (group) res.setHeader("Link", seoLinkHeader(req.path, group));
-  else res.setHeader("X-Robots-Tag", "noindex, nofollow");
+  // robots.txt и карта сайта — служебные файлы для самого Google, их не трогаем.
+  else if (req.path !== "/robots.txt" && req.path !== "/sitemap.xml") res.setHeader("X-Robots-Tag", "noindex, nofollow");
   next();
 });
 
