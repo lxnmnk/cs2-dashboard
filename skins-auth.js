@@ -44,8 +44,10 @@ fs.unlinkSync(CURL_FILE);
 // Если это JWT — в нём записано, до какого времени он действует. Читаем
 // только это поле, сам токен не показываем.
 let expires = "неизвестно (это не JWT)";
+let issued = null;
 try {
   const payload = JSON.parse(Buffer.from(auth.replace(/^Bearer\s+/i, "").split(".")[1], "base64url").toString());
+  if (payload.iat) issued = new Date(payload.iat * 1000).toLocaleString("ru-RU");
   if (payload.exp) {
     const at = new Date(payload.exp * 1000);
     const hours = Math.round((at - Date.now()) / 36e5);
@@ -57,5 +59,8 @@ try {
 
 console.log("Готово, записано в .env:");
 console.log(`  SKINS_AUTH — ${auth.length} символов${/^Bearer /i.test(auth) ? ", Bearer" : ""}`);
+// Дата выдачи — чтобы отличать новый вход от старого: если skins.com
+// отзовёт вход раньше срока, по ней видно, тот же это токен или свежий.
+if (issued) console.log(`  выдан: ${issued}`);
 console.log(`  действует до: ${expires}`);
 console.log("curl.txt удалён. Перезапусти сайт, если он уже запущен: pm2 restart cs2-dashboard");
