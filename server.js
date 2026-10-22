@@ -49,6 +49,17 @@ const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "
 
 const app = express();
 
+// www.gaben.market — тот же сайт, и для Google это был дубль: он выбрал
+// главной версию с www, а gaben.market считал копией и не брал в поиск.
+// Одна версия — без www, с www навсегда (301) переводим на неё. Хост берём
+// из заголовка, который передаёт nginx; если он его не передаёт, проверка
+// просто не срабатывает.
+app.use((req, res, next) => {
+  const host = String(req.headers.host || "").toLowerCase();
+  if (host.startsWith("www.")) return res.redirect(301, `https://${host.slice(4)}${req.originalUrl}`);
+  next();
+});
+
 // gzip для всего текстового: стили, скрипты и JSON (инвентарь, витрина) раньше
 // уходили несжатыми — nginx по умолчанию сжимает только HTML.
 app.use(compression());
