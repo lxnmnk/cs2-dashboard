@@ -36,7 +36,7 @@ const CODE_RE = /^[a-z0-9_-]{3,20}$/i;
 // інакше посилання перекриє сторінку.
 const RESERVED = new Set([
   "account", "profile", "trade", "buy", "sell", "my-skins", "arbitrage",
-  "mytrades", "capital", "login", "ru", "en", "api", "auth", "uploads",
+  "mytrades", "capital", "login", "ru", "en", "ua", "api", "auth", "uploads",
 ]);
 
 function loadAll() {

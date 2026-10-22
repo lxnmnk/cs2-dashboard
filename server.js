@@ -180,7 +180,7 @@ app.use(
 // навмисно — robots.txt читають усі, і це був би їхній список.
 const SITE_ORIGIN = "https://gaben.market";
 const INDEXABLE_PAGES = [
-  { uk: "/", ru: "/ru", en: "/en" },
+  { uk: "/ua", ru: "/ru", en: "/" },
   { uk: "/sell", ru: "/ru/sell", en: "/en/sell" },
   { uk: "/buy", ru: "/ru/buy", en: "/en/buy" },
   { uk: "/trade", ru: "/ru/trade", en: "/en/trade" },
@@ -199,7 +199,8 @@ function seoLinkHeader(selfPath, group) {
   for (const [lang, p] of Object.entries(group)) {
     links.push(`<${SITE_ORIGIN}${p}>; rel="alternate"; hreflang="${lang}"`);
   }
-  links.push(`<${SITE_ORIGIN}${group.uk}>; rel="alternate"; hreflang="x-default"`);
+  // Для решти світу — англійська: вона тепер і є головна.
+  links.push(`<${SITE_ORIGIN}${group.en}>; rel="alternate"; hreflang="x-default"`);
   return links.join(", ");
 }
 
@@ -244,15 +245,25 @@ app.get(/^\/([a-zA-Z0-9_-]{3,20})$/, (req, res, next) => {
   if (promo) {
     promoCodes.countClick(promo.code);
     req.session.promo = promo.code;
-    return res.redirect("/");
+    return res.redirect(homeForLanguage(req));
   }
 
   // Те саме посилання, але з кодом клієнта (реферальна програма,
   // referrals.js). Залогіненого закріплюємо одразу, інших — при вході.
   if (!referrals.countClick(code)) return next();
   rememberReferral(req, code, "link");
-  res.redirect("/");
+  res.redirect(homeForLanguage(req));
 });
+
+/**
+ * Куди вести з партнерського чи реферального посилання: на головну мовою
+ * браузера. Головна тепер англійська, а аудиторія більшості партнерів —
+ * українська чи російськомовна, і їм англійська сторінка була б чужою.
+ */
+function homeForLanguage(req) {
+  const lang = String(req.headers["accept-language"] || "").toLowerCase().slice(0, 2);
+  return lang === "uk" ? "/ua" : lang === "ru" ? "/ru" : "/";
+}
 
 /**
  * Код клієнта з посилання чи з кошика: кладемо в сесію і, якщо людина вже
@@ -320,6 +331,7 @@ const PUBLIC_PATHS = new Set([
   "/my-skins.html",
   "/my-skins-ru.html",
   "/my-skins-en.html",
+  "/ua",
   "/ru",
   "/en",
   "/sell",
@@ -492,9 +504,13 @@ app.get(["/capital.html", "/capital.js"], requireCapitalAccess, (req, res) => {
 // Корень сайта — публичная клиентская страница (выбор Купити/Продати), а не
 // внутренняя закрытая логином панель. Должен идти ДО express.static, иначе
 // static сам отдаст public/index.html (внутренний арбитраж) на "/".
+// Головна — англійською: сайт показують і не тільки українцям. Українська
+// головна тепер на /ua, а старе /en веде сюди ж (301), щоб у пошуку не було
+// двох однакових англійських сторінок.
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "trade.html"));
+  res.sendFile(path.join(__dirname, "public", "trade-en.html"));
 });
+app.get("/en", (req, res) => res.redirect(301, "/"));
 
 // Чистые адреса внутренней панели вместо голых имён файлов — те же самые
 // закрытые логином страницы (auth-gate выше их не пускает, если нет сессии;
@@ -515,8 +531,8 @@ app.get("/trades.html", (req, res) => res.redirect("/mytrades"));
 // RU/EN — с префиксом ("/ru/sell", "/en/sell"); сам лендинг ("/", "/ru", "/en")
 // уже задаёт язык, поэтому дальше по сайту суффикс не повторяется в самом слове.
 const CLEAN_PUBLIC_ROUTES = {
+  "/ua": "trade.html",
   "/ru": "trade-ru.html",
-  "/en": "trade-en.html",
   "/sell": "sell-quote.html",
   "/buy": "buy-quote.html",
   "/ru/sell": "sell-quote-ru.html",
@@ -539,9 +555,9 @@ for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
 // Старые адреса этих же страниц — редирект на чистые (ссылка на trade.html
 // уже могла разойтись, например в рекламном посте в Telegram-группе).
 const OLD_PUBLIC_REDIRECTS = {
-  "/trade.html": "/",
+  "/trade.html": "/ua",
   "/trade-ru.html": "/ru",
-  "/trade-en.html": "/en",
+  "/trade-en.html": "/",
   "/sell-quote.html": "/sell",
   "/buy-quote.html": "/buy",
   "/my-skins.html": "/my-skins",
