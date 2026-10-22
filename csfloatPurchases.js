@@ -10,6 +10,8 @@
 // лучше не импортировать сделку, чем записать её с пустой ценой.
 // Адрес можно подменить (CSFLOAT_BASE_URL) — так импорт проверяется на
 // заглушке, не трогая боевой аккаунт CSFloat.
+const { stripPhaseSuffix, DOPPLER_PHASES } = require("./itemName");
+
 const BASE_URL = process.env.CSFLOAT_BASE_URL || "https://csfloat.com";
 // CSFloat отдаёт по 50 сделок на страницу — просить больше бессмысленно, а
 // считать "пришло меньше запрошенного, значит конец" на таком ответе нельзя:
@@ -96,6 +98,24 @@ function pick(obj, paths) {
   return null;
 }
 
+// Фаза доплера. У всех фаз один market_hash_name, а сайт различает их
+// суффиксом " - <Фаза>" (itemName.js): без него витрина брала общую картинку
+// Steam (на ней сапфир) и среднюю цену по всем фазам. CSFloat отдаёт фазу
+// полем phase; если его нет — по paint_index.
+const PHASE_BY_PAINT = {
+  415: "Ruby", 416: "Sapphire", 417: "Black Pearl", 418: "Phase 1", 419: "Phase 2", 420: "Phase 3", 421: "Phase 4",
+  568: "Emerald", 569: "Phase 1", 570: "Phase 2", 571: "Phase 3", 572: "Phase 4",
+};
+
+function withPhase(marketHashName, raw) {
+  if (!/Doppler/.test(marketHashName) || stripPhaseSuffix(marketHashName).phase) return marketHashName;
+  const fromField = pick(raw, ["contract.item.phase", "item.phase"]);
+  const phase = DOPPLER_PHASES.includes(fromField)
+    ? fromField
+    : PHASE_BY_PAINT[Number(pick(raw, ["contract.item.paint_index", "item.paint_index"]))];
+  return phase ? `${marketHashName} - ${phase}` : marketHashName;
+}
+
 /**
  * Одна сделка CSFloat -> запись для трекера. null, если это не покупка или
  * не хватает названия/цены.
@@ -118,7 +138,7 @@ function normalizeTrade(raw, mode = "purchased") {
   return {
     // По нему отличаем уже импортированные сделки от новых.
     externalId: `csfloat:${pick(raw, ["id", "trade_id", "contract.id"]) || ""}`,
-    marketHashName: String(marketHashName),
+    marketHashName: withPhase(String(marketHashName), raw),
     buyPrice: Math.round(cents) / 100,
     // Когда предмет реально к нам приехал. contract.created_at тут не годится:
     // это дата появления лота у продавца (у Deagle — за две недели до покупки).
