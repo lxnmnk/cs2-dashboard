@@ -175,6 +175,11 @@ function referrerOf(steamId) {
   return load().members[String(steamId)]?.referredBy || null;
 }
 
+/** Яким кодом людина закріпилась — показати його в кошику при наступних візитах. */
+function referredCodeOf(steamId) {
+  return load().members[String(steamId)]?.referredCode || null;
+}
+
 function friendsOf(referrerSteamId, data = load()) {
   return Object.entries(data.members)
     .filter(([, m]) => m.referredBy === String(referrerSteamId))
@@ -411,6 +416,7 @@ module.exports = {
   countClick,
   bind,
   referrerOf,
+  referredCodeOf,
   accrualForSale,
   summary,
   requestWithdraw,

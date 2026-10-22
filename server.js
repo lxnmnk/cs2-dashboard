@@ -262,12 +262,28 @@ app.get(/^\/([a-zA-Z0-9_-]{3,20})$/, (req, res, next) => {
  */
 function rememberReferral(req, code, via) {
   req.session.referral = { code: String(code).toLowerCase(), via };
+  delete req.session.referralRejected;
   const steamId = req.session.customer?.steamId;
   if (!steamId) return true;
   const bound = referrals.bind(steamId, code, via);
   const ok = !!bound && referrals.ownerOfCode(code) === bound;
-  if (!ok) delete req.session.referral;
+  if (!ok) {
+    delete req.session.referral;
+    // Причину кладемо в сесію: кошик покаже її один раз, замість порожнього
+    // поля, з якого незрозуміло, чому код "не спрацював".
+    req.session.referralRejected = { code: String(code).toLowerCase(), reason: referralRejection(steamId, code) };
+  }
   return ok;
+}
+
+// Чому код не підійшов: свій власний, людина вже закріплена за іншим, або
+// вона вже продавала нам і закріпити її не можна.
+function referralRejection(steamId, code) {
+  const owner = referrals.ownerOfCode(code);
+  if (owner === String(steamId)) return "REFERRAL_OWN";
+  const current = referrals.referrerOf(steamId);
+  if (current && current !== owner) return "REFERRAL_TAKEN";
+  return "REFERRAL_NOT_NEW";
 }
 
 /**
@@ -899,9 +915,16 @@ app.get("/api/account/promo", (req, res) => {
   const promo = promoCodes.find(req.session?.promo);
   if (promo) return res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent } });
   // Реферальний бонус показуємо в тому ж полі: для клієнта це теж "код".
+  // Хто закріпився ще в минулих візитах, коду в сесії вже не має — беремо
+  // той, яким закріпився.
   const bonus = referralBonusFor(req);
-  const code = req.session?.referral?.code || null;
-  res.json({ ok: true, promo: bonus ? { code, bonusPercent: bonus, referral: true } : null });
+  const steamId = req.session?.customer?.steamId;
+  const code = req.session?.referral?.code || (steamId && referrals.referredCodeOf(steamId)) || null;
+  if (bonus && code) return res.json({ ok: true, promo: { code, bonusPercent: bonus, referral: true } });
+  // Код з посилання не підійшов — кажемо чому, один раз.
+  const rejected = req.session?.referralRejected || null;
+  if (rejected) delete req.session.referralRejected;
+  res.json({ ok: true, promo: null, rejected });
 });
 
 app.post("/api/account/promo", (req, res) => {
@@ -914,7 +937,11 @@ app.post("/api/account/promo", (req, res) => {
   if (!promo) {
     // Не партнерський — може, це код іншого клієнта.
     if (!referrals.ownerOfCode(raw)) return res.status(400).json({ ok: false, error: "PROMO_NOT_FOUND" });
-    if (!rememberReferral(req, raw, "code")) return res.status(400).json({ ok: false, error: "REFERRAL_NOT_NEW" });
+    if (!rememberReferral(req, raw, "code")) {
+      const reason = req.session.referralRejected?.reason || "REFERRAL_NOT_NEW";
+      delete req.session.referralRejected;
+      return res.status(400).json({ ok: false, error: reason });
+    }
     return res.json({
       ok: true,
       promo: { code: raw.toLowerCase(), bonusPercent: referrals.FRIEND_BONUS_PERCENT, referral: true },

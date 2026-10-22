@@ -79,9 +79,9 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
   }
 
   if (!data.ok) {
-    // Чужий реферальний код діє тільки для нових клієнтів — кажемо прямо,
-    // а не "такого коду немає": код є, просто не для цієї людини.
-    promoStatus.textContent = data.error === "REFERRAL_NOT_NEW" ? REF_TEXT.notNew : CFG.promoNotFound || "";
+    // Реферальний код є, просто не для цієї людини — кажемо чому, а не
+    // "такого коду немає".
+    promoStatus.textContent = REF_TEXT[data.error] || CFG.promoNotFound || "";
     promoStatus.classList.add("field-error");
     return;
   }
@@ -97,15 +97,21 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
 const REF_TEXT = {
   uk: {
     add: "Додати реферальні {amount} до цієї виплати",
-    notNew: "Цей код діє тільки для нових клієнтів — ти вже продавав у нас",
+    REFERRAL_NOT_NEW: "Цей код — тільки для нових клієнтів, а ти вже продавав у нас",
+    REFERRAL_OWN: "Це твій власний код — його дають друзям, собі застосувати не можна",
+    REFERRAL_TAKEN: "Ти вже закріплений за іншим кодом — він діє назавжди",
   },
   ru: {
     add: "Добавить реферальные {amount} к этой выплате",
-    notNew: "Этот код действует только для новых клиентов — ты уже продавал у нас",
+    REFERRAL_NOT_NEW: "Этот код — только для новых клиентов, а ты уже продавал у нас",
+    REFERRAL_OWN: "Это твой собственный код — его дают друзьям, себе применить нельзя",
+    REFERRAL_TAKEN: "Ты уже закреплён за другим кодом — он действует навсегда",
   },
   en: {
     add: "Add your referral {amount} to this payout",
-    notNew: "This code is for new clients only — you've already sold with us",
+    REFERRAL_NOT_NEW: "This code is for new clients only — you've already sold with us",
+    REFERRAL_OWN: "That's your own code — it's for your friends, you can't apply it yourself",
+    REFERRAL_TAKEN: "You're already tied to another code — that's for good",
   },
 }[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
 
@@ -134,9 +140,17 @@ async function loadReferralBalance() {
 loadReferralBalance();
 
 // Код міг приїхати з партнерським посиланням ще до входу — показуємо його.
+// Не підійшов (свій, чи людина вже наш клієнт) — показуємо код і причину.
 fetch("/api/account/promo")
   .then((r) => r.json())
-  .then((d) => showPromo(d.promo))
+  .then((d) => {
+    if (d.promo) return showPromo(d.promo);
+    if (d.rejected) {
+      promoInput.value = d.rejected.code.toUpperCase();
+      promoStatus.textContent = REF_TEXT[d.rejected.reason] || "";
+      promoStatus.classList.add("field-error");
+    }
+  })
   .catch(() => {});
 
 // ---- Спосіб виплати і реквізити ----
