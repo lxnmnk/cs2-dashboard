@@ -2311,3 +2311,114 @@ a.sender-line { color: var(--gold); }
   border-radius: 999px;
   padding: 1px 8px;
 }
+
+/* ---- Реферальна програма (вкладка в профілі, referral.js) ---- */
+/* Вкладка ширша за решту профілю: дві колонки карток у 760 px не влазять. */
+#profileCard.is-wide { max-width: 1120px; }
+
+.ref-grid { display: grid; grid-template-columns: 1.15fr 1fr; gap: var(--s-4); margin-bottom: var(--s-4); }
+.ref-card {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-5);
+  min-width: 0;
+}
+.ref-card h3 { margin: 0 0 var(--s-3); font-size: var(--t-lg); }
+.ref-label { display: block; margin: var(--s-3) 0 var(--s-1); font-size: var(--t-sm); color: var(--muted); }
+.ref-row { display: flex; gap: var(--s-2); }
+.ref-row input,
+.ref-withdraw input,
+.ref-withdraw select {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+}
+.btn-small.ref-alt { background: transparent; border-color: var(--border); color: var(--text); }
+.btn-small.ref-alt:hover { background: var(--gold-soft); border-color: var(--gold-line); color: var(--gold); }
+
+.ref-invite { display: flex; gap: var(--s-5); }
+.ref-invite-main { flex: 1; min-width: 0; }
+.ref-share { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-2) 0 var(--s-1); }
+.ref-share .btn-small { text-decoration: none; }
+.ref-text {
+  margin-bottom: var(--s-2);
+  padding: var(--s-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+  color: var(--text);
+}
+.ref-qr { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); }
+.ref-qr-box { padding: var(--s-2); background: #fff; border-radius: var(--r-sm); line-height: 0; }
+.ref-qr-box img, .ref-qr-box canvas { width: 160px; height: 160px; }
+
+.ref-level-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--s-3); }
+.ref-level-name { font-size: var(--t-xl); font-weight: 800; }
+.ref-level-right { text-align: right; }
+.ref-level-pct { font-size: var(--t-2xl); font-weight: 800; color: var(--gold); }
+.ref-progress { height: 8px; margin: var(--s-3) 0 var(--s-2); border-radius: 999px; background: var(--panel); overflow: hidden; }
+.ref-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #b9832a, var(--gold)); }
+
+.ref-table { width: 100%; border-collapse: collapse; font-size: var(--t-sm); }
+.ref-table th { text-align: left; font-weight: 600; color: var(--muted); padding: var(--s-2); border-bottom: 1px solid var(--border); }
+.ref-table td { padding: var(--s-2); border-bottom: 1px solid var(--border); }
+.ref-levels { margin: var(--s-3) 0; }
+.ref-levels tr.is-current td { color: var(--gold); font-weight: 700; }
+
+.ref-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-3); margin-bottom: var(--s-4); }
+
+.ref-money { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); margin-bottom: var(--s-3); }
+.ref-money > div { padding: var(--s-3); border-radius: var(--r-sm); background: var(--panel); }
+.ref-money-value { margin: 2px 0; font-size: var(--t-xl); font-weight: 800; }
+.ref-money-value.is-pending { color: var(--gold); }
+.ref-money-value.is-available { color: #5fbf77; }
+.ref-withdraw { display: flex; gap: var(--s-2); flex-wrap: wrap; }
+.ref-withdraw select { flex: 0 0 150px; }
+.ref-note { margin: 0 0 var(--s-3); font-size: var(--t-sm); color: var(--gold); }
+
+.ref-tabs { display: flex; gap: var(--s-1); margin-bottom: var(--s-3); }
+.ref-tab {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+.ref-tab.active { background: var(--text); border-color: var(--text); color: var(--bg); }
+.ref-history { overflow-x: auto; }
+.ref-state.is-available { color: #5fbf77; }
+.ref-state.is-pending { color: var(--gold); }
+.ref-state.is-cancelled { color: var(--red); }
+
+.ref-rules ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--s-2); font-size: var(--t-sm); line-height: 1.5; color: var(--muted); }
+.ref-locked { text-align: center; padding: var(--s-5) var(--s-3); }
+.ref-locked h3 { margin: 0 0 var(--s-2); }
+.ref-locked .btn-small { display: inline-block; margin-top: var(--s-2); text-decoration: none; }
+
+.cart-referral { display: flex; gap: var(--s-2); align-items: flex-start; margin-top: var(--s-3); font-size: var(--t-sm); cursor: pointer; }
+.cart-referral input { margin-top: 2px; accent-color: var(--gold); }
+
+@media (max-width: 900px) {
+  .ref-grid { grid-template-columns: 1fr; }
+  .ref-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  .ref-invite { flex-direction: column; }
+  .ref-money { gap: var(--s-2); }
+  .ref-money > div { padding: var(--s-2); }
+  .ref-money-value { font-size: var(--t-lg); }
+  .ref-row { flex-wrap: wrap; }
+  .ref-withdraw select { flex: 1 1 100%; }
+  #profileCard.is-wide { padding: var(--s-4); }
+}

@@ -37,6 +37,7 @@ const skinbuxSalesImport = require("./skinbuxSalesImport");
 const tradeFloats = require("./tradeFloats");
 const debts = require("./debts");
 const promoCodes = require("./promoCodes");
+const referrals = require("./referrals");
 const { categoryOf, weaponOf, CATEGORY_ORDER, WEAPONS } = require("./itemCategory");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
@@ -240,12 +241,47 @@ app.get("/sitemap.xml", (req, res) => {
 app.get(/^\/([a-zA-Z0-9_-]{3,20})$/, (req, res, next) => {
   const code = req.params[0];
   const promo = promoCodes.find(code);
-  if (!promo) return next();
+  if (promo) {
+    promoCodes.countClick(promo.code);
+    req.session.promo = promo.code;
+    return res.redirect("/");
+  }
 
-  promoCodes.countClick(promo.code);
-  req.session.promo = promo.code;
+  // Те саме посилання, але з кодом клієнта (реферальна програма,
+  // referrals.js). Залогіненого закріплюємо одразу, інших — при вході.
+  if (!referrals.countClick(code)) return next();
+  rememberReferral(req, code, "link");
   res.redirect("/");
 });
+
+/**
+ * Код клієнта з посилання чи з кошика: кладемо в сесію і, якщо людина вже
+ * увійшла, закріплюємо. Не закріпилась за цим кодом (вже наш клієнт, уже
+ * закріплена за іншим або це її власний код) — прибираємо код із сесії, щоб
+ * не показувати бонус, якого не буде. Повертає, чи код діє для людини.
+ */
+function rememberReferral(req, code, via) {
+  req.session.referral = { code: String(code).toLowerCase(), via };
+  const steamId = req.session.customer?.steamId;
+  if (!steamId) return true;
+  const bound = referrals.bind(steamId, code, via);
+  const ok = !!bound && referrals.ownerOfCode(code) === bound;
+  if (!ok) delete req.session.referral;
+  return ok;
+}
+
+/**
+ * Бонус другу за реферальним кодом: якщо людина закріплена за кимось або
+ * прийшла за посиланням і ще не входила. Повертає відсоток або 0.
+ */
+function referralBonusFor(req) {
+  const steamId = req.session?.customer?.steamId;
+  if (steamId && referrals.referrerOf(steamId)) return referrals.FRIEND_BONUS_PERCENT;
+  if (!steamId && req.session?.referral && referrals.ownerOfCode(req.session.referral.code)) {
+    return referrals.FRIEND_BONUS_PERCENT;
+  }
+  return 0;
+}
 
 // trade.html/sell-quote.html/buy-quote.html — отдельные публичные страницы
 // для внешних людей (не аккаунтов сайта), см. sellQuote.js/buyQuote.js.
@@ -312,6 +348,7 @@ const PUBLIC_PATHS = new Set([
   "/ru/profile",
   "/en/profile",
   "/profile.js",
+  "/referral.js",
   "/deal-card.js",
   "/auth/steam",
   "/auth/steam/return",
@@ -320,6 +357,9 @@ const PUBLIC_PATHS = new Set([
   "/api/account/inventory",
   "/api/account/trade-url",
   "/api/account/promo",
+  "/api/account/referral",
+  "/api/account/referral/code",
+  "/api/account/referral/withdraw",
   "/api/account/sell",
   "/api/account/trade-sell",
   "/api/account/sales",
@@ -583,11 +623,13 @@ function discountFor(req, { tradeMode = false } = {}) {
   const settings = pricingSettings.get();
   const base = tradeMode ? settings.tradeDiscount : settings.sellDiscount;
   const promo = promoCodes.find(req.session?.promo);
-  if (!promo) return { discount: base, promo: null };
+  // Партнерський код і реферальний бонус не складаються: діє більший.
+  const bonusPercent = Math.max(promo?.bonusPercent || 0, referralBonusFor(req));
+  if (!bonusPercent) return { discount: base, promo: null };
   // Знижка тут — частка (0.05 = 5%), а бонус коду задається у відсотках.
   // Без ділення на 100 код з'їдав би всю знижку одразу: клієнт отримував би
   // повну ціну Skinbux, а ми — нуль.
-  return { discount: Math.max(0, base - promo.bonusPercent / 100), promo };
+  return { discount: Math.max(0, base - bonusPercent / 100), promo };
 }
 
 function quoteForItem(it, opts) {
@@ -721,6 +763,10 @@ async function sellCustomerItems(req, res, { tradeMode }) {
   if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
   if (!customer.tradeUrl) return res.status(400).json({ ok: false, error: "NO_TRADE_URL" });
 
+  // Код із посилання міг лишитись у сесії з часів до входу — закріплюємо до
+  // розрахунку цін, щоб бонус друга вже був у ціні.
+  if (req.session.referral) rememberReferral(req, req.session.referral.code, req.session.referral.via);
+
   const assetIds = Array.isArray((req.body || {}).assetIds) ? req.body.assetIds : [];
   const expectedPrices = (req.body || {}).expectedPrices || {};
   if (!assetIds.length) return res.status(400).json({ ok: false, error: "Порожній список предметів" });
@@ -810,6 +856,10 @@ async function sellCustomerItems(req, res, { tradeMode }) {
     }
 
     const totalPrice = items.reduce((sum, it) => sum + Number(it.price), 0);
+    // Реферальні гроші продавця — до цієї виплати, якщо він так обрав у
+    // кошику. В обміні виплати грошима немає, тож там не пропонуємо.
+    const referralTopUp =
+      !tradeMode && req.body?.useReferralBalance ? referrals.spendOnSale(customer.steamId, result.id) : 0;
     skinbuxSales.record({
       id: result.id,
       steamId: customer.steamId,
@@ -829,9 +879,12 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       payoutDetails: details,
       // Хто привів цього клієнта — за цим рахується звіт по партнерах.
       promoCode: promoCodes.find(req.session?.promo)?.code || null,
+      // Хто запросив цього клієнта і під яким відсотком — для нарахування.
+      ...(referrals.accrualForSale(customer.steamId) || {}),
+      referralTopUp,
     });
 
-    res.json({ ok: true, totalPrice, ...result });
+    res.json({ ok: true, totalPrice, referralTopUp, ...result });
   } catch (err) {
     console.error(`[${tradeMode ? "trade-sell" : "account-sell"}] Ошибка:`, err.message);
     res.status(400).json({ ok: false, error: err.message });
@@ -844,7 +897,11 @@ async function sellCustomerItems(req, res, { tradeMode }) {
 // застосовано, щоб кошик одразу перечитав ціни.
 app.get("/api/account/promo", (req, res) => {
   const promo = promoCodes.find(req.session?.promo);
-  res.json({ ok: true, promo: promo ? { code: promo.code, bonusPercent: promo.bonusPercent } : null });
+  if (promo) return res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent } });
+  // Реферальний бонус показуємо в тому ж полі: для клієнта це теж "код".
+  const bonus = referralBonusFor(req);
+  const code = req.session?.referral?.code || null;
+  res.json({ ok: true, promo: bonus ? { code, bonusPercent: bonus, referral: true } : null });
 });
 
 app.post("/api/account/promo", (req, res) => {
@@ -854,10 +911,79 @@ app.post("/api/account/promo", (req, res) => {
     return res.json({ ok: true, promo: null });
   }
   const promo = promoCodes.find(raw);
-  if (!promo) return res.status(400).json({ ok: false, error: "PROMO_NOT_FOUND" });
+  if (!promo) {
+    // Не партнерський — може, це код іншого клієнта.
+    if (!referrals.ownerOfCode(raw)) return res.status(400).json({ ok: false, error: "PROMO_NOT_FOUND" });
+    if (!rememberReferral(req, raw, "code")) return res.status(400).json({ ok: false, error: "REFERRAL_NOT_NEW" });
+    return res.json({
+      ok: true,
+      promo: { code: raw.toLowerCase(), bonusPercent: referrals.FRIEND_BONUS_PERCENT, referral: true },
+    });
+  }
 
   req.session.promo = promo.code;
   res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent } });
+});
+
+// ---- Реферальна програма: кабінет клієнта ----
+const customerNameOf = (steamId) => customers.findBySteamId(String(steamId))?.displayName || String(steamId);
+
+app.get("/api/account/referral", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  res.json({
+    ok: true,
+    ...referrals.summary(customer.steamId, { displayName: customer.displayName, customerName: customerNameOf }),
+  });
+});
+
+app.post("/api/account/referral/code", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  try {
+    res.json({ ok: true, code: referrals.setCode(customer.steamId, req.body?.code) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+app.post("/api/account/referral/withdraw", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  let details;
+  let payout;
+  try {
+    details = payoutDetails.parse("crypto", req.body);
+    payout = referrals.requestWithdraw(customer.steamId, details);
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: err.message });
+  }
+  // Переказ робить власник руками — одразу кажемо йому в Telegram.
+  sendOwnerMessage(
+    [
+      "🎁 Заявка на реферальную выплату",
+      `Клиент: ${customer.displayName || "—"} (${customer.steamId})`,
+      `Сумма: $${payout.amount.toFixed(2)}`,
+      `Куда: ${payoutDetails.describe(details)}`,
+      "",
+      "После перевода отметь в My Trades → Referral payouts.",
+    ].join("\n"),
+    payoutBotCredentials()
+  ).catch((err) => console.error("[referral] Не удалось сообщить о заявке:", err.message));
+  res.json({ ok: true, payout: { id: payout.id, amount: payout.amount, status: payout.status } });
+});
+
+// ---- Реферальна програма: панель власника ----
+app.get("/api/referrals", requireSiteOwner, (req, res) => {
+  res.json({ ok: true, ...referrals.ownerReport(customerNameOf) });
+});
+
+app.post("/api/referrals/payouts/:id", requireSiteOwner, (req, res) => {
+  try {
+    res.json({ ok: true, payout: referrals.setPayoutStatus(req.params.id, req.body?.status) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
 });
 
 // ---- Партнери й промокоди (панель власника) ----
@@ -927,13 +1053,15 @@ async function notifyPayableSales() {
   if (!pending.length) return;
 
   for (const sale of pending) {
-    const uah = Math.round((Number(sale.totalPrice) || 0) * config.uahRate);
+    const owed = skinbuxSales.amountOwed(sale);
+    const uah = Math.round(owed * config.uahRate);
     const lines = [
       `💸 Можно платить — сделка #${sale.id}`,
       `Клиент: ${sale.customerName || "—"} (${sale.steamId})`,
       sale.payoutDetails?.method === "card"
-        ? `Сумма: $${Number(sale.totalPrice).toFixed(2)} ≈ ${uah.toLocaleString("uk-UA")} ₴`
-        : `Сумма: $${Number(sale.totalPrice).toFixed(2)}`,
+        ? `Сумма: $${owed.toFixed(2)} ≈ ${uah.toLocaleString("uk-UA")} ₴`
+        : `Сумма: $${owed.toFixed(2)}`,
+      sale.referralTopUp ? `  (в т.ч. реферальные $${Number(sale.referralTopUp).toFixed(2)} с бонусом)` : null,
       `Куда: ${payoutDetails.describe(sale.payoutDetails) || "реквизиты не указаны — спроси в Telegram"}`,
       `Предметы: ${(sale.items || []).map((it) => it.name).join(", ")}`,
       "",
@@ -941,7 +1069,7 @@ async function notifyPayableSales() {
     ];
 
     try {
-      const result = await sendOwnerMessage(lines.join("\n"), payoutBotCredentials());
+      const result = await sendOwnerMessage(lines.filter((l) => l !== null).join("\n"), payoutBotCredentials());
       if (!result.sent) {
         console.warn(`[payout] Угода ${sale.id} готова до виплати, але сповіщення не надіслано: ${result.reason}`);
         continue;
@@ -1079,6 +1207,8 @@ app.get("/auth/steam/return", async (req, res) => {
     const profile = await steamAuth.fetchSteamProfile(steamId);
     const customer = customers.upsertBySteamId(steamId, profile);
     req.session.customer = customer;
+    // Прийшов за чиїмось посиланням до входу — закріплюємо зараз.
+    if (req.session.referral) rememberReferral(req, req.session.referral.code, req.session.referral.via);
     console.log(`[steam-auth] Вход ${steamId} за ${took()}`);
     res.redirect(backUrl);
   } catch (err) {
@@ -1618,7 +1748,9 @@ app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
         kind: sale.kind || "sell",
         items: (sale.items || []).map((it) => it.name),
         // Другу возвращаем всё, что пришло за его предметы.
-        totalPrice: partner ? Math.round(skinbuxTotal * 100) / 100 : sale.totalPrice,
+        // С реферальной добавкой клиента, если он её выбрал: платим всё вместе.
+        totalPrice: partner ? Math.round(skinbuxTotal * 100) / 100 : skinbuxSales.amountOwed(sale),
+        referralTopUp: sale.referralTopUp || 0,
         skinbuxTotal: Math.round(skinbuxTotal * 100) / 100,
         profit: partner ? 0 : Math.round((skinbuxTotal - sale.totalPrice) * 100) / 100,
         status: sale.status,

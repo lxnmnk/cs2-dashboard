@@ -2404,6 +2404,7 @@ fetch("/api/me")
     loadClientSales();
     loadPricingSettings();
     loadPromoCodes();
+    loadReferrals();
     loadCustomerBalances();
   });
 
@@ -2586,6 +2587,84 @@ document.getElementById("custBalAddBtn")?.addEventListener("click", async () => 
 // Одно слово работает двумя способами: gaben.market/sicarios как ссылка и
 // SICARIOS как промокод в корзине. Клиенту оно даёт бонус к выплате, партнёру
 // — долю нашей маржи с приведённых им людей.
+// ---- Реферальна програма (тільки власник) ----
+// Заявки на вивід реферальних грошей: переказуєш руками за адресою з рядка і
+// тиснеш Paid. Reject — якщо це накрутка (мультиакаунт, спам) — гроші тоді
+// повертаються людині на баланс, і вона бачить заявку відхиленою.
+async function loadReferrals() {
+  const payoutsBody = document.getElementById("refPayoutsBody");
+  const referrersBody = document.getElementById("refReferrersBody");
+  if (!payoutsBody) return;
+
+  let data;
+  try {
+    data = await (await fetch("/api/referrals")).json();
+  } catch {
+    data = { ok: false };
+  }
+  if (!data.ok) return;
+
+  const steamLink = (steamId, name) =>
+    `<a href="https://steamcommunity.com/profiles/${escapeHtml(steamId)}" target="_blank">${escapeHtml(name || steamId)}</a>`;
+  const NETWORK_LABELS = {
+    "usdt-trc20": "USDT TRC-20", "usdt-erc20": "USDT ERC-20", "usdt-bep20": "USDT BEP-20", "usdt-sol": "USDT Solana",
+    "usdc-trc20": "USDC TRC-20", "usdc-erc20": "USDC ERC-20", "usdc-bep20": "USDC BEP-20",
+  };
+
+  payoutsBody.innerHTML = data.payouts.length
+    ? data.payouts
+        .map((p) => {
+          const actions =
+            p.status === "requested"
+              ? `<button class="btn-small" data-action="ref-payout" data-status="paid" data-id="${escapeHtml(p.id)}">Paid</button>
+                 <button class="btn-small btn-danger" data-action="ref-payout" data-status="rejected" data-id="${escapeHtml(p.id)}">Reject</button>`
+              : `<button class="btn-small btn-secondary" data-action="ref-payout" data-status="requested" data-id="${escapeHtml(p.id)}">Undo</button>`;
+          return `<tr${p.status === "requested" ? "" : ' class="debt-repaid"'}>
+            <td>${fmtDate(p.createdAt)}</td>
+            <td>${steamLink(p.steamId, p.customerName)}</td>
+            <td><b>${fmtMoney(p.amount)}</b></td>
+            <td>${escapeHtml(NETWORK_LABELS[p.network] || p.network || "")}<div class="client-payout">${escapeHtml(p.address || "")}</div></td>
+            <td>${p.status === "paid" ? `paid ${fmtDate(p.paidAt)}` : escapeHtml(p.status)}</td>
+            <td>${actions}</td>
+          </tr>`;
+        })
+        .join("")
+    : '<tr><td colspan="6" class="empty-row">No withdrawal requests yet.</td></tr>';
+
+  referrersBody.innerHTML = data.referrers.length
+    ? data.referrers
+        .map(
+          (r) => `<tr>
+            <td>${steamLink(r.steamId, r.customerName)}</td>
+            <td><b>${escapeHtml(r.code.toUpperCase())}</b></td>
+            <td>${r.clicks}</td>
+            <td>${r.friends}</td>
+            <td>${fmtMoney(r.volume)}</td>
+            <td>${r.percent}%</td>
+            <td>${fmtMoney(r.balance.pending)}</td>
+            <td>${fmtMoney(r.balance.available)}</td>
+            <td>${fmtMoney(r.balance.paid)}</td>
+          </tr>`
+        )
+        .join("")
+    : '<tr><td colspan="9" class="empty-row">Nobody has brought friends yet — codes appear in client profiles after their first sale.</td></tr>';
+
+  payoutsBody.querySelectorAll("[data-action='ref-payout']").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (btn.dataset.status === "rejected" && !confirm("Reject this request? The money goes back to the client's referral balance.")) return;
+      btn.disabled = true;
+      const res = await fetch(`/api/referrals/payouts/${encodeURIComponent(btn.dataset.id)}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: btn.dataset.status }),
+      });
+      const result = await res.json();
+      if (!result.ok) alert(result.error || "Failed");
+      loadReferrals();
+    });
+  });
+}
+
 async function loadPromoCodes() {
   const body = document.getElementById("promoBody");
   if (!body) return;

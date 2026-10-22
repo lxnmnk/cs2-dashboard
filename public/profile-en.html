@@ -73,6 +73,7 @@
       <button class="profile-tab active" type="button" data-tab="info">Profile</button>
       <button class="profile-tab" type="button" data-tab="deals">My deals</button>
       <button class="profile-tab" type="button" data-tab="balance">Balance</button>
+      <button class="profile-tab" type="button" data-tab="referral">🎁 Referrals</button>
     </div>
 
     <div class="profile-pane" data-pane="info">
@@ -110,6 +111,10 @@
       </div>
       <p class="card-hint" id="balRate"></p>
       <p class="card-hint">Payouts go through Telegram — the button shows up on a deal once the Steam hold is over.</p>
+    </div>
+
+    <div class="profile-pane" data-pane="referral" style="display:none;">
+      <div id="referralRoot"></div>
     </div>
   </section>
 
@@ -248,5 +253,6 @@
   <script src="/sell-offer-modal.js"></script>
   <script src="/deal-card.js"></script>
   <script src="/profile.js"></script>
+  <script src="/referral.js"></script>
 </body>
 </html>

@@ -47,7 +47,11 @@ function saveAll(sales) {
 // реквізити в Telegram уже після того, як гроші вийшли з холду.
 // promoCode — хто привів цього клієнта (promoCodes.js). Потрібен, щоб
 // порахувати, скільки партнеру належить за приведених людей.
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode }) {
+// referrerSteamId/referralPercent — клієнт, який запросив цього (referrals.js),
+// і його відсоток на момент продажу: з них рахується реферальне нарахування.
+// referralTopUp — реферальні гроші самого продавця, які він додав до цієї
+// виплати (разом із бонусом): ми винні йому totalPrice + referralTopUp.
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode, referrerSteamId, referralPercent, referralTopUp }) {
   const sales = loadAll();
   sales.push({
     id,
@@ -57,6 +61,9 @@ function record({ id, steamId, customerName, items, totalPrice, offerId, expires
     payoutMethod: payoutMethod || null,
     payoutDetails: payoutDetails || null,
     promoCode: promoCode || null,
+    referrerSteamId: referrerSteamId ? String(referrerSteamId) : null,
+    referralPercent: referrerSteamId ? Number(referralPercent) || 0 : null,
+    referralTopUp: Number(referralTopUp) > 0 ? round2(referralTopUp) : 0,
     items,
     totalPrice,
     offerId,
@@ -135,8 +142,8 @@ function computeBalance(steamId) {
     const accepted = sale.status === "hold" || sale.status === "completed";
     if (!accepted) continue;
     if (sale.kind === "trade") trade += sale.totalPrice;
-    else if (sale.status === "hold") hold += sale.totalPrice;
-    else available += sale.totalPrice;
+    else if (sale.status === "hold") hold += amountOwed(sale);
+    else available += amountOwed(sale);
   }
 
   return { available: round2(available), hold: round2(hold), trade: round2(trade) };
@@ -199,4 +206,9 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, payableNow, markNotifiedPayable, lastPayout, HOLD_DAYS };
+/** Скільки ми винні клієнту за продаж: ціна його скінів плюс реферальні гроші, які він до неї додав. */
+function amountOwed(sale) {
+  return round2((Number(sale.totalPrice) || 0) + (Number(sale.referralTopUp) || 0));
+}
+
+module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, payableNow, markNotifiedPayable, lastPayout, amountOwed, HOLD_DAYS };

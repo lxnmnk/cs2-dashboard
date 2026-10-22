@@ -79,7 +79,9 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
   }
 
   if (!data.ok) {
-    promoStatus.textContent = CFG.promoNotFound || "";
+    // Чужий реферальний код діє тільки для нових клієнтів — кажемо прямо,
+    // а не "такого коду немає": код є, просто не для цієї людини.
+    promoStatus.textContent = data.error === "REFERRAL_NOT_NEW" ? REF_TEXT.notNew : CFG.promoNotFound || "";
     promoStatus.classList.add("field-error");
     return;
   }
@@ -87,6 +89,53 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
   // Ціни змінились — перечитуємо інвентар і кошик за новими.
   loadInventory();
 });
+
+// ---- Реферальні гроші — до цієї виплати ----
+// Хто запрошує друзів (вкладка "Реферали" в профілі), може не виводити
+// зароблене окремо, а додати до виплати за свій продаж — з бонусом. Тексти
+// тут, а не в ACCOUNT_CONFIG трьох сторінок: це один рядок на одну галочку.
+const REF_TEXT = {
+  uk: {
+    add: "Додати реферальні {amount} до цієї виплати — з бонусом +{bonus}% вийде {total}",
+    notNew: "Цей код діє тільки для нових клієнтів — ти вже продавав у нас",
+  },
+  ru: {
+    add: "Добавить реферальные {amount} к этой выплате — с бонусом +{bonus}% получится {total}",
+    notNew: "Этот код действует только для новых клиентов — ты уже продавал у нас",
+  },
+  en: {
+    add: "Add your referral {amount} to this payout — with the +{bonus}% bonus that's {total}",
+    notNew: "This code is for new clients only — you've already sold with us",
+  },
+}[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
+
+let referralTopUp = 0; // разом із бонусом; 0 — нема чого додавати
+const referralToggle = document.createElement("label");
+referralToggle.className = "cart-referral";
+referralToggle.style.display = "none";
+referralToggle.innerHTML = '<input type="checkbox" id="useReferralBalance" /><span></span>';
+promoStatus?.after(referralToggle);
+const useReferralInput = referralToggle.querySelector("input");
+useReferralInput.addEventListener("change", () => renderCart());
+
+async function loadReferralBalance() {
+  try {
+    const data = await (await fetch("/api/account/referral")).json();
+    const available = data.ok ? data.balance?.available || 0 : 0;
+    const bonus = data.rules?.saleTopUpBonusPercent || 0;
+    referralTopUp = available > 0 ? Math.round(available * (100 + bonus)) / 100 : 0;
+    referralToggle.style.display = referralTopUp > 0 ? "" : "none";
+    if (!referralTopUp) useReferralInput.checked = false;
+    referralToggle.querySelector("span").textContent = REF_TEXT.add
+      .replace("{amount}", `$${available.toFixed(2)}`)
+      .replace("{bonus}", bonus)
+      .replace("{total}", `$${referralTopUp.toFixed(2)}`);
+    renderCart();
+  } catch {
+    // не увійшов чи мережа — галочки просто не буде
+  }
+}
+loadReferralBalance();
 
 // Код міг приїхати з партнерським посиланням ще до входу — показуємо його.
 fetch("/api/account/promo")
@@ -419,6 +468,7 @@ sellAutoBtn?.addEventListener("click", async () => {
       expectedPrices: Object.fromEntries(cart.map((it) => [it.assetId, it.price])),
       payoutMethod,
       payoutDetails,
+      useReferralBalance: useReferralInput.checked,
     }),
   });
   const data = await res.json();
@@ -436,6 +486,11 @@ sellAutoBtn?.addEventListener("click", async () => {
   }
 
   sellOfferModal.show(data);
+  // Реферальні гроші пішли в цю виплату — галочка більше не потрібна.
+  if (data.referralTopUp) {
+    useReferralInput.checked = false;
+    loadReferralBalance();
+  }
   cart = [];
   renderInventoryList();
   renderCart();
@@ -818,7 +873,9 @@ function renderCart() {
   // до того, як щось обере, а не після.
   cartPickedLine.textContent = (CFG.cartPicked || "").replace("{n}", cart.length);
   cartTotal.textContent = price(total);
-  cartPayout.textContent = price(total);
+  // До виплати — разом із реферальними грошима, якщо людина їх додала.
+  const topUp = useReferralInput?.checked && cart.length ? referralTopUp : 0;
+  cartPayout.textContent = price(total + topUp);
   cartItemsCount.textContent = String(cart.length);
   cartEmptyLine.textContent = cart.length ? "" : CFG.cartEmpty || "";
   if (sellBtn) sellBtn.disabled = !cart.length;

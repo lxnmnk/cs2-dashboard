@@ -73,6 +73,7 @@
       <button class="profile-tab active" type="button" data-tab="info">Профіль</button>
       <button class="profile-tab" type="button" data-tab="deals">Мої угоди</button>
       <button class="profile-tab" type="button" data-tab="balance">Баланс</button>
+      <button class="profile-tab" type="button" data-tab="referral">🎁 Реферали</button>
     </div>
 
     <div class="profile-pane" data-pane="info">
@@ -110,6 +111,10 @@
       </div>
       <p class="card-hint" id="balRate"></p>
       <p class="card-hint">Виплата — у Telegram, кнопка з'явиться в угоді, коли мине холд Steam.</p>
+    </div>
+
+    <div class="profile-pane" data-pane="referral" style="display:none;">
+      <div id="referralRoot"></div>
     </div>
   </section>
 
@@ -248,5 +253,6 @@
   <script src="/sell-offer-modal.js"></script>
   <script src="/deal-card.js"></script>
   <script src="/profile.js"></script>
+  <script src="/referral.js"></script>
 </body>
 </html>
