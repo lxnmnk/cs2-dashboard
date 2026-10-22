@@ -234,7 +234,13 @@ async function requestBuyout(source, marketHashName) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ marketHashName }),
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: res.status === 504 || res.status === 502 ? `Server took too long to answer (HTTP ${res.status}) — try again` : `Server answered HTTP ${res.status}` };
+    }
     buyoutResults[key] = data.ok ? data : { error: data.error || data.reason || "No price" };
   } catch (err) {
     buyoutResults[key] = { error: err.message };

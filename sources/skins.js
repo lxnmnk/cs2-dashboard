@@ -27,6 +27,8 @@ const API = "https://api.skins.com/secure/user";
 const MIN_GAP_MS = 3000;
 const PAGE_TTL_MS = 10 * 60 * 1000;
 const PAGE_LIMIT = 100;
+// Скільки чекаємо відповіді — щоб завислий запит не тримав чергу.
+const REQUEST_TIMEOUT_MS = 20000;
 const MAX_PAGES = 4;
 // Страница, где самый дешёвый предмет дешевле 40% цены на CSFloat, — значит,
 // наш (он дороже) уже пролистан.
@@ -70,7 +72,20 @@ function api(method, path, body) {
       "User-Agent": USER_AGENT,
     };
     if (body) headers["Content-Type"] = "application/json";
-    const res = await fetch(`${API}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined });
+    let res;
+    try {
+      res = await fetch(`${API}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+    } catch (err) {
+      if (err.name === "TimeoutError") {
+        throw Object.assign(new Error(`skins.com не ответил за ${REQUEST_TIMEOUT_MS / 1000} с — попробуй ещё раз`), { timeout: true });
+      }
+      throw err;
+    }
     const text = await res.text();
 
     if (res.status === 401 || res.status === 403) {

@@ -24,6 +24,9 @@ const { tradeLinkFor } = require("../steamId");
 const API = "https://api.skin.place/widget/inventory";
 const MIN_GAP_MS = 5000;
 const INVENTORY_TTL_MS = 10 * 60 * 1000;
+// Скільки чекаємо відповіді. Без межі завислий запит тримав чергу (вона в нас
+// одна на всі перевірки), і всі наступні теж падали — по таймауту nginx.
+const REQUEST_TIMEOUT_MS = 20000;
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36";
 
@@ -107,7 +110,15 @@ async function fetchInventory(partner) {
     const xsrf = xsrfHeader();
     if (xsrf) headers["X-XSRF-TOKEN"] = xsrf;
 
-    const res = await fetch(url, { headers });
+    let res;
+    try {
+      res = await fetch(url, { headers, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    } catch (err) {
+      if (err.name === "TimeoutError") {
+        throw Object.assign(new Error(`skin.place не ответил за ${REQUEST_TIMEOUT_MS / 1000} с — попробуй ещё раз`), { timeout: true });
+      }
+      throw err;
+    }
     absorbSetCookie(res);
     const text = await res.text();
 

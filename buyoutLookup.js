@@ -51,7 +51,13 @@ async function csfloatListings(baseName, { phase, minFloat, maxFloat }) {
   if (minFloat != null) query.set("min_float", String(minFloat));
   if (maxFloat != null) query.set("max_float", String(maxFloat));
 
-  const res = await fetch(`${CSFLOAT_API}?${query}`, { headers: { Authorization: key } });
+  let res;
+  try {
+    res = await fetch(`${CSFLOAT_API}?${query}`, { headers: { Authorization: key }, signal: AbortSignal.timeout(15000) });
+  } catch (err) {
+    if (err.name === "TimeoutError") throw new Error("CSFloat не ответил за 15 с — попробуй ещё раз");
+    throw err;
+  }
   if (!res.ok) throw new Error(`CSFloat ответил ${res.status}`);
   const data = await res.json();
   const list = Array.isArray(data) ? data : data.data || [];
@@ -126,8 +132,10 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
         hintPrice: listing.csfloatPrice,
       });
     } catch (err) {
-      // Протухший вход — дальше пробовать бессмысленно.
-      if (err.auth) throw err;
+      // Протухший вход или площадка не отвечает — дальше пробовать
+      // бессмысленно: второй продавец упрётся в то же самое, а ждать его ещё
+      // 20 секунд — это уже за пределом, после которого nginx рвёт запрос.
+      if (err.auth || err.timeout) throw err;
       tried.push(err.message);
       continue;
     }
