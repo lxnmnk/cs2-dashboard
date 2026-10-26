@@ -13,6 +13,7 @@ const { buildRows, filterAndSort, applyDisplayFilters, findBestFlip, normalizeSo
 const trades = require("./trades");
 const users = require("./users");
 const { runCsfloatBidScan } = require("./csfloatBidScan");
+const { buildAutobuyFeed } = require("./autobuyFeed");
 const { sendScanToTelegram, sendOwnerMessage } = require("./telegramNotifier");
 const payoutDetails = require("./payoutDetails");
 const { computeSellQuote } = require("./sellQuote");
@@ -1399,6 +1400,23 @@ async function runScheduledCsfloatBidScan() {
 
 app.get("/api/csfloat-bid-scan", (req, res) => {
   res.json(lastCsfloatBidScan || { generatedAt: null, count: 0, items: [] });
+});
+
+// ---- Список "купить по CSFloat ask → сдать на Skinbux" для csfloat-bot ----
+// Бот забирает его каждый тик (см. autobuyFeed.js). Доступ — по токену из
+// AUTOBUY_FEED_TOKEN (заголовок Authorization: Bearer <токен>), не по сессии:
+// ходит программа, а не владелец в браузере. Без токена в .env адрес выключен.
+app.get("/api/bot/autobuy-feed", (req, res) => {
+  const token = process.env.AUTOBUY_FEED_TOKEN;
+  if (!token) return res.status(404).json({ ok: false, error: "AUTOBUY_FEED_TOKEN не задан" });
+  const given = String(req.get("authorization") || "").replace(/^Bearer\s+/i, "");
+  const a = Buffer.from(given);
+  const b = Buffer.from(token);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return res.status(401).json({ ok: false, error: "неверный токен" });
+  }
+  if (!cache.rows.length) return res.status(503).json({ ok: false, error: "цены ещё не загружены" });
+  res.json({ ok: true, ...buildAutobuyFeed(cache.rows, config, cache.updatedAt) });
 });
 
 // Ручной запуск вне расписания — удобно для проверки, не дожидаясь 12 часов.

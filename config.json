@@ -157,5 +157,16 @@
     "richPercent": 101,
     "knifePercent": 101,
     "skinbuxPercent": 1
+  },
+  "autobuyFeed": {
+    "_comment": "Список для csfloat-bot: предметы, выгодные при покупке по CSFloat ask и продаже на Skinbux (как в таблице с Buy On = CSFloat Ask, Sell On = Skinbux). Бот забирает его каждый тик с GET /api/bot/autobuy-feed (токен AUTOBUY_FEED_TOKEN в .env) и ставит ордер не дороже min(Skinbux × 92%, Youpin bid × 105%).",
+    "minPrice": 100,
+    "maxPrice": null,
+    "minProfitUsd": 1,
+    "minProfitPercent": 5,
+    "maxResults": 50,
+    "excludeStatTrak": false,
+    "excludeSouvenir": true,
+    "excludeStickers": true
   }
 }
