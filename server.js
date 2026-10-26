@@ -394,6 +394,9 @@ const PUBLIC_PATHS = new Set([
   "/api/account/trade-sell",
   "/api/account/sales",
   "/api/webhooks/skinbux",
+  // csfloat-bot ходит без сессии; доступ проверяет сам маршрут — по токену
+  // AUTOBUY_FEED_TOKEN.
+  "/api/bot/autobuy-feed",
 ]);
 
 // Сторінки внутрішньої панелі: тільки з них незалогіненого шлемо на вхід.
