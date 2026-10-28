@@ -313,6 +313,20 @@
       </table>
     </div>
 
+    <!-- Відгуки клієнтів (reviews.js): публікуються одразу; ховати — тільки
+         образи чи спам, а не погані оцінки, інакше це вже не відгуки. -->
+    <div class="section-title">Reviews <span class="section-hint">published right away and shown in the live feed on the home page — hide only insults or spam, not bad ratings</span></div>
+    <div class="table-card">
+      <table id="reviewsTable">
+        <thead>
+          <tr><th>When</th><th>Client</th><th>Deal #</th><th>Rating</th><th>Text</th><th></th></tr>
+        </thead>
+        <tbody id="reviewsBody">
+          <tr><td colspan="6" class="loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="section-title">Pricing <span class="section-hint">what clients pay and get — changes on the site right away; for a promo set them to 0</span></div>
     <section class="add-trade-form">
       <label>Buy tab: Youpin +, %

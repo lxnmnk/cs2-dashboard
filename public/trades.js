@@ -2411,6 +2411,7 @@ fetch("/api/me")
     loadPricingSettings();
     loadPromoCodes();
     loadReferrals();
+    loadReviews();
     loadCustomerBalances();
   });
 
@@ -2593,6 +2594,48 @@ document.getElementById("custBalAddBtn")?.addEventListener("click", async () => 
 // Одно слово работает двумя способами: gaben.market/sicarios как ссылка и
 // SICARIOS как промокод в корзине. Клиенту оно даёт бонус к выплате, партнёру
 // — долю нашей маржи с приведённых им людей.
+// ---- Відгуки (тільки власник) ----
+async function loadReviews() {
+  const body = document.getElementById("reviewsBody");
+  if (!body) return;
+  let data;
+  try {
+    data = await (await fetch("/api/reviews")).json();
+  } catch {
+    data = { ok: false };
+  }
+  if (!data.ok) return;
+  if (!data.reviews.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty-row">No reviews yet — clients leave them on their deals in the profile.</td></tr>';
+    return;
+  }
+  body.innerHTML = data.reviews
+    .map(
+      (r) => `<tr${r.hidden ? ' class="debt-repaid"' : ""}>
+        <td>${fmtDate(r.createdAt)}</td>
+        <td><a href="https://steamcommunity.com/profiles/${escapeHtml(r.steamId)}" target="_blank">${escapeHtml(r.name || r.steamId)}</a></td>
+        <td>#${escapeHtml(r.saleId)}</td>
+        <td style="color: var(--accent); white-space: nowrap;">${"★".repeat(r.rating)}${"☆".repeat(5 - r.rating)}</td>
+        <td>${escapeHtml(r.text || "")}</td>
+        <td><button class="btn-small btn-secondary" data-action="review-hide" data-id="${escapeHtml(r.id)}" data-hidden="${r.hidden ? "0" : "1"}">${
+          r.hidden ? "Show" : "Hide"
+        }</button></td>
+      </tr>`
+    )
+    .join("");
+  body.querySelectorAll("[data-action='review-hide']").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      await fetch(`/api/reviews/${encodeURIComponent(btn.dataset.id)}/hidden`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hidden: btn.dataset.hidden === "1" }),
+      });
+      loadReviews();
+    });
+  });
+}
+
 // ---- Реферальна програма (тільки власник) ----
 // Заявки на вивід реферальних грошей: переказуєш руками за адресою з рядка і
 // тиснеш Paid. Reject — якщо це накрутка (мультиакаунт, спам) — гроші тоді

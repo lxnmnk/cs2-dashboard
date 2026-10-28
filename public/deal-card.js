@@ -33,6 +33,31 @@
       .join("");
   }
 
+  // ---- Відгук на угоду ----
+  // Тексти тут, а не в ACCOUNT_CONFIG трьох сторінок: це один маленький
+  // блок, і три копії підписів розійшлися б при першій правці.
+  const RT = {
+    uk: { leave: "★ Залишити відгук", edit: "Змінити", save: "Опублікувати", cancel: "Скасувати", placeholder: "Як пройшла угода? (необов'язково)", pick: "Обери оцінку", thanks: "Дякуємо за відгук!", hidden: "прихований модератором" },
+    ru: { leave: "★ Оставить отзыв", edit: "Изменить", save: "Опубликовать", cancel: "Отмена", placeholder: "Как прошла сделка? (необязательно)", pick: "Выбери оценку", thanks: "Спасибо за отзыв!", hidden: "скрыт модератором" },
+    en: { leave: "★ Leave a review", edit: "Edit", save: "Publish", cancel: "Cancel", placeholder: "How did the deal go? (optional)", pick: "Pick a rating", thanks: "Thanks for the review!", hidden: "hidden by a moderator" },
+  }[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
+
+  const starsHtml = (n) => `<span class="deal-stars">${"★".repeat(n)}<span class="deal-stars-off">${"★".repeat(5 - n)}</span></span>`;
+
+  // Відгук можна лишити, коли обмін прийнято: до того угоди ще не було.
+  function reviewHtml(sale) {
+    if (!(sale.status === "hold" || sale.status === "completed")) return "";
+    if (sale.review) {
+      return `<div class="deal-review" data-review-box>
+        ${starsHtml(sale.review.rating)}
+        ${sale.review.text ? `<span class="deal-review-text">${esc(sale.review.text)}</span>` : ""}
+        ${sale.review.hidden ? `<span class="deal-review-hidden">${esc(RT.hidden)}</span>` : ""}
+        <button type="button" class="deal-review-link" data-review-open data-rating="${sale.review.rating}" data-text="${esc(sale.review.text || "")}">${esc(RT.edit)}</button>
+      </div>`;
+    }
+    return `<div class="deal-review" data-review-box><button type="button" class="deal-review-btn" data-review-open>${esc(RT.leave)}</button></div>`;
+  }
+
   window.renderDealCard = function renderDealCard(sale, T) {
     const date = new Date(sale.createdAt).toLocaleDateString(T.dateLocale);
 
@@ -85,13 +110,14 @@
     }
 
     return `
-      <div class="deal-card is-${state}">
+      <div class="deal-card is-${state}" data-sale-id="${esc(String(sale.id))}">
         <div class="deal-card-main">
           <div class="deal-items">${itemsHtml(sale.items)}</div>
           <div class="deal-meta">
             <span class="deal-pill is-${state}">${esc(label)}</span>
             <span class="card-hint">${esc(format(T.dealLineTemplate, { id: sale.id, date }))}</span>
           </div>
+          ${reviewHtml(sale)}
         </div>
         <div class="deal-card-side">
           <span class="deal-price">${money(sale.totalPrice)}</span>
@@ -105,5 +131,59 @@
     root.querySelectorAll("[data-telegram]").forEach((btn) => {
       btn.addEventListener("click", () => window.open(btn.getAttribute("data-telegram"), "_blank"));
     });
+    root.querySelectorAll("[data-review-open]").forEach((btn) => btn.addEventListener("click", () => openReviewForm(btn)));
   };
+
+  // Форма відгуку прямо в картці: п'ять зірок і поле для тексту.
+  function openReviewForm(btn) {
+    const box = btn.closest("[data-review-box]");
+    const card = btn.closest("[data-sale-id]");
+    const before = box.innerHTML;
+    let rating = Number(btn.dataset.rating) || 0;
+    box.innerHTML = `
+      <div class="deal-review-form">
+        <div class="deal-star-pick">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}">★</button>`).join("")}</div>
+        <textarea maxlength="500" rows="2" placeholder="${esc(RT.placeholder)}">${esc(btn.dataset.text || "")}</textarea>
+        <div class="deal-review-actions">
+          <button type="button" class="btn-small" data-review-save>${esc(RT.save)}</button>
+          <button type="button" class="deal-review-link" data-review-cancel>${esc(RT.cancel)}</button>
+          <span class="deal-review-status"></span>
+        </div>
+      </div>`;
+    const paint = () =>
+      box.querySelectorAll("[data-star]").forEach((s) => s.classList.toggle("on", Number(s.dataset.star) <= rating));
+    paint();
+    box.querySelectorAll("[data-star]").forEach((s) =>
+      s.addEventListener("click", () => {
+        rating = Number(s.dataset.star);
+        paint();
+      })
+    );
+    box.querySelector("[data-review-cancel]").addEventListener("click", () => {
+      box.innerHTML = before;
+      box.querySelectorAll("[data-review-open]").forEach((b) => b.addEventListener("click", () => openReviewForm(b)));
+    });
+    box.querySelector("[data-review-save]").addEventListener("click", async () => {
+      const status = box.querySelector(".deal-review-status");
+      if (!rating) {
+        status.textContent = RT.pick;
+        return;
+      }
+      const text = box.querySelector("textarea").value.trim();
+      try {
+        const res = await fetch("/api/account/reviews", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ saleId: card.dataset.saleId, rating, text }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error);
+        box.innerHTML = `${starsHtml(data.review.rating)}${
+          data.review.text ? `<span class="deal-review-text">${esc(data.review.text)}</span>` : ""
+        }<span class="deal-review-thanks">${esc(RT.thanks)}</span>`;
+      } catch (err) {
+        status.textContent = err.message;
+      }
+    });
+  }
 })();

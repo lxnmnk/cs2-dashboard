@@ -39,6 +39,7 @@ const tradeFloats = require("./tradeFloats");
 const debts = require("./debts");
 const promoCodes = require("./promoCodes");
 const referrals = require("./referrals");
+const reviews = require("./reviews");
 const { categoryOf, weaponOf, CATEGORY_ORDER, WEAPONS } = require("./itemCategory");
 const capital = require("./capital");
 const capitalBank = require("./capitalBank");
@@ -388,6 +389,9 @@ const PUBLIC_PATHS = new Set([
   "/api/account/trade-url",
   "/api/account/promo",
   "/api/account/referral",
+  "/api/account/reviews",
+  "/api/public/feed",
+  "/live-feed.js",
   "/api/account/referral/code",
   "/api/account/referral/withdraw",
   "/api/account/sell",
@@ -1165,7 +1169,66 @@ app.get("/api/account/sales", async (req, res) => {
   await notifyPayableSales();
 
   const sales = skinbuxSales.listByUser(steamId);
+  // Свій відгук — у картці угоди: видно, що вже написав, і можна переписати.
+  const mine = reviews.bySaleIds(sales.map((s) => s.id));
+  for (const s of sales) {
+    const r = mine.get(String(s.id));
+    if (r) s.review = { rating: r.rating, text: r.text, hidden: r.hidden };
+  }
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
+});
+
+// ---- Відгуки й жива стрічка (reviews.js) ----
+app.post("/api/account/reviews", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  try {
+    const review = reviews.upsert(customer.steamId, { ...req.body, displayName: customer.displayName });
+    feedCache.clear(); // новий відгук має з'явитися в стрічці одразу
+    res.json({ ok: true, review: { rating: review.rating, text: review.text } });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Стрічку смикають усі відвідувачі головної раз на хвилину — тримаємо
+// готову відповідь 30 секунд, щоб не перечитувати журнал на кожен запит.
+const feedCache = new Map();
+app.get("/api/public/feed", async (req, res) => {
+  const limit = Math.min(30, Math.max(1, Number(req.query.limit) || 12));
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const withReviews = req.query.reviews === "1";
+  const key = `${limit}|${offset}|${withReviews}`;
+  const hit = feedCache.get(key);
+  if (hit && Date.now() - hit.at < 30000) return res.json(hit.body);
+  try {
+    const body = {
+      ok: true,
+      ...(await reviews.feed({
+        limit,
+        offset,
+        withReviews,
+        imageOf: async (name) => (await getSteamImages(name))?.thumb || null,
+      })),
+    };
+    feedCache.set(key, { at: Date.now(), body });
+    res.json(body);
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+app.get("/api/reviews", requireSiteOwner, (req, res) => {
+  res.json({ ok: true, reviews: reviews.listAll() });
+});
+
+app.post("/api/reviews/:id/hidden", requireSiteOwner, (req, res) => {
+  try {
+    feedCache.clear();
+    res.json({ ok: true, review: reviews.setHidden(req.params.id, req.body?.hidden) });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
 });
 
 // Отметка "деньги клиенту выплачены" — только для владельца сайта.
