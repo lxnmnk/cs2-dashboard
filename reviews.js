@@ -100,6 +100,25 @@ function listAll() {
 const isClientSale = (s) => ACCEPTED.has(s.status);
 
 /**
+ * Один продавець — не більше половини стрічки. Інакше, коли хтось продає
+ * багато (TARHUN), стрічка складалась з нього одного: 7 угод з 8. Йдемо від
+ * нових до старих і беремо угоду, тільки якщо з нею частка цього продавця не
+ * перевищить 50% уже показаного — тож і на першій сторінці, і далі.
+ */
+function capPerSeller(sales) {
+  const perSeller = new Map();
+  const kept = [];
+  for (const s of sales) {
+    const key = String(s.steamId);
+    const mine = perSeller.get(key) || 0;
+    if ((mine + 1) * 2 > kept.length + 1) continue;
+    perSeller.set(key, mine + 1);
+    kept.push(s);
+  }
+  return kept;
+}
+
+/**
  * Стрічка для головної: останні прийняті угоди клієнтів і загальні цифри.
  * withReviews — тільки угоди з відгуком (вкладка "Відгуки").
  * imageOf(name) — картинка предмета (steamImages), передає сервер.
@@ -113,6 +132,7 @@ async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
     .sort((a, b) => new Date(b.heldAt || b.createdAt) - new Date(a.heldAt || a.createdAt));
   const dealsTotal = sales.length;
   if (withReviews) sales = sales.filter((s) => reviewBySale.has(String(s.id)));
+  sales = capPerSeller(sales);
 
   const page = sales.slice(offset, offset + limit);
   const items = await Promise.all(
