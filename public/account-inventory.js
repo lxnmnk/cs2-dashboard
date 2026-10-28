@@ -96,18 +96,24 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
 // тут, а не в ACCOUNT_CONFIG трьох сторінок: це один рядок на одну галочку.
 const REF_TEXT = {
   uk: {
+    reviewBonus: "🎁 Бонус за відгук: +{n}% — уже в цінах цього продажу",
+    reviewInvite: "🎁 Залиш відгук про угоду #{id} у профілі — і отримай +{n}% до цього продажу",
     add: "Додати реферальні {amount} до цієї виплати",
     REFERRAL_NOT_NEW: "Цей код — тільки для нових клієнтів, а ти вже продавав у нас",
     REFERRAL_OWN: "Це твій власний код — його дають друзям, собі застосувати не можна",
     REFERRAL_TAKEN: "Ти вже закріплений за іншим кодом — він діє назавжди",
   },
   ru: {
+    reviewBonus: "🎁 Бонус за отзыв: +{n}% — уже в ценах этой продажи",
+    reviewInvite: "🎁 Оставь отзыв о сделке #{id} в профиле — и получи +{n}% к этой продаже",
     add: "Добавить реферальные {amount} к этой выплате",
     REFERRAL_NOT_NEW: "Этот код — только для новых клиентов, а ты уже продавал у нас",
     REFERRAL_OWN: "Это твой собственный код — его дают друзьям, себе применить нельзя",
     REFERRAL_TAKEN: "Ты уже закреплён за другим кодом — он действует навсегда",
   },
   en: {
+    reviewBonus: "🎁 Review bonus: +{n}% — already in this sale's prices",
+    reviewInvite: "🎁 Review deal #{id} in your profile and get +{n}% on this sale",
     add: "Add your referral {amount} to this payout",
     REFERRAL_NOT_NEW: "This code is for new clients only — you've already sold with us",
     REFERRAL_OWN: "That's your own code — it's for your friends, you can't apply it yourself",
@@ -141,9 +147,26 @@ loadReferralBalance();
 
 // Код міг приїхати з партнерським посиланням ще до входу — показуємо його.
 // Не підійшов (свій, чи людина вже наш клієнт) — показуємо код і причину.
+// Бонус за відгук: є — кажемо, що він уже в цінах; немає, але є угода з
+// розмороженими грошима без відгуку — запрошуємо його лишити.
+const reviewLine = document.createElement("p");
+reviewLine.className = "cart-review-bonus";
+reviewLine.style.display = "none";
+referralToggle.after(reviewLine);
+
 fetch("/api/account/promo")
   .then((r) => r.json())
   .then((d) => {
+    if (d.reviewBonus) {
+      reviewLine.textContent = REF_TEXT.reviewBonus.replace("{n}", d.reviewBonus);
+      reviewLine.style.display = "";
+    } else if (d.reviewInvite) {
+      const profileUrl = { ru: "/ru/profile", en: "/en/profile" }[document.documentElement.lang] || "/profile";
+      reviewLine.innerHTML = `<a href="${profileUrl}">${escapeHtml(
+        REF_TEXT.reviewInvite.replace("{id}", d.reviewInvite.saleId).replace("{n}", d.reviewBonusPercent)
+      )}</a>`;
+      reviewLine.style.display = "";
+    }
     if (d.promo) return showPromo(d.promo);
     if (d.rejected) {
       promoInput.value = d.rejected.code.toUpperCase();

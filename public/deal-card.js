@@ -71,9 +71,9 @@
   // Тексти тут, а не в ACCOUNT_CONFIG трьох сторінок: це один маленький
   // блок, і три копії підписів розійшлися б при першій правці.
   const RT = {
-    uk: { each: "по {price}", total: "Разом", leave: "★ Залишити відгук", edit: "Змінити", save: "Опублікувати", cancel: "Скасувати", placeholder: "Як пройшла угода? (необов'язково)", pick: "Обери оцінку", thanks: "Дякуємо за відгук!", hidden: "прихований модератором" },
-    ru: { each: "по {price}", total: "Итого", leave: "★ Оставить отзыв", edit: "Изменить", save: "Опубликовать", cancel: "Отмена", placeholder: "Как прошла сделка? (необязательно)", pick: "Выбери оценку", thanks: "Спасибо за отзыв!", hidden: "скрыт модератором" },
-    en: { each: "{price} each", total: "Total", leave: "★ Leave a review", edit: "Edit", save: "Publish", cancel: "Cancel", placeholder: "How did the deal go? (optional)", pick: "Pick a rating", thanks: "Thanks for the review!", hidden: "hidden by a moderator" },
+    uk: { invite: "🎁 Гроші розблоковано! Залиш будь-який відгук — отримаєш +{n}% до наступного продажу", bonusGot: "Бонус +{n}% чекає на тебе в наступному продажу", each: "по {price}", total: "Разом", leave: "★ Залишити відгук", edit: "Змінити", save: "Опублікувати", cancel: "Скасувати", placeholder: "Як пройшла угода? (необов'язково)", pick: "Обери оцінку", thanks: "Дякуємо за відгук!", hidden: "прихований модератором" },
+    ru: { invite: "🎁 Деньги разблокированы! Оставь любой отзыв — получишь +{n}% к следующей продаже", bonusGot: "Бонус +{n}% ждёт тебя в следующей продаже", each: "по {price}", total: "Итого", leave: "★ Оставить отзыв", edit: "Изменить", save: "Опубликовать", cancel: "Отмена", placeholder: "Как прошла сделка? (необязательно)", pick: "Выбери оценку", thanks: "Спасибо за отзыв!", hidden: "скрыт модератором" },
+    en: { invite: "🎁 Your money is unlocked! Leave any review and get +{n}% on your next sale", bonusGot: "A +{n}% bonus is waiting for your next sale", each: "{price} each", total: "Total", leave: "★ Leave a review", edit: "Edit", save: "Publish", cancel: "Cancel", placeholder: "How did the deal go? (optional)", pick: "Pick a rating", thanks: "Thanks for the review!", hidden: "hidden by a moderator" },
   }[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
 
   const starsHtml = (n) => `<span class="deal-stars">${"★".repeat(n)}<span class="deal-stars-off">${"★".repeat(5 - n)}</span></span>`;
@@ -89,7 +89,12 @@
         <button type="button" class="deal-review-link" data-review-open data-rating="${sale.review.rating}" data-text="${esc(sale.review.text || "")}">${esc(RT.edit)}</button>
       </div>`;
     }
-    return `<div class="deal-review" data-review-box><button type="button" class="deal-review-btn" data-review-open>${esc(RT.leave)}</button></div>`;
+    // Гроші вже розморожені — запрошуємо з бонусом (сервер ставить
+    // reviewBonusOffer лише на такі угоди без відгуку).
+    const invite = sale.reviewBonusOffer
+      ? `<div class="deal-review-invite">${esc(format(RT.invite, { n: sale.reviewBonusOffer }))}</div>`
+      : "";
+    return `${invite}<div class="deal-review" data-review-box data-bonus="${sale.reviewBonusOffer || ""}"><button type="button" class="deal-review-btn" data-review-open>${esc(RT.leave)}</button></div>`;
   }
 
   window.renderDealCard = function renderDealCard(sale, T) {
@@ -212,9 +217,12 @@
         });
         const data = await res.json();
         if (!data.ok) throw new Error(data.error);
+        const bonus = box.dataset.bonus;
         box.innerHTML = `${starsHtml(data.review.rating)}${
           data.review.text ? `<span class="deal-review-text">${esc(data.review.text)}</span>` : ""
-        }<span class="deal-review-thanks">${esc(RT.thanks)}</span>`;
+        }<span class="deal-review-thanks">${esc(RT.thanks)}${bonus ? ` ${esc(format(RT.bonusGot, { n: bonus }))}` : ""}</span>`;
+        // Запрошення з бонусом над формою більше не потрібне.
+        box.previousElementSibling?.classList.contains("deal-review-invite") && box.previousElementSibling.remove();
       } catch (err) {
         status.textContent = err.message;
       }

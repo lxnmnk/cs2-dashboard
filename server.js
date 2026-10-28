@@ -665,7 +665,11 @@ function discountFor(req, { tradeMode = false } = {}) {
   const base = tradeMode ? settings.tradeDiscount : settings.sellDiscount;
   const promo = promoCodes.find(req.session?.promo);
   // Партнерський код і реферальний бонус не складаються: діє більший.
-  const bonusPercent = Math.max(promo?.bonusPercent || 0, referralBonusFor(req));
+  // Бонус за відгук (reviews.js) — разовий, лише на продаж, не на обмін, і
+  // додається зверху: це окрема нагорода, а не ще один код.
+  const steamId = req.session?.customer?.steamId;
+  const reviewBonus = !tradeMode && steamId ? reviews.availableBonus(steamId)?.percent || 0 : 0;
+  const bonusPercent = Math.max(promo?.bonusPercent || 0, referralBonusFor(req)) + reviewBonus;
   if (!bonusPercent) return { discount: base, promo: null };
   // Знижка тут — частка (0.05 = 5%), а бонус коду задається у відсотках.
   // Без ділення на 100 код з'їдав би всю знижку одразу: клієнт отримував би
@@ -904,6 +908,8 @@ async function sellCustomerItems(req, res, { tradeMode }) {
     // кошику. В обміні виплати грошима немає, тож там не пропонуємо.
     const referralTopUp =
       !tradeMode && req.body?.useReferralBalance ? referrals.spendOnSale(customer.steamId, result.id) : 0;
+    // Бонус за відгук уже сидить у ціні — тепер він використаний.
+    const reviewBonusPercent = !tradeMode ? reviews.useBonus(customer.steamId, result.id) : 0;
     skinbuxSales.record({
       id: result.id,
       steamId: customer.steamId,
@@ -926,6 +932,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       // Хто запросив цього клієнта і під яким відсотком — для нарахування.
       ...(referrals.accrualForSale(customer.steamId) || {}),
       referralTopUp,
+      reviewBonusPercent,
     });
 
     res.json({ ok: true, totalPrice, referralTopUp, ...result });
@@ -940,19 +947,25 @@ async function sellCustomerItems(req, res, { tradeMode }) {
 // сесії, а хто почув на стрімі — вводить руками. Відповідь каже, який бонус
 // застосовано, щоб кошик одразу перечитав ціни.
 app.get("/api/account/promo", (req, res) => {
+  // Бонус за відгук і запрошення лишити відгук — окремо від коду: кошик
+  // показує їх своїм рядком.
+  const steamId = req.session?.customer?.steamId;
+  const reviewBonus = steamId ? reviews.availableBonus(steamId)?.percent || null : null;
+  const reviewInvite = steamId && !reviewBonus ? reviews.reviewInvite(steamId) : null;
+  const extra = { reviewBonus, reviewInvite, reviewBonusPercent: reviews.REVIEW_BONUS_PERCENT };
+
   const promo = promoCodes.find(req.session?.promo);
-  if (promo) return res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent } });
+  if (promo) return res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent }, ...extra });
   // Реферальний бонус показуємо в тому ж полі: для клієнта це теж "код".
   // Хто закріпився ще в минулих візитах, коду в сесії вже не має — беремо
   // той, яким закріпився.
   const bonus = referralBonusFor(req);
-  const steamId = req.session?.customer?.steamId;
   const code = req.session?.referral?.code || (steamId && referrals.referredCodeOf(steamId)) || null;
-  if (bonus && code) return res.json({ ok: true, promo: { code, bonusPercent: bonus, referral: true } });
+  if (bonus && code) return res.json({ ok: true, promo: { code, bonusPercent: bonus, referral: true }, ...extra });
   // Код з посилання не підійшов — кажемо чому, один раз.
   const rejected = req.session?.referralRejected || null;
   if (rejected) delete req.session.referralRejected;
-  res.json({ ok: true, promo: null, rejected });
+  res.json({ ok: true, promo: null, rejected, ...extra });
 });
 
 app.post("/api/account/promo", (req, res) => {
@@ -1184,8 +1197,10 @@ app.get("/api/account/sales", async (req, res) => {
   for (const s of sales) {
     const r = mine.get(String(s.id));
     if (r) s.review = { rating: r.rating, text: r.text, hidden: r.hidden };
+    // Гроші розморожені, відгуку ще немає — картка запросить його з бонусом.
+    else if (s.status === "completed") s.reviewBonusOffer = reviews.REVIEW_BONUS_PERCENT;
   }
-  res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS });
+  res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS, reviewBonusPercent: reviews.REVIEW_BONUS_PERCENT });
 });
 
 // ---- Відгуки й жива стрічка (reviews.js) ----

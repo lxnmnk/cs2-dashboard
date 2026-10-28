@@ -3076,3 +3076,17 @@ a.sender-line { color: var(--gold); }
   .deal-item-pic { width: 68px; height: 51px; }
   .feed-pics, .feed-pics img, .feed-pic-empty { width: 84px; height: 63px; }
 }
+
+/* Бонус за відгук (deal-card.js, account-inventory.js) */
+.deal-review-invite {
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: var(--gold-soft);
+  border: 1px solid var(--gold-line);
+  color: var(--gold);
+  font-size: var(--t-sm);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.cart-review-bonus { margin: var(--s-2) 0 0; font-size: var(--t-sm); color: var(--gold); }
+.cart-review-bonus a { color: var(--gold); }

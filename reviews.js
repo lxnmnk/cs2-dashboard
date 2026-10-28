@@ -15,6 +15,11 @@ const crypto = require("crypto");
 const skinbuxSales = require("./skinbuxSales");
 
 const FILE = path.join(__dirname, "reviews.json");
+// Бонуси за відгук: за кожну угоду, на яку людина вперше лишила відгук,
+// +1.5% до її наступного продажу — разово. Дається за будь-який відгук,
+// і за одну зірку теж: платимо за те, що написав, а не за похвалу.
+const BONUS_FILE = path.join(__dirname, "reviewBonuses.json");
+const REVIEW_BONUS_PERCENT = 1.5;
 const ACCEPTED = new Set(["hold", "completed"]);
 const TEXT_MAX = 500;
 
@@ -72,9 +77,67 @@ function upsert(steamId, { saleId, rating, text, displayName }) {
       updatedAt: now,
     };
     list.push(review);
+    grantBonus(steamId, saleId);
   }
   save(list);
   return review;
+}
+
+// ---- Бонус за відгук ----
+function loadBonuses() {
+  try {
+    return JSON.parse(fs.readFileSync(BONUS_FILE, "utf8"));
+  } catch {
+    return [];
+  }
+}
+
+function saveBonuses(list) {
+  fs.writeFileSync(BONUS_FILE, JSON.stringify(list, null, 2));
+}
+
+/** Один бонус на угоду — переписаний відгук другого не дає. */
+function grantBonus(steamId, saleId) {
+  const list = loadBonuses();
+  if (list.some((b) => b.saleId === String(saleId))) return;
+  list.push({
+    id: crypto.randomUUID(),
+    steamId: String(steamId),
+    saleId: String(saleId),
+    percent: REVIEW_BONUS_PERCENT,
+    createdAt: new Date().toISOString(),
+    usedOnSaleId: null,
+  });
+  saveBonuses(list);
+}
+
+/** Невикористаний бонус людини (найстаріший) або null. */
+function availableBonus(steamId) {
+  return loadBonuses().find((b) => b.steamId === String(steamId) && !b.usedOnSaleId) || null;
+}
+
+/** Бонус пішов у продаж saleId — більше не діє. Повертає відсоток або 0. */
+function useBonus(steamId, saleId) {
+  const list = loadBonuses();
+  const bonus = list.find((b) => b.steamId === String(steamId) && !b.usedOnSaleId);
+  if (!bonus) return 0;
+  bonus.usedOnSaleId = String(saleId);
+  bonus.usedAt = new Date().toISOString();
+  saveBonuses(list);
+  return bonus.percent;
+}
+
+/**
+ * Угода, на яку варто запросити відгук: гроші вже розморожені, а відгуку
+ * ще немає. Найсвіжіша — щоб кошик міг сказати "залиш відгук про угоду #X".
+ */
+function reviewInvite(steamId) {
+  const reviewed = new Set(load().filter((r) => r.steamId === String(steamId)).map((r) => r.saleId));
+  const sale = skinbuxSales
+    .loadAll()
+    .filter((s) => String(s.steamId) === String(steamId) && s.status === "completed" && !reviewed.has(String(s.id)))
+    .sort((a, b) => new Date(b.completedAt || b.createdAt) - new Date(a.completedAt || a.createdAt))[0];
+  return sale ? { saleId: String(sale.id) } : null;
 }
 
 /** Відгуки по номеру угоди — щоб показати людині її власні в "Моїх угодах". */
@@ -182,4 +245,16 @@ async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
   };
 }
 
-module.exports = { upsert, bySaleIds, setHidden, listAll, feed, maskName, TEXT_MAX };
+module.exports = {
+  upsert,
+  bySaleIds,
+  setHidden,
+  listAll,
+  feed,
+  maskName,
+  availableBonus,
+  useBonus,
+  reviewInvite,
+  REVIEW_BONUS_PERCENT,
+  TEXT_MAX,
+};

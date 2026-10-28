@@ -51,7 +51,8 @@ function saveAll(sales) {
 // і його відсоток на момент продажу: з них рахується реферальне нарахування.
 // referralTopUp — реферальні гроші самого продавця, які він додав до цієї
 // виплати: ми винні йому totalPrice + referralTopUp.
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode, referrerSteamId, referralPercent, referralTopUp }) {
+// reviewBonusPercent — разовий бонус за відгук, який увійшов у ціну цього продажу.
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode, referrerSteamId, referralPercent, referralTopUp, reviewBonusPercent }) {
   const sales = loadAll();
   sales.push({
     id,
@@ -64,6 +65,7 @@ function record({ id, steamId, customerName, items, totalPrice, offerId, expires
     referrerSteamId: referrerSteamId ? String(referrerSteamId) : null,
     referralPercent: referrerSteamId ? Number(referralPercent) || 0 : null,
     referralTopUp: Number(referralTopUp) > 0 ? round2(referralTopUp) : 0,
+    reviewBonusPercent: Number(reviewBonusPercent) || 0,
     items,
     totalPrice,
     offerId,
