@@ -100,24 +100,26 @@ function listAll() {
 const isClientSale = (s) => ACCEPTED.has(s.status);
 
 /**
- * Один продавець — не більше половини стрічки. Інакше, коли хтось продає
- * багато (TARHUN), стрічка складалась з нього одного: 7 угод з 8. Йдемо від
- * нових до старих і беремо угоду, тільки якщо з нею частка цього продавця не
- * перевищить 50% уже показаного — тож і на першій сторінці, і далі.
+ * Один і той самий продавець не стоїть двічі поспіль. Коли хтось продає
+ * багато (TARHUN), стрічка складалась з нього одного; а якщо його угоди
+ * просто викидати, вона виглядала покинутою — "12 хвилин, 3 дні, 7 днів,
+ * 24 дні". Тому чергуємо: беремо найсвіжішу угоду, потім найсвіжішу угоду
+ * іншого продавця, і так далі. Свіжі угоди лишаються в стрічці, просто
+ * перемежовані чужими; час біля кожної — справжній. Коли інших продавців
+ * не лишилось, решта угод того самого продавця не показується.
  */
-function capPerSeller(sales) {
-  const perSeller = new Map();
-  const kept = [];
-  for (const s of sales) {
-    const key = String(s.steamId);
-    const mine = perSeller.get(key) || 0;
-    // Перша угода продавця проходить завжди (інакше перша ж угода стрічки —
-    // це "100%" і не пройшла б ніяка), далі — не більше половини показаного.
-    if (mine > 0 && (mine + 1) * 2 > kept.length + 1) continue;
-    perSeller.set(key, mine + 1);
-    kept.push(s);
+function alternateSellers(sales) {
+  const queue = [...sales];
+  const result = [];
+  let last = null;
+  while (queue.length) {
+    const at = queue.findIndex((s) => String(s.steamId) !== last);
+    if (at < 0) break;
+    const [next] = queue.splice(at, 1);
+    result.push(next);
+    last = String(next.steamId);
   }
-  return kept;
+  return result;
 }
 
 /**
@@ -134,7 +136,7 @@ async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
     .sort((a, b) => new Date(b.heldAt || b.createdAt) - new Date(a.heldAt || a.createdAt));
   const dealsTotal = sales.length;
   if (withReviews) sales = sales.filter((s) => reviewBySale.has(String(s.id)));
-  sales = capPerSeller(sales);
+  sales = alternateSellers(sales);
 
   const page = sales.slice(offset, offset + limit);
   const items = await Promise.all(
