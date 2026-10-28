@@ -111,7 +111,9 @@ function capPerSeller(sales) {
   for (const s of sales) {
     const key = String(s.steamId);
     const mine = perSeller.get(key) || 0;
-    if ((mine + 1) * 2 > kept.length + 1) continue;
+    // Перша угода продавця проходить завжди (інакше перша ж угода стрічки —
+    // це "100%" і не пройшла б ніяка), далі — не більше половини показаного.
+    if (mine > 0 && (mine + 1) * 2 > kept.length + 1) continue;
     perSeller.set(key, mine + 1);
     kept.push(s);
   }
