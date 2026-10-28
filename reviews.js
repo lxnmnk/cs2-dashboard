@@ -120,9 +120,20 @@ async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
     page.map(async (s) => {
       // Однакові предмети в угоді — одним рядком з кількістю.
       const counts = new Map();
-      for (const it of s.items || []) counts.set(it.name, (counts.get(it.name) || 0) + 1);
+      for (const it of s.items || []) {
+        const g = counts.get(it.name) || { qty: 0, float: it.float ?? null };
+        g.qty += 1;
+        counts.set(it.name, g);
+      }
       const goods = await Promise.all(
-        [...counts].map(async ([name, qty]) => ({ name, qty, image: imageOf ? await imageOf(name) : null }))
+        [...counts].map(async ([name, g]) => ({
+          name,
+          qty: g.qty,
+          // Float показуємо лише для одиночного предмета: у трьох однакових
+          // він у кожного свій.
+          float: g.qty === 1 ? g.float : null,
+          image: imageOf ? await imageOf(name) : null,
+        }))
       );
       const review = reviewBySale.get(String(s.id));
       return {

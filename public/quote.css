@@ -3004,3 +3004,75 @@ a.sender-line { color: var(--gold); }
   .feed-list { grid-template-columns: 1fr; }
   .feed-pics, .feed-pics img, .feed-pic-empty { width: 60px; height: 45px; }
 }
+
+/* ---- Предмети угоди як на Youpin: картинка з якістю, float, ціна ---- */
+.deal-items { display: flex; flex-direction: column; gap: var(--s-2); font-weight: 400; }
+.deal-item { display: flex; align-items: center; gap: var(--s-3); overflow: visible; }
+.deal-item-pic {
+  position: relative;
+  flex-shrink: 0;
+  width: 84px;
+  height: 63px;
+  border-radius: var(--r-sm);
+  background: radial-gradient(120% 80% at 50% 115%, rgba(215, 168, 78, 0.16), transparent 60%), linear-gradient(180deg, #2a2f39, #1b1f27);
+  overflow: hidden;
+}
+.deal-item-pic img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
+.deal-item-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.deal-item-name { font-size: var(--t-sm); font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.deal-item-price { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; font-size: var(--t-md); font-weight: 800; color: var(--gold); white-space: nowrap; }
+.deal-item-each { font-size: var(--t-xs); font-weight: 500; color: var(--muted); }
+.deal-price { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1; }
+.deal-price small { font-size: var(--t-xs); font-weight: 600; color: var(--muted); }
+.deal-card { align-items: flex-start; }
+
+/* Плашка якості в кутку картинки — колір той самий, що в каталозі. */
+.wear-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 1;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: rgba(10, 11, 15, 0.85);
+  border: 1px solid currentColor;
+}
+
+/* Шкала зносу: кольори зон FN→BS у пропорціях реальних меж float. */
+.float-bar { display: flex; flex-direction: column; gap: 3px; max-width: 220px; }
+.float-value { font-size: var(--t-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.float-track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #4caf6e 0 7%, #8bc34a 7% 15%, #e0b04a 15% 38%, #e08a4a 38% 45%, #d9534f 45% 100%);
+}
+.float-track i {
+  position: absolute;
+  top: -4px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid #fff;
+}
+
+/* Стрічка: картинка більша, як на Youpin, з плашкою якості. */
+.feed-pics { width: 104px; height: 78px; }
+.feed-pics img, .feed-pic-empty {
+  width: 104px;
+  height: 78px;
+  padding: 4px;
+  background: radial-gradient(120% 80% at 50% 115%, rgba(215, 168, 78, 0.16), transparent 60%), linear-gradient(180deg, #2a2f39, #1b1f27);
+}
+.feed-pics .wear-badge { z-index: 2; }
+.feed-body .float-bar { margin-top: 4px; }
+
+@media (max-width: 760px) {
+  .deal-item-pic { width: 68px; height: 51px; }
+  .feed-pics, .feed-pics img, .feed-pic-empty { width: 84px; height: 63px; }
+}

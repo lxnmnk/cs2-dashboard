@@ -104,6 +104,20 @@ const SALES = [
   { float: 0.3926778137683868, cny: 744.41, soldAt: "2026-10-20T07:57:51", name: "★ Nomad Knife | Blue Steel (WW)", cn: "流浪者匕首（★）| 蓝钢" },
   { float: 0.3832095563411713, cny: 971.41, soldAt: "2026-10-19T22:35:42", name: "★ Classic Knife | Crimson Web (WW)", cn: "海豹短刀（★）| 深红之网" },
   { float: 0.3575927317142487, cny: 2027.91, soldAt: "2026-10-19T20:02:19", name: "★ Talon Knife | Crimson Web (FT)", cn: "锯齿爪刀（★）| 深红之网" },
+
+  // --- пятая пачка скриншотов: 25-28.10 (холд 7 дней — запускать с --hold 7) ---
+  { float: 0.0699418410658836, cny: 1886.5, soldAt: "2026-10-28T15:26:13", name: "AK-47 | ? (FN)", cn: "AK-47 | 怪兽在B" },
+  { float: 0.3941841125488281, cny: 307.2, soldAt: "2026-10-27T23:57:28", name: "AK-47 | Neon Rider (WW)", cn: "AK-47 | 霓虹骑士" },
+  { float: 0.1338101625442505, cny: 274.5, soldAt: "2026-10-26T12:38:48", name: "Desert Eagle | Printstream (MW)", cn: "沙漠之鹰 | 印花集" },
+  { float: 0.464197039604187, cny: 223.86, soldAt: "2026-10-26T05:51:36", name: "★ Shadow Daggers | Rust Coat (BS)", cn: "暗影双匕（★）| 外表生锈" },
+  { float: 0.3835349977016449, cny: 182.88, soldAt: "2026-10-25T12:20:57", name: "M4A4 | Temukau (WW)", cn: "M4A4 | 反冲精英" },
+  { float: 0.2671283781528473, cny: 184.0, soldAt: "2026-10-25T12:03:25", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.2417432367801666, cny: 184.0, soldAt: "2026-10-25T11:28:48", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.2650815546512604, cny: 402.0, soldAt: "2026-10-25T10:57:05", name: "★ Bowie Knife | Stained (FT)", cn: "鲍伊猎刀（★）| 人工染色" },
+  { float: 0.2861312627792358, cny: 192.5, soldAt: "2026-10-25T10:40:44", name: "M4A4 | Neo-Noir (FT)", cn: "M4A4 | 黑色魅影" },
+  { float: 0.1355136930942535, cny: 291.5, soldAt: "2026-10-25T10:37:06", name: "M4A4 | Temukau (MW)", cn: "M4A4 | 反冲精英" },
+  { float: 0.5222278237342834, cny: 166.5, soldAt: "2026-10-25T10:35:32", name: "M4A4 | Temukau (BS)", cn: "M4A4 | 反冲精英" },
+  { float: 0.1375677138566971, cny: 343.8, soldAt: "2026-10-25T10:08:40", name: "USP-S | Printstream (MW)", cn: "USP 消音版 | 印花集" },
 ];
 
 function arg(name) {

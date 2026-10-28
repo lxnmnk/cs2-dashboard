@@ -219,6 +219,54 @@ function checkHoldings(rawTrades, inventory) {
   };
 }
 
+/**
+ * Друга думка від самого Steam перед тим, як сказати "предмета немає".
+ *
+ * Інвентар Skinbux показує не все: частину предметів він пропускає, і тоді
+ * ножі й рукавиці, які лежать на акаунті, виходили "проданими" (так було з
+ * двома Sport Gloves | Vice і Butterfly Knife | Case Hardened). Інвентар Steam
+ * float не дає, зате бачить усе. Тож по кожній назві рахуємо: скільки
+ * відкритих позицій і скільки таких предметів реально лежить у Steam. "Пішли"
+ * можуть бути лише ті, на які предметів у Steam не вистачає; решта — на місці.
+ *
+ * steamItems — інвентар Steam (marketHashName без фази доплера);
+ * null — Steam недоступний, звіт лишається як є.
+ */
+function confirmWithSteam(report, steamItems, rawTrades) {
+  if (!steamItems) return report;
+  const baseOf = (name) => String(name).replace(/ - (Phase \d|Ruby|Sapphire|Black Pearl|Emerald)$/, "");
+  const steamCount = new Map();
+  for (const it of steamItems) {
+    const key = baseOf(it.marketHashName);
+    steamCount.set(key, (steamCount.get(key) || 0) + 1);
+  }
+  const positionsByName = new Map();
+  for (const t of rawTrades) {
+    if (t.status !== "holding") continue;
+    const key = baseOf(t.marketHashName);
+    positionsByName.set(key, (positionsByName.get(key) || 0) + 1);
+  }
+
+  // Скільки "пішло" можна лишити по кожній назві — решту повертаємо в "here".
+  const goneLeft = new Map();
+  const rows = report.rows.map((r) => {
+    if (r.status !== "gone") return r;
+    const key = baseOf(r.marketHashName);
+    if (!goneLeft.has(key)) goneLeft.set(key, Math.max(0, (positionsByName.get(key) || 0) - (steamCount.get(key) || 0)));
+    const left = goneLeft.get(key);
+    if (left > 0) {
+      goneLeft.set(key, left - 1);
+      return r;
+    }
+    return { ...r, status: "here", via: "steam" };
+  });
+
+  const count = (status) => rows.filter((r) => r.status === status).length;
+  const sum = (status) =>
+    round2(rows.filter((r) => r.status === status).reduce((acc, r) => acc + (Number(r.buyPrice) || 0), 0));
+  return { ...report, rows, gone: count("gone"), goneSum: sum("gone"), here: count("here"), steamChecked: true };
+}
+
 function rowOf(trade) {
   return {
     id: trade.id,
@@ -243,6 +291,7 @@ function applyFillInMemory(rawTrades, assignments) {
 }
 
 module.exports = {
+  confirmWithSteam,
   FLOAT_EPS,
   sameFloat,
   floatsByName,

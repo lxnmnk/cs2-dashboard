@@ -873,6 +873,9 @@ async function sellCustomerItems(req, res, { tradeMode }) {
         price: quote.price,
         skinbuxCents,
         phase: it.phase ?? null,
+        // Float — щоб у "Моїх угодах" і в стрічці на головній було видно,
+        // який саме екземпляр продали (шкала зносу, як на Youpin).
+        float: it.float ?? null,
       });
     }
 
@@ -1169,6 +1172,13 @@ app.get("/api/account/sales", async (req, res) => {
   await notifyPayableSales();
 
   const sales = skinbuxSales.listByUser(steamId);
+  // Картинка біля кожного предмета: без неї "Мої угоди" були стовпчиком
+  // однакових на вигляд назв. Картинки кешуються на диск (steamImages.js).
+  await Promise.all(
+    sales.flatMap((s) => (s.items || []).map(async (it) => {
+      it.image = (await getSteamImages(it.name))?.thumb || null;
+    }))
+  );
   // Свій відгук — у картці угоди: видно, що вже написав, і можна переписати.
   const mine = reviews.bySaleIds(sales.map((s) => s.id));
   for (const s of sales) {
@@ -1208,7 +1218,7 @@ app.get("/api/public/feed", async (req, res) => {
         limit,
         offset,
         withReviews,
-        imageOf: async (name) => (await getSteamImages(name))?.thumb || null,
+        imageOf: async (name) => (await getSteamImages(name))?.full || null,
       })),
     };
     feedCache.set(key, { at: Date.now(), body });
@@ -2637,7 +2647,16 @@ app.post("/api/trades/inventory-check", requireSiteOwner, async (req, res) => {
     const fill = tradeFloats.planFill(rawTrades, inventory);
     const filled = trades.setFloatMany(req.session.username, fill.assignments);
 
-    const report = tradeFloats.checkHoldings(tradeFloats.applyFillInMemory(rawTrades, fill.assignments), inventory);
+    const checked = tradeFloats.checkHoldings(tradeFloats.applyFillInMemory(rawTrades, fill.assignments), inventory);
+    // Skinbux показує не всі предмети — перш ніж назвати позицію проданою,
+    // звіряємось ще й з інвентарем самого Steam (tradeFloats.confirmWithSteam).
+    let steamItems = null;
+    try {
+      steamItems = await fetchInventory(skinbuxSales.OWNER_STEAM_ID, { force: true });
+    } catch (err) {
+      console.warn("[inventory-check] Steam-инвентарь не прочитался, сверка только по Skinbux:", err.message);
+    }
+    const report = tradeFloats.confirmWithSteam(checked, steamItems, rawTrades);
     res.json({
       ok: true,
       ...report,

@@ -25,11 +25,45 @@
 
   // Однакові предмети в одній угоді — одним рядком з "×2": два довгі
   // однакові імена через кому читались як помилка.
+
+  // Якість з назви ("(Field-Tested)") — короткою плашкою FN/MW/FT/WW/BS, як
+  // на Youpin і в каталозі; шкала зносу — смужка від FN до BS з міткою float.
+  const WEAR_CODES = { "Factory New": "FN", "Minimal Wear": "MW", "Field-Tested": "FT", "Well-Worn": "WW", "Battle-Scarred": "BS" };
+  const wearOf = (name) => WEAR_CODES[(String(name).match(/\(([^()]+)\)(?: - [^-]+)?$/) || [])[1]] || "";
+  const floatBarHtml = (f) =>
+    f == null || !Number.isFinite(Number(f))
+      ? ""
+      : `<div class="float-bar"><span class="float-value">${Number(f).toFixed(4)}</span><span class="float-track"><i style="left:${Math.min(100, Number(f) * 100).toFixed(1)}%"></i></span></div>`;
+
+  // Кожен предмет угоди окремим рядком, як на Youpin: картинка з плашкою
+  // якості, назва, float і скільки ми платимо саме за нього. Однією сумою на
+  // всю угоду було незрозуміло, що скільки коштувало. Однакові предмети —
+  // одним рядком з "×N" і ціною за штуку. У старих записах немає ціни чи
+  // float по предмету — тоді їх просто не показуємо.
   function itemsHtml(items) {
-    const counts = new Map();
-    for (const it of items) counts.set(it.name, (counts.get(it.name) || 0) + 1);
-    return [...counts]
-      .map(([name, n]) => `<span class="deal-item">${esc(name)}${n > 1 ? ` <span class="deal-qty">×${n}</span>` : ""}</span>`)
+    const groups = new Map();
+    for (const it of items) {
+      const g = groups.get(it.name) || { qty: 0, sum: 0, priced: true, image: it.image, floats: [] };
+      g.qty += 1;
+      if (it.price != null) g.sum += Number(it.price);
+      else g.priced = false;
+      if (it.float != null) g.floats.push(it.float);
+      groups.set(it.name, g);
+    }
+    return [...groups]
+      .map(([name, g]) => {
+        const wear = wearOf(name);
+        const pic = g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy" />` : "";
+        const each = g.qty > 1 && g.priced ? `<span class="deal-item-each">${esc(format(RT.each, { price: money(g.sum / g.qty) }))}</span>` : "";
+        return `<div class="deal-item">
+          <div class="deal-item-pic">${pic}${wear ? `<span class="wear-badge wear-${wear}">${wear}</span>` : ""}</div>
+          <div class="deal-item-info">
+            <span class="deal-item-name">${esc(name)}${g.qty > 1 ? ` <span class="deal-qty">×${g.qty}</span>` : ""}</span>
+            ${g.qty === 1 ? floatBarHtml(g.floats[0]) : ""}
+          </div>
+          ${g.priced ? `<div class="deal-item-price">${money(g.sum)}${each}</div>` : ""}
+        </div>`;
+      })
       .join("");
   }
 
@@ -37,9 +71,9 @@
   // Тексти тут, а не в ACCOUNT_CONFIG трьох сторінок: це один маленький
   // блок, і три копії підписів розійшлися б при першій правці.
   const RT = {
-    uk: { leave: "★ Залишити відгук", edit: "Змінити", save: "Опублікувати", cancel: "Скасувати", placeholder: "Як пройшла угода? (необов'язково)", pick: "Обери оцінку", thanks: "Дякуємо за відгук!", hidden: "прихований модератором" },
-    ru: { leave: "★ Оставить отзыв", edit: "Изменить", save: "Опубликовать", cancel: "Отмена", placeholder: "Как прошла сделка? (необязательно)", pick: "Выбери оценку", thanks: "Спасибо за отзыв!", hidden: "скрыт модератором" },
-    en: { leave: "★ Leave a review", edit: "Edit", save: "Publish", cancel: "Cancel", placeholder: "How did the deal go? (optional)", pick: "Pick a rating", thanks: "Thanks for the review!", hidden: "hidden by a moderator" },
+    uk: { each: "по {price}", total: "Разом", leave: "★ Залишити відгук", edit: "Змінити", save: "Опублікувати", cancel: "Скасувати", placeholder: "Як пройшла угода? (необов'язково)", pick: "Обери оцінку", thanks: "Дякуємо за відгук!", hidden: "прихований модератором" },
+    ru: { each: "по {price}", total: "Итого", leave: "★ Оставить отзыв", edit: "Изменить", save: "Опубликовать", cancel: "Отмена", placeholder: "Как прошла сделка? (необязательно)", pick: "Выбери оценку", thanks: "Спасибо за отзыв!", hidden: "скрыт модератором" },
+    en: { each: "{price} each", total: "Total", leave: "★ Leave a review", edit: "Edit", save: "Publish", cancel: "Cancel", placeholder: "How did the deal go? (optional)", pick: "Pick a rating", thanks: "Thanks for the review!", hidden: "hidden by a moderator" },
   }[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
 
   const starsHtml = (n) => `<span class="deal-stars">${"★".repeat(n)}<span class="deal-stars-off">${"★".repeat(5 - n)}</span></span>`;
@@ -120,7 +154,7 @@
           ${reviewHtml(sale)}
         </div>
         <div class="deal-card-side">
-          <span class="deal-price">${money(sale.totalPrice)}</span>
+          <span class="deal-price"><small>${esc(RT.total)}</small>${money(sale.totalPrice)}</span>
           ${action}
         </div>
       </div>`;

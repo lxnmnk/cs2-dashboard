@@ -93,6 +93,16 @@
     return { weapon: skin ? weapon : "", skin: (skin || weapon) + (phase ? ` · ${phase}` : "") };
   }
 
+
+  // Якість з назви ("(Field-Tested)") — короткою плашкою FN/MW/FT/WW/BS, як
+  // на Youpin і в каталозі; шкала зносу — смужка від FN до BS з міткою float.
+  const WEAR_CODES = { "Factory New": "FN", "Minimal Wear": "MW", "Field-Tested": "FT", "Well-Worn": "WW", "Battle-Scarred": "BS" };
+  const wearOf = (name) => WEAR_CODES[(String(name).match(/\(([^()]+)\)(?: - [^-]+)?$/) || [])[1]] || "";
+  const floatBarHtml = (f) =>
+    f == null || !Number.isFinite(Number(f))
+      ? ""
+      : `<div class="float-bar"><span class="float-value">${Number(f).toFixed(4)}</span><span class="float-track"><i style="left:${Math.min(100, Number(f) * 100).toFixed(1)}%"></i></span></div>`;
+
   const stars = (n) =>
     `<span class="feed-stars" aria-label="${n}/5">${"★".repeat(n)}<span class="feed-stars-off">${"★".repeat(5 - n)}</span></span>`;
 
@@ -100,18 +110,21 @@
     const first = it.items[0] || { name: "", qty: 1 };
     const { weapon, skin } = splitName(first.name);
     const extraCount = it.items.slice(1).reduce((s, g) => s + g.qty, 0) + (first.qty - 1);
+    const wear = wearOf(first.name);
     const pics = it.items
       .slice(0, 3)
       .map((g) => (g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy" />` : `<span class="feed-pic-empty"></span>`))
       .join("");
+    const badge = wear ? `<span class="wear-badge wear-${wear}">${wear}</span>` : "";
     return `
       <article class="feed-card ${fresh ? "is-fresh" : ""} ${it.review ? "has-review" : ""}">
-        <div class="feed-pics count-${Math.min(3, it.items.length)}">${pics}</div>
+        <div class="feed-pics count-${Math.min(3, it.items.length)}">${pics}${badge}</div>
         <div class="feed-body">
           <div class="feed-item">
             ${weapon ? `<span class="feed-weapon">${esc(weapon)}</span>` : ""}
             <span class="feed-skin">${esc(skin)}${extraCount > 0 ? ` <span class="feed-more">${esc(fill(T.more2, { n: extraCount }))}</span>` : ""}</span>
           </div>
+          ${it.items.length === 1 && first.qty === 1 ? floatBarHtml(first.float) : ""}
           <div class="feed-meta">
             <b>${esc(it.who)}</b> ${esc(it.kind === "trade" ? T.traded : T.sold)} · ${esc(ago(it.at))}
           </div>
