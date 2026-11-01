@@ -15,6 +15,7 @@ const fs = require("fs");
 const path = require("path");
 const { applyDisplayFilters, findBestFlip, normalizeSourceSide } = require("./pricingEngine");
 const { DOPPLER_PHASES } = require("./itemName");
+const csfloatLive = require("./csfloatLive");
 
 const SUBSCRIBERS_FILE = path.join(__dirname, "telegramArbSubscribers.json");
 const TELEGRAM_API = "https://api.telegram.org";
@@ -133,6 +134,7 @@ function helpText() {
     "🤖 <b>Мониторинг арбитража CS2</b>",
     "",
     "Каждые 5 минут проверяю таблицу и присылаю новые выгодные лоты по твоим фильтрам (уже открытые лоты повторно не присылаю).",
+    "⚡ Если покупка — CSFloat ask, работаю в live-режиме: каждые 30 с смотрю новые лоты на самом CSFloat и сразу присылаю выгодный со ссылкой.",
     "",
     "/status — текущие фильтры",
     "/buy — выбрать источник покупки",
@@ -152,7 +154,7 @@ function helpText() {
 function statusText(sub) {
   return [
     "📋 <b>Текущие фильтры:</b>",
-    `Покупка: ${escapeHtml(sub.buySource)}`,
+    `Покупка: ${escapeHtml(sub.buySource)}${isLiveSub(sub) ? " ⚡ live (новые лоты CSFloat каждые 30 с)" : ""}`,
     `Продажа: ${escapeHtml(sub.sellSource)}`,
     `Мин. профит: $${sub.minProfitUsd}`,
     `Мин. профит %: ${sub.minProfitPercent}%`,
@@ -319,7 +321,11 @@ async function handleCallback(token, cq) {
     if (kind === "buy") sub.buySource = value;
     else sub.sellSource = value;
     saveSubscribers(subs);
-    await sendMessage(token, chatId, `${kind === "buy" ? "Покупка" : "Продажа"}: ${escapeHtml(value)}`);
+    const live =
+      kind === "buy" && isLiveSub(sub)
+        ? "\n⚡ Live-режим: каждые 30 с смотрю новые лоты на CSFloat и присылаю выгодные сразу."
+        : "";
+    await sendMessage(token, chatId, `${kind === "buy" ? "Покупка" : "Продажа"}: ${escapeHtml(value)}${live}`);
   } else if (data.startsWith("phase:")) {
     const phase = data.slice("phase:".length);
     sub.phase = phase === "any" ? null : phase;
@@ -333,8 +339,8 @@ function keyFor(row) {
   return row.marketHashName;
 }
 
-function computeQualifying(rows, config, sub) {
-  const displayFilters = {
+function displayFiltersFor(sub) {
+  return {
     excludeStatTrak: !!sub.excludeStatTrak,
     excludeSouvenir: !!sub.excludeSouvenir,
     excludeStickers: !!sub.excludeStickers,
@@ -345,6 +351,10 @@ function computeQualifying(rows, config, sub) {
     maxBuffSpreadPercent: sub.maxBuffSpreadPercent ?? null,
     phase: sub.phase || null,
   };
+}
+
+function computeQualifying(rows, config, sub) {
+  const displayFilters = displayFiltersFor(sub);
 
   const buyRestrict = normalizeSourceSide(sub.buySource);
   const sellRestrict = normalizeSourceSide(sub.sellSource);
@@ -402,7 +412,8 @@ async function scanAndNotify(token, getRows, config) {
   let changed = false;
 
   for (const sub of subs) {
-    if (!sub.active) continue;
+    // Подписчиков на CSFloat ask обслуживает live-скан (scanCsfloatLive).
+    if (!sub.active || isLiveSub(sub)) continue;
 
     const qualifying = computeQualifying(rows, config, sub);
     const currentKeys = new Set(qualifying.map((it) => keyFor(it.row)));
@@ -439,6 +450,116 @@ async function scanAndNotify(token, getRows, config) {
   }
 
   if (changed) saveSubscribers(subs);
+}
+
+// ---- Live-режим: новые лоты CSFloat (см. csfloatLive.js) ----
+const LIVE_BUY = "csfloat:ask";
+const MAX_LIVE_LOTS_PER_TICK = 10;
+
+function isLiveSub(sub) {
+  return sub.buySource === LIVE_BUY;
+}
+
+// Индекс таблицы по названию — строится раз на каждый новый cache.rows.
+const rowIndexCache = new WeakMap();
+function rowIndex(rows) {
+  let index = rowIndexCache.get(rows);
+  if (!index) {
+    index = new Map(rows.map((r) => [r.marketHashName, r]));
+    rowIndexCache.set(rows, index);
+  }
+  return index;
+}
+
+/**
+ * Выгоден ли лот подписчику: те же фильтры, что в таблице, но цена покупки —
+ * цена самого лота, а не агрегированный ask CSFloat. Мин./макс. цена тоже
+ * сравнивается с ценой лота.
+ */
+function liveFlipFor(listing, row, config, sub) {
+  const { minPrice, maxPrice, ...rest } = displayFiltersFor(sub);
+  if (!applyDisplayFilters([row], { ...rest, minPrice: null, maxPrice: null }).length) return null;
+  if (minPrice != null && listing.price < minPrice) return null;
+  if (maxPrice != null && listing.price > maxPrice) return null;
+
+  const prices = { ...row.prices, csfloat: { ...row.prices.csfloat, ask: listing.price } };
+  const flip = findBestFlip(prices, config.sources, normalizeSourceSide(LIVE_BUY), normalizeSourceSide(sub.sellSource));
+  if (!flip || flip.profitUsd == null || flip.profitUsd < (sub.minProfitUsd ?? 0)) return null;
+  if (flip.profitPercent == null || flip.profitPercent < (sub.minProfitPercent ?? 0)) return null;
+  return flip;
+}
+
+function formatLiveLot(listing, row, flip, config) {
+  const details = [
+    listing.float != null ? `Float ${Number(listing.float).toFixed(6)}` : null,
+    listing.paintSeed != null ? `Pattern ${listing.paintSeed}` : null,
+    listing.stickers ? `наклеек: ${listing.stickers}` : null,
+  ].filter(Boolean);
+  const usual = row.prices.csfloat?.ask;
+  const sellLabel = sourceLink(config, flip.sellSource, flip.sellSide, row.linkName);
+  return [
+    "⚡ <b>Новый лот на CSFloat</b>",
+    `<b>${escapeHtml(row.marketHashName)}</b>`,
+    details.length ? details.join(" · ") : null,
+    `Купить: <a href="${escapeAttr(listing.url)}">CSFloat</a> — $${listing.price.toFixed(2)}` +
+      (usual != null ? ` (обычно $${usual.toFixed(2)})` : ""),
+    `Продать: ${sellLabel} — $${flip.sellPrice.toFixed(2)}`,
+    `Профит: $${flip.profitUsd.toFixed(2)} (${flip.profitPercent.toFixed(2)}%)`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+const liveState = csfloatLive.createState();
+let liveErrorLogged = false;
+
+async function scanCsfloatLive(token, getRows, config) {
+  const subs = loadSubscribers().filter((s) => s.active && isLiveSub(s));
+  if (!subs.length) return; // никто не слушает — CSFloat не дёргаем
+  const rows = getRows();
+  if (!rows.length) return;
+
+  // Общий нижний порог для запроса — самый низкий среди подписчиков (если у
+  // кого-то порога нет, то без него).
+  const mins = subs.map((s) => s.minPrice ?? null);
+  const minPriceUsd = mins.includes(null) ? null : Math.min(...mins);
+
+  let listings;
+  try {
+    listings = await csfloatLive.fetchNewListings(liveState, { apiKey: process.env.CSFLOAT_API_KEY, minPriceUsd });
+    liveErrorLogged = false;
+  } catch (err) {
+    // Одну и ту же ошибку не пишем в лог каждые 30 секунд.
+    if (!liveErrorLogged) console.error(`[telegram-arb-bot] csfloat-live: ${err.message}`);
+    liveErrorLogged = true;
+    return;
+  }
+  if (!listings.length) return;
+
+  const index = rowIndex(rows);
+  for (const sub of subs) {
+    const hits = [];
+    for (const listing of listings) {
+      const row = index.get(listing.rowKey);
+      if (!row) continue; // предмета нет в таблице (или доплер без строки своей фазы)
+      const flip = liveFlipFor(listing, row, config, sub);
+      if (flip) hits.push({ listing, row, flip });
+    }
+    hits.sort((a, b) => b.flip.profitUsd - a.flip.profitUsd);
+
+    for (const { listing, row, flip } of hits.slice(0, MAX_LIVE_LOTS_PER_TICK)) {
+      try {
+        await sendMessage(token, sub.chatId, formatLiveLot(listing, row, flip, config), {
+          reply_markup: { inline_keyboard: [[{ text: "Открыть лот на CSFloat", url: listing.url }]] },
+        });
+      } catch (err) {
+        console.error(`[telegram-arb-bot] Ошибка отправки чату ${sub.chatId}: ${err.message}`);
+      }
+    }
+    if (hits.length > MAX_LIVE_LOTS_PER_TICK) {
+      await sendMessage(token, sub.chatId, `…и ещё ${hits.length - MAX_LIVE_LOTS_PER_TICK} выгодных лотов за эти 30 с`).catch(() => {});
+    }
+  }
 }
 
 // ---- Long polling ----
@@ -495,6 +616,15 @@ function startTelegramArbBot(getRows, config) {
   scanAndNotify(token, getRows, config);
   setInterval(() => scanAndNotify(token, getRows, config), intervalMs);
 
+  // Live-скан CSFloat: следующий опрос — только после окончания предыдущего,
+  // чтобы медленный ответ не наслаивал запросы.
+  const liveMs = (config.telegramArbBot?.csfloatLiveSeconds || 30) * 1000;
+  const liveLoop = async () => {
+    await scanCsfloatLive(token, getRows, config).catch((e) => console.error("[telegram-arb-bot] csfloat-live:", e.message));
+    setTimeout(liveLoop, liveMs);
+  };
+  liveLoop();
+
   console.log("[telegram-arb-bot] Запущен.");
 }
 
@@ -503,6 +633,8 @@ module.exports = {
   // Экспортировано дополнительно для тестов и переиспользования логики.
   computeQualifying,
   formatLot,
+  liveFlipFor,
+  formatLiveLot,
   defaultFilters,
   loadSubscribers,
   saveSubscribers,
