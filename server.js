@@ -14,6 +14,7 @@ const trades = require("./trades");
 const users = require("./users");
 const { runCsfloatBidScan } = require("./csfloatBidScan");
 const { buildAutobuyFeed } = require("./autobuyFeed");
+const csfloatAutoList = require("./csfloatAutoList");
 const { sendScanToTelegram, sendOwnerMessage } = require("./telegramNotifier");
 const payoutDetails = require("./payoutDetails");
 const { computeSellQuote } = require("./sellQuote");
@@ -1493,6 +1494,39 @@ app.get("/api/csfloat-bid-scan", (req, res) => {
   res.json(lastCsfloatBidScan || { generatedAt: null, count: 0, items: [] });
 });
 
+// ---- Автовыставление своих предметов на CSFloat по цене Youpin ----
+// Включается строкой CSFLOAT_AUTOLIST=on в .env — до этого только план:
+// /api/csfloat-autolist/preview показывает, что было бы выставлено, по какой
+// цене и что пропущено, ничего не меняя на CSFloat (см. csfloatAutoList.js).
+let lastCsfloatAutoList = null;
+let csfloatAutoListRunning = false;
+
+async function runScheduledCsfloatAutoList() {
+  if (csfloatAutoListRunning || !cache.rows.length) return;
+  csfloatAutoListRunning = true;
+  try {
+    lastCsfloatAutoList = await csfloatAutoList.run(cache.rows, config, { apply: true });
+    console.log(`[csfloat-autolist] ${csfloatAutoList.summary(lastCsfloatAutoList)}`);
+    for (const a of lastCsfloatAutoList.actions.filter((x) => x.error)) {
+      console.warn(`[csfloat-autolist] ${a.action} ${a.name}: ${a.error}`);
+    }
+  } catch (err) {
+    lastCsfloatAutoList = { at: new Date().toISOString(), error: err.message };
+    console.error("[csfloat-autolist] Ошибка:", err.message);
+  } finally {
+    csfloatAutoListRunning = false;
+  }
+}
+
+app.get("/api/csfloat-autolist/preview", requireSiteOwner, async (req, res) => {
+  try {
+    const plan = await csfloatAutoList.run(cache.rows, config, { apply: false });
+    res.json({ ok: true, enabled: process.env.CSFLOAT_AUTOLIST === "on", plan, lastRun: lastCsfloatAutoList });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message, lastRun: lastCsfloatAutoList });
+  }
+});
+
 // ---- Список "купить по CSFloat ask → сдать на Skinbux" для csfloat-bot ----
 // Бот забирает его каждый тик (см. autobuyFeed.js). Доступ — по токену из
 // AUTOBUY_FEED_TOKEN (заголовок Authorization: Bearer <токен>), не по сессии:
@@ -2832,6 +2866,13 @@ app.listen(PORT, async () => {
 
   scheduleDailyCapitalClose();
   scheduleSalesWatch();
+
+  if (process.env.CSFLOAT_AUTOLIST === "on") {
+    runScheduledCsfloatAutoList(); // первый проход сразу после первой загрузки цен
+    const autoListMs = csfloatAutoList.settings(config).intervalHours * 60 * 60 * 1000;
+    setInterval(runScheduledCsfloatAutoList, autoListMs);
+    console.log("[csfloat-autolist] Включено.");
+  }
 
   startTelegramArbBot(() => cache.rows, config);
 });

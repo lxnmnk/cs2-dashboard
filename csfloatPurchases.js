@@ -213,4 +213,4 @@ async function fetchPurchases(apiKey, { maxPages = MAX_PAGES, days = DEFAULT_DAY
   return { purchases, fetched, skipped, mode, days: Math.max(1, Number(days) || DEFAULT_DAYS) };
 }
 
-module.exports = { fetchPurchases, normalizeTrade, tradesOf, BASE_URL };
+module.exports = { fetchPurchases, normalizeTrade, tradesOf, withPhase, BASE_URL };
