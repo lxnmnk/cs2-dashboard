@@ -190,8 +190,15 @@ async function run(rows, config, { apply = false } = {}) {
     const tracked = state.listings[item.assetId];
     const live = tracked && !tracked.gone;
     if (state.skipAssets[item.assetId]) continue;
-    if (!live && listedByHand.has(item.assetId)) continue; // выставлен руками — не наш
-    if (!live && item.tradable === false) continue; // под трейдлоком — выставить нельзя
+    if (!live && listedByHand.has(item.assetId)) {
+      note("skip", item, { reason: "уже выставлен руками" });
+      continue;
+    }
+    // У CSFloat tradable бывает и false, и 0.
+    if (!live && item.tradable != null && !item.tradable) {
+      note("skip", item, { reason: "под трейдлоком" });
+      continue;
+    }
 
     const verdict = decide(item, index.get(item.rowKey), cfg);
 
@@ -257,7 +264,7 @@ async function run(rows, config, { apply = false } = {}) {
 function summary(report) {
   const count = (a) => report.actions.filter((x) => x.action === a && !x.error).length;
   const errors = report.actions.filter((x) => x.error).length;
-  return `выставлено ${count("list")}, переоценено ${count("reprice")}, снято ${count("delist")}, пропущено ${count("skip")}${errors ? `, ошибок ${errors}` : ""}`;
+  return `${report.apply ? "" : "план (ничего не менялось): "}выставлено ${count("list")}, переоценено ${count("reprice")}, снято ${count("delist")}, пропущено ${count("skip")}${errors ? `, ошибок ${errors}` : ""}`;
 }
 
 module.exports = { run, summary, settings, decide };

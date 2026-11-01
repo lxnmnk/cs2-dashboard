@@ -1521,7 +1521,13 @@ async function runScheduledCsfloatAutoList() {
 app.get("/api/csfloat-autolist/preview", requireSiteOwner, async (req, res) => {
   try {
     const plan = await csfloatAutoList.run(cache.rows, config, { apply: false });
-    res.json({ ok: true, enabled: process.env.CSFLOAT_AUTOLIST === "on", plan, lastRun: lastCsfloatAutoList });
+    res.json({
+      ok: true,
+      enabled: process.env.CSFLOAT_AUTOLIST === "on",
+      summary: csfloatAutoList.summary(plan),
+      plan,
+      lastRun: lastCsfloatAutoList,
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message, lastRun: lastCsfloatAutoList });
   }
