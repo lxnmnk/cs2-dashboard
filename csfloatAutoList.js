@@ -10,8 +10,9 @@
 //   4. наши лоты переоцениваем, если Youpin поменялся.
 //
 // Трогаем только лоты, которые выставили сами (csfloatAutoListings.json).
-// Лоты, выставленные руками, не меняем. Если наш лот сняли руками и предмет
-// вернулся в инвентарь — второй раз его не выставляем, человек так решил.
+// Лоты, выставленные руками, не меняем (кроме режима adopt). Если наш лот
+// сняли руками или поменяли ему цену — больше его не трогаем, человек так
+// решил.
 //
 // Эндпоинты CSFloat взяты не из официальной документации (она недоступна), а
 // из открытого клиента: POST /listings {asset_id, type, price}, PATCH
@@ -166,6 +167,13 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
     }
     if (!listing || listing.state !== "listed") {
       tracked.gone = listing?.state || "removed";
+    } else if (Number.isFinite(Number(listing.price)) && Math.round(Number(listing.price)) !== Math.round(tracked.price * 100)) {
+      // Цену поменяли руками — это решение человека: лот больше не наш,
+      // не переоцениваем и не снимаем (и режим all второй раз его не возьмёт).
+      const handPrice = Math.round(Number(listing.price)) / 100;
+      state.skipAssets[assetId] = { name: tracked.name, at: new Date().toISOString(), why: `цену поменяли руками на $${handPrice}` };
+      note("forget", tracked, { price: handPrice, was: tracked.price, reason: "цену поменяли руками — больше не трогаю" });
+      delete state.listings[assetId];
     }
   }
 
@@ -200,7 +208,10 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
   for (const item of candidates) {
     let tracked = state.listings[item.assetId];
     let live = tracked && !tracked.gone;
-    if (state.skipAssets[item.assetId]) continue;
+    if (state.skipAssets[item.assetId]) {
+      note("skip", item, { reason: state.skipAssets[item.assetId].why });
+      continue;
+    }
     const hand = !live && listedByHand.get(item.assetId);
     if (hand && !adopt) {
       const v = decide(item, index.get(item.rowKey), cfg);
