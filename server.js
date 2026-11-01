@@ -1505,7 +1505,10 @@ async function runScheduledCsfloatAutoList() {
   if (csfloatAutoListRunning || !cache.rows.length) return;
   csfloatAutoListRunning = true;
   try {
-    lastCsfloatAutoList = await csfloatAutoList.run(cache.rows, config, { apply: true });
+    lastCsfloatAutoList = await csfloatAutoList.run(cache.rows, config, {
+      apply: true,
+      adopt: process.env.CSFLOAT_AUTOLIST === "all",
+    });
     console.log(`[csfloat-autolist] ${csfloatAutoList.summary(lastCsfloatAutoList)}`);
     for (const a of lastCsfloatAutoList.actions.filter((x) => x.error)) {
       console.warn(`[csfloat-autolist] ${a.action} ${a.name}: ${a.error}`);
@@ -1520,10 +1523,12 @@ async function runScheduledCsfloatAutoList() {
 
 app.get("/api/csfloat-autolist/preview", requireSiteOwner, async (req, res) => {
   try {
-    const plan = await csfloatAutoList.run(cache.rows, config, { apply: false });
+    // ?adopt=1 — план с лотами, выставленными руками, как в режиме "all".
+    const adopt = req.query.adopt === "1" || process.env.CSFLOAT_AUTOLIST === "all";
+    const plan = await csfloatAutoList.run(cache.rows, config, { apply: false, adopt });
     res.json({
       ok: true,
-      enabled: process.env.CSFLOAT_AUTOLIST === "on",
+      mode: process.env.CSFLOAT_AUTOLIST || "off",
       summary: csfloatAutoList.summary(plan),
       plan,
       lastRun: lastCsfloatAutoList,
@@ -2873,7 +2878,8 @@ app.listen(PORT, async () => {
   scheduleDailyCapitalClose();
   scheduleSalesWatch();
 
-  if (process.env.CSFLOAT_AUTOLIST === "on") {
+  // on — только новые лоты; all — и выставленные руками тоже.
+  if (["on", "all"].includes(process.env.CSFLOAT_AUTOLIST)) {
     runScheduledCsfloatAutoList(); // первый проход сразу после первой загрузки цен
     const autoListMs = csfloatAutoList.settings(config).intervalHours * 60 * 60 * 1000;
     setInterval(runScheduledCsfloatAutoList, autoListMs);

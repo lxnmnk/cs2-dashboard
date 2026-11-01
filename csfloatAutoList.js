@@ -94,20 +94,24 @@ function normalizeInventoryItem(it) {
  * раз то, что уже висит (выставлено руками). Не получилось прочитать стол —
  * пустое множество: тогда CSFloat сам откажет на повторный лот.
  */
-async function stallAssetIds(apiKey) {
+async function stallListings(apiKey) {
+  const byAsset = new Map();
   try {
     const me = await api(apiKey, "GET", "/me");
     const steamId = me?.user?.steam_id;
-    if (!steamId) return new Set();
+    if (!steamId) return byAsset;
     const stall = await api(apiKey, "GET", `/users/${steamId}/stall?limit=999`).catch(() =>
       api(apiKey, "GET", `/users/${steamId}/stall?limit=40`)
     );
     const list = Array.isArray(stall) ? stall : stall?.data || [];
-    return new Set(list.map((l) => String(l.item?.asset_id ?? "")).filter(Boolean));
+    for (const l of list) {
+      const assetId = String(l.item?.asset_id ?? "");
+      if (assetId && l.id) byAsset.set(assetId, { listingId: String(l.id), price: Math.round(Number(l.price)) / 100 });
+    }
   } catch (err) {
     console.warn("[csfloat-autolist] стол не прочитался:", err.message);
-    return new Set();
   }
+  return byAsset;
 }
 
 /**
@@ -130,9 +134,12 @@ function decide(item, row, cfg) {
 
 /**
  * Один проход. apply=false — только план, на CSFloat ничего не меняется.
+ * adopt=true — лоты, выставленные руками, тоже берём под себя: переоцениваем
+ * по Youpin и снимаем по правилу Skinbux, как свои. Без него их только
+ * показываем — с текущей ценой рядом с ценой Youpin.
  * Возвращает отчёт { at, apply, actions: [{ action, name, float, price, reason }] }.
  */
-async function run(rows, config, { apply = false } = {}) {
+async function run(rows, config, { apply = false, adopt = false } = {}) {
   const apiKey = process.env.CSFLOAT_API_KEY;
   if (!apiKey) throw new Error("CSFLOAT_API_KEY не задан в .env");
   if (!rows.length) throw new Error("цены ещё не загружены");
@@ -165,7 +172,7 @@ async function run(rows, config, { apply = false } = {}) {
     .map(normalizeInventoryItem)
     .filter((it) => it.assetId && it.name);
   const inInventory = new Set(inventory.map((it) => it.assetId));
-  const listedByHand = await stallAssetIds(apiKey);
+  const listedByHand = await stallListings(apiKey);
 
   for (const [assetId, tracked] of Object.entries(state.listings)) {
     if (!tracked.gone) continue;
@@ -187,12 +194,21 @@ async function run(rows, config, { apply = false } = {}) {
     candidates.push({ assetId, rowKey: tracked.name, name: tracked.name, float: tracked.float ?? null, tradable: null });
   }
   for (const item of candidates) {
-    const tracked = state.listings[item.assetId];
-    const live = tracked && !tracked.gone;
+    let tracked = state.listings[item.assetId];
+    let live = tracked && !tracked.gone;
     if (state.skipAssets[item.assetId]) continue;
-    if (!live && listedByHand.has(item.assetId)) {
-      note("skip", item, { reason: "уже выставлен руками" });
+    const hand = !live && listedByHand.get(item.assetId);
+    if (hand && !adopt) {
+      const v = decide(item, index.get(item.rowKey), cfg);
+      note("skip", item, { reason: "уже выставлен руками", listedPrice: hand.price, youpinPrice: v.price ?? null });
       continue;
+    }
+    if (hand) {
+      // Берём под себя: дальше он живёт как наш лот (в плане — только в памяти).
+      const now = new Date().toISOString();
+      tracked = { listingId: hand.listingId, name: item.rowKey, float: item.float, price: hand.price, adoptedAt: now, updatedAt: now };
+      state.listings[item.assetId] = tracked;
+      live = true;
     }
     // У CSFloat tradable бывает и false, и 0.
     if (!live && item.tradable != null && !item.tradable) {
