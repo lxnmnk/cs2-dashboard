@@ -32,6 +32,9 @@ const DEFAULTS = {
   minPrice: 5,
   // Названия (подстрокой), которые не выставлять никогда.
   exclude: [],
+  // Сувениры не выставляем вообще: средняя цена Youpin для них ничего не
+  // значит — всё решают наклейки (так решил владелец).
+  excludeSouvenir: true,
 };
 const CALL_GAP_MS = 1500;
 
@@ -120,6 +123,7 @@ async function stallListings(apiKey) {
  */
 function decide(item, row, cfg) {
   if (cfg.exclude.some((s) => item.rowKey.includes(s))) return { skip: "в списке исключений" };
+  if (cfg.excludeSouvenir && item.rowKey.startsWith("Souvenir ")) return { skip: "сувениры не выставляем" };
   const youpin = row?.prices?.youpin?.ask;
   if (youpin == null) return { skip: "нет цены Youpin", keep: true };
   if (youpin < cfg.minPrice) return { skip: `дешевле $${cfg.minPrice}`, keep: true };
