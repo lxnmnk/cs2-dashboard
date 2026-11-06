@@ -174,6 +174,9 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
     // Часть "моего", которую подтвердить нечем: продажи мимо сайта,
     // не заведённые в трекер.
     unconfirmed: { sum: 0, count: 0 },
+    // Клиентам и партнёрам, кому уже заплатили, пока деньги ещё в холде:
+    // их долг не вычитается из "моё" (иначе он вычитался бы второй раз).
+    paidAhead: { sum: 0, count: 0 },
     items: [],
     nextUnlockAt: null,
   };
@@ -216,15 +219,28 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       owner = "mine";
     } else if (partners[steamId]) {
       owner = partners[steamId];
-      const prev = result.partners[owner] || 0;
-      result.partners[owner] = round2(prev + amount);
+      // Уже вернул (paidAt) — долга нет, деньги в холде теперь наши.
+      if (sale.paidAt) {
+        result.paidAhead.sum = round2(result.paidAhead.sum + amount);
+        result.paidAhead.count++;
+      } else {
+        const prev = result.partners[owner] || 0;
+        result.partners[owner] = round2(prev + amount);
+      }
     } else {
       owner = "client";
       // Клиенту обещана его сумма (уже с нашей скидкой), разница — наша.
-      const payout = round2(Number(sale.totalPrice) || 0);
+      const owed = round2(Number(sale.totalPrice) || 0);
       result.clients.gross = round2(result.clients.gross + amount);
-      result.clients.payout = round2(result.clients.payout + payout);
-      result.clients.margin = round2(result.clients.margin + (amount - payout));
+      result.clients.margin = round2(result.clients.margin + (amount - owed));
+      // Клиенту часто платишь раньше, чем Skinbux отпустит деньги. Тогда
+      // долга уже нет: выплата ушла из других денег, а холд целиком наш.
+      if (sale.paidAt) {
+        result.paidAhead.sum = round2(result.paidAhead.sum + owed);
+        result.paidAhead.count++;
+      } else {
+        result.clients.payout = round2(result.clients.payout + owed);
+      }
     }
 
     result.items.push({
@@ -234,7 +250,8 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       steamId,
       // Откуда узнали владельца: журнал сайта, пометка руками или никак.
       via: steamId ? "journal" : matched ? "tracker" : "unknown",
-      payout: matched?.fromClient ? matched.payout : sale && owner === "client" ? round2(sale.totalPrice || 0) : null,
+      payout: matched?.fromClient ? matched.payout : sale && owner === "client" && !sale.paidAt ? round2(sale.totalPrice || 0) : null,
+      paidAt: sale?.paidAt || null,
       customerName: sale?.customerName || null,
       unlockAt,
       names: (tx.tradeItems || []).map((i) => i.name),

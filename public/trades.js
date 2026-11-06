@@ -2089,6 +2089,10 @@ function holdSplitLines(split) {
       `клиентам выплатить: ${fmtMoney(split.clients.payout)} (их продажи на ${fmtMoney(split.clients.gross)})`
     );
   }
+  // Кому уже заплатил, пока деньги в холде: эти суммы в "моё", не в долг.
+  if (split.paidAhead?.sum > 0) {
+    lines.push(`уже выплачено заранее: ${fmtMoney(split.paidAhead.sum)} (${split.paidAhead.count} сделк.) — в долг не считается`);
+  }
   return lines.map((l) => `<div class="balance-extra balance-split">${l}</div>`);
 }
 
