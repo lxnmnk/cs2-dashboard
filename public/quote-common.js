@@ -151,7 +151,10 @@ function groupThousands(n) {
 function formatPrice(usd) {
   const usdStr = `$${usd.toFixed(2)}`;
   if (!uah?.enabled) return usdStr;
-  const uahAmount = groupThousands(Math.round(usd * uah.rate));
+  // Курс виплати з сервера (currency.js), а число в QUOTE_CONFIG — запасне,
+  // поки він не прийшов: інакше курс у панелі тут не змінювався б.
+  const rate = window.Currency?.rates?.sell || uah.rate;
+  const uahAmount = groupThousands(Math.round(usd * rate));
   return `${usdStr} (${uahAmount} ₴)`;
 }
 

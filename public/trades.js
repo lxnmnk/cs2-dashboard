@@ -2833,6 +2833,9 @@ const PRICING_FIELDS = {
   sellDiscountPercent: "sellDiscountInput",
   tradeMarkupPercent: "tradeMarkupInput",
   tradeDiscountPercent: "tradeDiscountInput",
+  // Курс гривні — два, як в обміннику: виплата клієнту й продаж наших скінів.
+  uahRateSell: "uahRateSellInput",
+  uahRateBuy: "uahRateBuyInput",
 };
 
 async function loadPricingSettings() {
@@ -2862,7 +2865,8 @@ document.getElementById("pricingSaveBtn").addEventListener("click", async () => 
   }
   status.textContent =
     `Saved: buy +${data.buyMarkupPercent}%, sell −${data.sellDiscountPercent}%, ` +
-    `trade +${data.tradeMarkupPercent}% / −${data.tradeDiscountPercent}%`;
+    `trade +${data.tradeMarkupPercent}% / −${data.tradeDiscountPercent}%, ` +
+    `₴ ${data.uahRateSell} pay / ${data.uahRateBuy} sell`;
   setTimeout(() => (status.textContent = ""), 5000);
 });
 

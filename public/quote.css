@@ -3090,3 +3090,97 @@ a.sender-line { color: var(--gold); }
 }
 .cart-review-bonus { margin: var(--s-2) 0 0; font-size: var(--t-sm); color: var(--gold); }
 .cart-review-bonus a { color: var(--gold); }
+
+/* ---- Акція (Black Friday): банер на головній і в кабінеті, campaign.js ----
+   Чорна плашка з золотом — у фірмових кольорах, але темніша за решту
+   сторінки, щоб читалась як тимчасова подія, а не частина інтерфейсу. */
+.bf-banner {
+  position: relative;
+  overflow: hidden;
+  margin: var(--s-5) 0;
+  padding: var(--s-6);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--gold-line);
+  background:
+    radial-gradient(60% 120% at 100% 0%, rgba(215, 168, 78, 0.22) 0%, rgba(215, 168, 78, 0) 60%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 14px),
+    #050506;
+  box-shadow: var(--shadow);
+}
+.bf-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+.bf-tag {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--gold);
+  color: #050506;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  font-size: var(--t-sm);
+}
+.bf-dates { color: var(--text); font-weight: 700; font-size: var(--t-md); }
+.bf-timer { margin-left: auto; color: var(--gold); font-weight: 700; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.bf-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-5); margin-top: var(--s-5); }
+.bf-offer { display: flex; align-items: center; gap: var(--s-4); }
+.bf-plus {
+  font-size: 72px;
+  line-height: 0.9;
+  font-weight: 900;
+  color: var(--gold);
+  letter-spacing: -0.02em;
+  text-shadow: 0 0 40px rgba(215, 168, 78, 0.45);
+}
+.bf-offer-text { font-size: var(--t-xl); font-weight: 800; line-height: 1.15; color: var(--text); }
+.bf-offer-text span { display: block; margin-top: var(--s-1); font-size: var(--t-md); font-weight: 600; color: var(--muted); }
+.bf-compare {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+}
+.bf-compare span { display: block; font-size: var(--t-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.bf-was s { font-size: var(--t-xl); color: var(--muted); }
+.bf-now b { font-size: var(--t-2xl); color: var(--gold); }
+.bf-arrow { font-size: var(--t-xl); color: var(--gold); }
+.bf-zero { margin: var(--s-5) 0 0; max-width: 760px; font-size: var(--t-md); line-height: 1.5; color: var(--text); }
+.bf-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-4); margin-top: var(--s-5); }
+.bf-code {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4);
+  border-radius: var(--r-md);
+  border: 1px dashed var(--gold-line);
+  background: var(--gold-soft);
+  color: var(--muted);
+  font-size: var(--t-sm);
+}
+.bf-code b { color: var(--gold); font-size: var(--t-lg); letter-spacing: 0.06em; }
+.bf-copy {
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--gold-line);
+  background: transparent;
+  color: var(--gold);
+  font: inherit;
+  cursor: pointer;
+}
+.bf-terms { margin: var(--s-4) 0 0; font-size: var(--t-xs); color: var(--muted); line-height: 1.5; }
+
+/* Закреслена ціна без акції на картці предмета і рядок акції в кошику. */
+.price-was { color: var(--muted); font-weight: 500; font-size: 0.85em; }
+.cart-campaign { margin: var(--s-2) 0 0; font-size: var(--t-sm); color: var(--gold); font-weight: 600; }
+.cart-campaign.is-off { color: var(--muted); font-weight: 500; }
+
+@media (max-width: 760px) {
+  .bf-banner { padding: var(--s-5) var(--s-4); }
+  .bf-timer { margin-left: 0; width: 100%; }
+  .bf-plus { font-size: 56px; }
+  .bf-offer-text { font-size: var(--t-lg); }
+  .bf-compare { width: 100%; justify-content: space-between; }
+  .bf-foot { flex-direction: column; align-items: stretch; }
+  .bf-foot .btn-gold { justify-content: center; }
+  .bf-code { justify-content: space-between; }
+}

@@ -39,12 +39,59 @@ const RESERVED = new Set([
   "mytrades", "capital", "login", "ru", "en", "ua", "api", "auth", "uploads",
 ]);
 
+// Акції — коди, що живуть у коді, а не в панелі: з датами й умовами, яких у
+// звичайного партнерського коду немає.
+//   startsAt/endsAt — коли код діє (за Києвом); поза вікном його наче й нема;
+//   payoutMethod    — бонус лише при такому способі виплати ("card" — на
+//                     українську картку в гривні);
+//   oncePerClient   — один продаж на клієнта (скільки завгодно скінів у ньому).
+// Після першого кліку чи зміни в панелі код зберігається в promoCodes.json —
+// звідти його видно у звіті й можна вимкнути руками.
+const CAMPAIGNS = [
+  {
+    code: "blackfriday",
+    name: "Black Friday: +5% при виплаті в гривні",
+    bonusPercent: 5,
+    partnerPercent: 0,
+    active: true,
+    clicks: 0,
+    campaign: true,
+    payoutMethod: "card",
+    oncePerClient: true,
+    startsAt: "2026-11-06T00:00:00+02:00",
+    endsAt: "2026-11-08T23:59:59+02:00",
+    createdAt: "2026-11-06T00:00:00+02:00",
+  },
+];
+
 function loadAll() {
+  let codes;
   try {
-    return JSON.parse(fs.readFileSync(FILE, "utf8"));
+    codes = JSON.parse(fs.readFileSync(FILE, "utf8"));
   } catch {
-    return [];
+    codes = [];
   }
+  // Акції, яких у файлі ще немає, — як є з коду. Ті, що вже записані (клік,
+  // правка в панелі), беремо з файлу, але умови акції завжди з коду: панель
+  // їх не показує, і загубити їх при збереженні не можна.
+  for (const c of CAMPAIGNS) {
+    const saved = codes.find((x) => x.code === c.code);
+    if (!saved) codes.push({ ...c });
+    else Object.assign(saved, { campaign: true, payoutMethod: c.payoutMethod, oncePerClient: c.oncePerClient, startsAt: c.startsAt, endsAt: c.endsAt });
+  }
+  return codes;
+}
+
+/** Чи йде акція зараз (для звичайних кодів — завжди так). */
+function inWindow(code, now = Date.now()) {
+  if (code.startsAt && now < Date.parse(code.startsAt)) return false;
+  if (code.endsAt && now > Date.parse(code.endsAt)) return false;
+  return true;
+}
+
+/** Акція, що йде зараз, — для банера на сайті. null, якщо жодної. */
+function activeCampaign(now = Date.now()) {
+  return loadAll().find((c) => c.campaign && c.active && inWindow(c, now)) || null;
 }
 
 function saveAll(codes) {
@@ -61,7 +108,7 @@ function find(code, { includeInactive = false } = {}) {
   if (!key) return null;
   const found = loadAll().find((c) => c.code === key);
   if (!found) return null;
-  if (!found.active && !includeInactive) return null;
+  if ((!found.active || !inWindow(found)) && !includeInactive) return null;
   return found;
 }
 
@@ -153,4 +200,4 @@ function round2(n) {
   return Math.round((Number(n) || 0) * 100) / 100;
 }
 
-module.exports = { loadAll, find, upsert, remove, countClick, report, normalize, COOKIE_NAME, COOKIE_DAYS, CODE_RE, RESERVED };
+module.exports = { loadAll, find, activeCampaign, inWindow, upsert, remove, countClick, report, normalize, COOKIE_NAME, COOKIE_DAYS, CODE_RE, RESERVED };

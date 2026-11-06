@@ -248,7 +248,8 @@ app.get(/^\/([a-zA-Z0-9_-]{3,20})$/, (req, res, next) => {
   if (promo) {
     promoCodes.countClick(promo.code);
     req.session.promo = promo.code;
-    return res.redirect(homeForLanguage(req));
+    // ?go=account — з банера акції: одразу в кабінет продажу, код уже в сесії.
+    return res.redirect(req.query.go === "account" ? "/account" : homeForLanguage(req));
   }
 
   // Те саме посилання, але з кодом клієнта (реферальна програма,
@@ -367,6 +368,9 @@ const PUBLIC_PATHS = new Set([
   "/api/public/catalog",
   "/catalog.js",
   "/api/public/rate",
+  "/api/public/campaign",
+  // Банер акції (Black Friday) — на головній і в кабінеті.
+  "/campaign.js",
   "/currency.js",
   "/api/public/my-skins",
   "/landing.js",
@@ -617,14 +621,16 @@ app.get("/api/account/me", (req, res) => {
   // Поправки владельца поверх расчёта по журналу: частичные выплаты, бонусы,
   // расчёты мимо сайта — см. customerBalances.js.
   const balance = customerBalances.apply(skinbuxSales.computeBalance(customer.steamId), customer.steamId);
+  // Баланс клієнта — це гроші, які ми йому виплатимо: курс виплати.
+  const { uahRateSell } = pricingSettings.get();
   res.json({
     customer,
     balance: {
       ...balance,
-      availableUah: Math.round(balance.available * config.uahRate),
-      holdUah: Math.round(balance.hold * config.uahRate),
-      tradeUah: Math.round(balance.trade * config.uahRate),
-      uahRate: config.uahRate,
+      availableUah: Math.round(balance.available * uahRateSell),
+      holdUah: Math.round(balance.hold * uahRateSell),
+      tradeUah: Math.round(balance.trade * uahRateSell),
+      uahRate: uahRateSell,
     },
   });
 });
@@ -661,21 +667,81 @@ function priceKeyFor(item) {
  * на показ цін і на сам продаж — інакше в кошику було б одне число, а при
  * продажу інше.
  */
-function discountFor(req, { tradeMode = false } = {}) {
+function discountFor(req, { tradeMode = false, payoutMethod = null } = {}) {
   const settings = pricingSettings.get();
   const base = tradeMode ? settings.tradeDiscount : settings.sellDiscount;
-  const promo = promoCodes.find(req.session?.promo);
+  let promo = promoCodes.find(req.session?.promo);
+  // Акція з умовами (promoCodes CAMPAIGNS): не та виплата, обмін чи вже
+  // використана — код наче й не введений, але кошик каже чому.
+  const promoBlocked = campaignBlock(promo, req, { tradeMode, payoutMethod });
+  if (promoBlocked) promo = null;
   // Партнерський код і реферальний бонус не складаються: діє більший.
   // Бонус за відгук (reviews.js) — разовий, лише на продаж, не на обмін, і
   // додається зверху: це окрема нагорода, а не ще один код.
   const steamId = req.session?.customer?.steamId;
   const reviewBonus = !tradeMode && steamId ? reviews.availableBonus(steamId)?.percent || 0 : 0;
-  const bonusPercent = Math.max(promo?.bonusPercent || 0, referralBonusFor(req)) + reviewBonus;
-  if (!bonusPercent) return { discount: base, promo: null };
+  const codeBonus = Math.max(promo?.bonusPercent || 0, referralBonusFor(req));
   // Знижка тут — частка (0.05 = 5%), а бонус коду задається у відсотках.
   // Без ділення на 100 код з'їдав би всю знижку одразу: клієнт отримував би
   // повну ціну Skinbux, а ми — нуль.
-  return { discount: Math.max(0, base - bonusPercent / 100), promo };
+  const discountWith = (bonus) => Math.max(0, base - bonus / 100);
+  // Бонус за відгук витрачається, лише якщо щось додав: коли знижка вже нуль
+  // (акція), він лишається на наступний продаж.
+  const reviewUsed = reviewBonus > 0 && discountWith(codeBonus) > 0;
+  // Скільки було б без акції — кошик показує "було → стало".
+  const baseDiscount = promo?.campaign
+    ? discountWith(referralBonusFor(req) + reviewBonus)
+    : discountWith(codeBonus + reviewBonus);
+  const bonusPercent = codeBonus + reviewBonus;
+  if (!bonusPercent) return { discount: base, promo: null, promoBlocked, baseDiscount: base, reviewUsed: false };
+  return { discount: discountWith(bonusPercent), promo, promoBlocked, baseDiscount, reviewUsed };
+}
+
+/**
+ * Чому акція не діє для цього продажу (null — діє або це не акція).
+ *   TRADE          — розділ Trade: там виплати грошима немає;
+ *   PAYOUT_METHOD  — акція лише для виплати іншим способом (карта в гривні);
+ *   USED           — клієнт уже продавав за цією акцією.
+ */
+function campaignBlock(promo, req, { tradeMode, payoutMethod }) {
+  if (!promo?.campaign) return null;
+  if (tradeMode) return "TRADE";
+  if (promo.payoutMethod && payoutMethod !== promo.payoutMethod) return "PAYOUT_METHOD";
+  const steamId = req.session?.customer?.steamId;
+  if (promo.oncePerClient && steamId && promoUsedBy(steamId, promo.code)) return "USED";
+  return null;
+}
+
+/**
+ * Чи вже був продаж цього клієнта за кодом. Скасовані й відкати не рахуються:
+ * людина не прийняла обмін — акцію не отримала, може спробувати ще раз.
+ * Незавершені рахуються: інакше за час очікування обміну можна було б
+ * відкрити другий продаж із тим самим бонусом.
+ */
+function promoUsedBy(steamId, code) {
+  const key = promoCodes.normalize(code);
+  return skinbuxSales
+    .loadAll()
+    .some(
+      (s) =>
+        String(s.steamId) === String(steamId) &&
+        promoCodes.normalize(s.promoCode) === key &&
+        !["cancelled", "reverted"].includes(s.status)
+    );
+}
+
+/** Акція для кошика: що дає і чи вже використана цією людиною. */
+function campaignInfo(promo, req) {
+  if (!promo?.campaign) return null;
+  const steamId = req.session?.customer?.steamId;
+  return {
+    code: promo.code,
+    bonusPercent: promo.bonusPercent,
+    payoutMethod: promo.payoutMethod || null,
+    oncePerClient: !!promo.oncePerClient,
+    endsAt: promo.endsAt || null,
+    used: !!(promo.oncePerClient && steamId && promoUsedBy(steamId, promo.code)),
+  };
 }
 
 function quoteForItem(it, opts) {
@@ -722,6 +788,11 @@ app.get("/api/account/inventory", async (req, res) => {
     return res.json({ ok: false, error: "PRICES_NOT_READY" });
   }
   const tradeMode = req.query.mode === "trade";
+  // Спосіб виплати з кошика: від нього залежить акція (лише на картку).
+  const payoutMethod = PAYOUT_METHODS.has(String(req.query.payout)) ? String(req.query.payout) : null;
+  const disc = discountFor(req, { tradeMode, payoutMethod });
+  // Ціна без акції — щоб кошик показав "було → стало". Лише коли різниця є.
+  const showBase = disc.promo?.campaign && disc.baseDiscount !== disc.discount;
   try {
     const { items: rawItems } = await loadClientInventory(req.session.customer.steamId, {
       force: req.query.refresh === "1",
@@ -736,7 +807,8 @@ app.get("/api/account/inventory", async (req, res) => {
         // У розділі Trade предмет клієнта беремо за 97% ціни Skinbux, а не
         // за 95%, як при звичайному викупі: там ми заробляємо ще й на своєму
         // боці обміну.
-        const { quote } = quoteForItem(it, { discount: discountFor(req, { tradeMode }).discount });
+        const { quote } = quoteForItem(it, { discount: disc.discount, cap: !disc.promo?.campaign });
+        const base = showBase ? quoteForItem(it, { discount: disc.baseDiscount }).quote : null;
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -753,6 +825,7 @@ app.get("/api/account/inventory", async (req, res) => {
           phase: it.phase ?? null,
           float: it.float ?? null,
           price: quote.ok ? quote.price : null,
+          basePrice: base?.ok && quote.ok && base.price < quote.price ? base.price : null,
           // Официальные русские/украинские названия — чтобы фильтр в браузере
           // находил предмет по "Красная линия" и т.п.
           searchAlt: localizedAlt(it.marketHashName),
@@ -760,7 +833,13 @@ app.get("/api/account/inventory", async (req, res) => {
       })
       // Дороже — выше; без цены — в самый низ.
       .sort((a, b) => (b.price ?? -1) - (a.price ?? -1));
-    res.json({ ok: true, items });
+    res.json({
+      ok: true,
+      items,
+      campaign: campaignInfo(promoCodes.find(req.session?.promo), req),
+      campaignApplied: !!disc.promo?.campaign,
+      campaignBlocked: disc.promoBlocked,
+    });
   } catch (err) {
     if (err.message === "STEAM_RATE_LIMITED") {
       // Без этой строки отказ по лимиту нигде не виден: в логах тишина, а
@@ -830,6 +909,8 @@ async function sellCustomerItems(req, res, { tradeMode }) {
     }
   }
 
+  // Один розрахунок знижки на весь продаж: від способу виплати залежить акція.
+  const disc = discountFor(req, { tradeMode, payoutMethod: method });
   try {
     // Для продажу — завжди свіжий інвентар, повз хвилинний кеш: у ньому
     // ціна Skinbux, а вона встигає змінитись, і тоді INVALID_PRICE.
@@ -847,7 +928,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
         throw new Error(`Ми не приймаємо "${it.marketHashName}"`);
       }
 
-      const { row, quote } = quoteForItem(it, { discount: discountFor(req, { tradeMode }).discount });
+      const { row, quote } = quoteForItem(it, { discount: disc.discount, cap: !disc.promo?.campaign });
       if (!quote.ok) throw new Error(`Немає ціни на "${it.marketHashName}"`);
       // Клієнт бачив у кошику певну ціну — дешевше за неї не продаємо, а
       // показуємо йому нову (PRICE_CHANGED). Інакше отримав би менше мовчки.
@@ -910,7 +991,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
     const referralTopUp =
       !tradeMode && req.body?.useReferralBalance ? referrals.spendOnSale(customer.steamId, result.id) : 0;
     // Бонус за відгук уже сидить у ціні — тепер він використаний.
-    const reviewBonusPercent = !tradeMode ? reviews.useBonus(customer.steamId, result.id) : 0;
+    const reviewBonusPercent = !tradeMode && disc.reviewUsed ? reviews.useBonus(customer.steamId, result.id) : 0;
     skinbuxSales.record({
       id: result.id,
       steamId: customer.steamId,
@@ -928,8 +1009,12 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       // тож це просто підказка власнику, куди слати гроші.
       payoutMethod: method,
       payoutDetails: details,
-      // Хто привів цього клієнта — за цим рахується звіт по партнерах.
-      promoCode: promoCodes.find(req.session?.promo)?.code || null,
+      // Хто привів цього клієнта — за цим рахується звіт по партнерах. Акцію,
+      // що не спрацювала (крипта, обмін), не пишемо: інакше вона вважалась би
+      // використаною.
+      promoCode: disc.promoBlocked ? null : promoCodes.find(req.session?.promo)?.code || null,
+      // Курс, за яким клієнт бачив суму в гривні, — за ним і платимо.
+      uahRate: method === "card" ? pricingSettings.get().uahRateSell : null,
       // Хто запросив цього клієнта і під яким відсотком — для нарахування.
       ...(referrals.accrualForSale(customer.steamId) || {}),
       referralTopUp,
@@ -956,7 +1041,13 @@ app.get("/api/account/promo", (req, res) => {
   const extra = { reviewBonus, reviewInvite, reviewBonusPercent: reviews.REVIEW_BONUS_PERCENT };
 
   const promo = promoCodes.find(req.session?.promo);
-  if (promo) return res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent }, ...extra });
+  if (promo) {
+    return res.json({
+      ok: true,
+      promo: { code: promo.code, bonusPercent: promo.bonusPercent, campaign: campaignInfo(promo, req) },
+      ...extra,
+    });
+  }
   // Реферальний бонус показуємо в тому ж полі: для клієнта це теж "код".
   // Хто закріпився ще в минулих візитах, коду в сесії вже не має — беремо
   // той, яким закріпився.
@@ -991,7 +1082,7 @@ app.post("/api/account/promo", (req, res) => {
   }
 
   req.session.promo = promo.code;
-  res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent } });
+  res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent, campaign: campaignInfo(promo, req) } });
 });
 
 // ---- Реферальна програма: кабінет клієнта ----
@@ -1123,7 +1214,9 @@ async function notifyPayableSales() {
 
   for (const sale of pending) {
     const owed = skinbuxSales.amountOwed(sale);
-    const uah = Math.round(owed * config.uahRate);
+    // Курс — той, що клієнт бачив у кошику в момент продажу; старі записи без
+    // нього — за сьогоднішнім курсом виплати.
+    const uah = Math.round(owed * (sale.uahRate || pricingSettings.get().uahRateSell));
     const lines = [
       `💸 Можно платить — сделка #${sale.id}`,
       `Клиент: ${sale.customerName || "—"} (${sale.steamId})`,
@@ -1719,7 +1812,7 @@ function catalogItems(query) {
     if (!quote.ok) continue;
     // Рідкісну фазу показуємо у вітрині тільки до порога: дорожче — це вже
     // не "купи сьогодні", а місяць очікування покупця.
-    if (query.featured === "1" && isRarePhase(name) && quote.price * config.uahRate > FEATURED_RARE_PHASE_MAX_UAH) continue;
+    if (query.featured === "1" && isRarePhase(name) && quote.price * settings.uahRateBuy > FEATURED_RARE_PHASE_MAX_UAH) continue;
     if (!isLiquid(row, quote.price)) continue;
     if (Number.isFinite(min) && quote.price < min) continue;
     if (Number.isFinite(max) && quote.price > max) continue;
@@ -1740,10 +1833,25 @@ const WEAR_BY_CODE_REVERSE = {
   "Battle-Scarred": "BS",
 };
 
-// Курс гривні для перемикача валют (public/currency.js). Один на весь сайт,
-// щоб ціна в гривні не відрізнялась від сторінки до сторінки.
+// Курси гривні для перемикача валют (public/currency.js). Два, як в обміннику:
+// за скіни клієнта платимо за uahRateSell, наші скіни продаємо за uahRateBuy
+// (pricingSettings.js, правиться в панелі). uahRate — для старих сторінок у
+// кеші браузера: це курс виплати.
+// Акція, що йде зараз, — для банера на головній і в кабінеті (campaign.js).
+app.get("/api/public/campaign", (req, res) => {
+  const c = promoCodes.activeCampaign();
+  const { uahRateSell } = pricingSettings.get();
+  res.json({
+    ok: true,
+    campaign: c
+      ? { code: c.code, bonusPercent: c.bonusPercent, payoutMethod: c.payoutMethod || null, startsAt: c.startsAt, endsAt: c.endsAt, uahRate: uahRateSell }
+      : null,
+  });
+});
+
 app.get("/api/public/rate", (req, res) => {
-  res.json({ uahRate: config.uahRate });
+  const { uahRateSell, uahRateBuy } = pricingSettings.get();
+  res.json({ uahRate: uahRateSell, uahRateSell, uahRateBuy });
 });
 
 app.get("/api/public/catalog", async (req, res) => {
@@ -2007,6 +2115,8 @@ function pricingPercents(p) {
     sellDiscountPercent: pct(p.sellDiscount),
     tradeMarkupPercent: pct(p.tradeMarkup),
     tradeDiscountPercent: pct(p.tradeDiscount),
+    uahRateSell: p.uahRateSell,
+    uahRateBuy: p.uahRateBuy,
   };
 }
 
@@ -2018,7 +2128,7 @@ app.post("/api/pricing-settings", requireSiteOwner, (req, res) => {
   try {
     const p = pricingPercents(pricingSettings.setFromPercents(req.body || {}));
     console.log(
-      `[pricing] Купівля: youpin +${p.buyMarkupPercent}% | продаж: Skinbux −${p.sellDiscountPercent}% | трейд: наші youpin +${p.tradeMarkupPercent}%, клієнта Skinbux −${p.tradeDiscountPercent}%`
+      `[pricing] Купівля: youpin +${p.buyMarkupPercent}% | продаж: Skinbux −${p.sellDiscountPercent}% | трейд: наші youpin +${p.tradeMarkupPercent}%, клієнта Skinbux −${p.tradeDiscountPercent}% | курс ₴: виплата ${p.uahRateSell}, купівля ${p.uahRateBuy}`
     );
     res.json({ ok: true, ...p });
   } catch (err) {

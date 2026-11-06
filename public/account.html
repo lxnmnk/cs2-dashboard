@@ -50,6 +50,9 @@
     <h1>Продати <span class="accent">скіни</span></h1>
   </section>
 
+  <!-- Банер акції: з'являється сам, поки акція йде (campaign.js). -->
+  <div id="campaignBanner"></div>
+
   <section id="loggedOutCard" class="card" style="display:none;">
     <h2>Вхід</h2>
     <p class="card-hint">Увійди через Steam — побачиш свій інвентар і ціну за кожен предмет.</p>
@@ -329,6 +332,7 @@
     window.NAV_CONFIG = { signInLabel: "Увійти", accountUrl: "/account", loginUrl: "/auth/steam", balanceTitle: "Доступно до виплати", holdTitle: "У холді" };
   </script>
   <script src="/currency.js"></script>
+  <script src="/campaign.js"></script>
   <script src="/nav-profile.js"></script>
   <script src="/item-aliases.js"></script>
   <script src="/item-filters.js"></script>

@@ -53,7 +53,7 @@ function saveAll(sales) {
 // referralTopUp — реферальні гроші самого продавця, які він додав до цієї
 // виплати: ми винні йому totalPrice + referralTopUp.
 // reviewBonusPercent — разовий бонус за відгук, який увійшов у ціну цього продажу.
-function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode, referrerSteamId, referralPercent, referralTopUp, reviewBonusPercent }) {
+function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode, referrerSteamId, referralPercent, referralTopUp, reviewBonusPercent, uahRate }) {
   const sales = loadAll();
   sales.push({
     id,
@@ -67,6 +67,8 @@ function record({ id, steamId, customerName, items, totalPrice, offerId, expires
     referralPercent: referrerSteamId ? Number(referralPercent) || 0 : null,
     referralTopUp: Number(referralTopUp) > 0 ? round2(referralTopUp) : 0,
     reviewBonusPercent: Number(reviewBonusPercent) || 0,
+    // Курс гривні в момент продажу (виплата на картку): за ним і платимо.
+    uahRate: Number(uahRate) > 0 ? Number(uahRate) : null,
     items,
     totalPrice,
     offerId,

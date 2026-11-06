@@ -17,7 +17,9 @@ function round2(n) {
 
 // discount можна перевизначити: в обміні (розділ Trade) предмет клієнта
 // беремо дорожче — за 97% ціни Skinbux, а не за 95%, як при звичайному викупі.
-function computeSellQuote(row, { discount = SKINBUX_DISCOUNT } = {}) {
+// cap: false — без стелі youpin/buff ask: на час акції платимо повну ціну
+// Skinbux, інакше на скінах зі стелею "+5%" і "працюємо в нуль" були б неправдою.
+function computeSellQuote(row, { discount = SKINBUX_DISCOUNT, cap: useCap = true } = {}) {
   if (!row) return { ok: false };
 
   const skinbuxBid = row.prices?.skinbux?.bid;
@@ -29,6 +31,7 @@ function computeSellQuote(row, { discount = SKINBUX_DISCOUNT } = {}) {
   }
 
   const base = skinbuxBid * (1 - discount);
+  if (!useCap) return { ok: true, price: round2(base) };
   const cap = Math.min(buffAsk, youpinAsk);
 
   return { ok: true, price: round2(Math.min(base, cap)) };

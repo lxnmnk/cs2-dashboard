@@ -61,7 +61,8 @@
   }
 
   function price(usd) {
-    return window.fmtPrice ? window.fmtPrice(usd) : `$${Number(usd || 0).toFixed(2)}`;
+    // Вітрина — наші скіни на продаж, тож гривня за курсом покупки.
+    return window.fmtPrice ? window.fmtPrice(usd, "buy") : `$${Number(usd || 0).toFixed(2)}`;
   }
 
   function render(items) {

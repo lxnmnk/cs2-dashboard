@@ -353,6 +353,12 @@
       <label>Trade, client skins: Skinbux −, %
         <input id="tradeDiscountInput" type="number" step="0.5" min="0" max="100" placeholder="3" title="Trade, left side: we take client items at the Skinbux price minus this %" />
       </label>
+      <label>₴ per $, we pay clients
+        <input id="uahRateSellInput" type="number" step="0.05" min="10" max="200" placeholder="45" title="Client sells us skins and is paid in UAH: how many hryvnias per dollar we pay (the rate we sell dollars at)" />
+      </label>
+      <label>₴ per $, clients buy from us
+        <input id="uahRateBuyInput" type="number" step="0.05" min="10" max="200" placeholder="47" title="Client buys our skins in UAH: how many hryvnias per dollar we take (the rate we buy dollars at)" />
+      </label>
       <button id="pricingSaveBtn">Save</button>
       <span id="pricingStatus" class="section-hint"></span>
     </section>

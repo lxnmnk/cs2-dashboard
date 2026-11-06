@@ -1,16 +1,20 @@
 // Валюта, в якій людина бачить ціни: долар або гривня.
 //
 // Усі числа на сайті рахуються в доларах — так приходять ціни з площадок, і
-// так ми розраховуємось. Гривня це лише спосіб показу: курс один, береться з
-// сервера (config.uahRate), щоб на всіх сторінках він був однаковий і правився
-// в одному місці.
+// так ми розраховуємось. Гривня це лише спосіб показу. Курсів два, як в
+// обміннику (правляться в панелі, pricingSettings.js):
+//   sell — за скіни клієнта: скільки гривень за долар ми йому платимо;
+//   buy  — наші скіни: скільки гривень за долар беремо.
+// Сторінка, де продаються наші скіни, ставить <html data-rate-side="buy">;
+// окрему ціну можна показати за іншим курсом: fmtPrice(usd, "buy").
 //
 // Вибір запам'ятовується в браузері. Перемикання перезавантажує сторінку —
 // кожна сторінка тоді малює ціни заново своїм звичайним кодом, і не треба
 // тримати в голові десяток місць, які довелося б перемальовувати вручну.
 (function () {
   const KEY = "currency";
-  const DEFAULT_RATE = 45.5;
+  const DEFAULT_RATES = { sell: 45, buy: 47 };
+  const PAGE_SIDE = document.documentElement.dataset.rateSide === "buy" ? "buy" : "sell";
 
   // Гривня — тільки на українській версії. На російській та англійській
   // платити на українську картку нікому: там виплата в крипті, а ціни в
@@ -31,14 +35,16 @@
   })();
   const state = {
     code: !UAH_ALLOWED ? "USD" : stored === "USD" ? "USD" : "UAH",
-    rate: DEFAULT_RATE,
+    rates: { ...DEFAULT_RATES },
+    // Курс цієї сторінки — для коду, що перераховує сам (фільтри цін).
+    rate: DEFAULT_RATES[PAGE_SIDE],
   };
 
-  /** Долари -> рядок у вибраній валюті. */
-  function fmt(usd) {
+  /** Долари -> рядок у вибраній валюті. side — "sell" | "buy", за замовчуванням курс сторінки. */
+  function fmt(usd, side = PAGE_SIDE) {
     const n = Number(usd) || 0;
     if (state.code === "UAH") {
-      return Math.round(n * state.rate).toLocaleString("uk-UA") + " ₴";
+      return Math.round(n * (state.rates[side] || state.rate)).toLocaleString("uk-UA") + " ₴";
     }
     return (n < 0 ? "-$" : "$") + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
@@ -146,7 +152,10 @@
   fetch("/api/public/rate")
     .then((r) => r.json())
     .then((d) => {
-      if (d?.uahRate) state.rate = d.uahRate;
+      if (d?.uahRateSell) state.rates.sell = d.uahRateSell;
+      else if (d?.uahRate) state.rates.sell = d.uahRate;
+      if (d?.uahRateBuy) state.rates.buy = d.uahRateBuy;
+      state.rate = state.rates[PAGE_SIDE];
       if (state.code === "UAH") document.dispatchEvent(new Event("currency-rate"));
     })
     .catch(() => {});

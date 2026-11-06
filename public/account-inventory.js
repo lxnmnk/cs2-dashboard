@@ -102,6 +102,10 @@ const REF_TEXT = {
     REFERRAL_NOT_NEW: "Цей код — тільки для нових клієнтів, а ти вже продавав у нас",
     REFERRAL_OWN: "Це твій власний код — його дають друзям, собі застосувати не можна",
     REFERRAL_TAKEN: "Ти вже закріплений за іншим кодом — він діє назавжди",
+    campaignOn: "🖤 Black Friday: +{amount} до звичайної ціни — вже в сумі нижче",
+    campaignOnEmpty: "🖤 Black Friday: +{n}% до кожного скіна при виплаті на картку",
+    PAYOUT_METHOD: "🖤 Black Friday діє лише при виплаті на картку в гривні — обери картку, і ціни зростуть",
+    USED: "Ти вже продавав за Black Friday — акція діє один раз на клієнта",
   },
   ru: {
     reviewBonus: "🎁 Бонус за отзыв: +{n}% — уже в ценах этой продажи",
@@ -110,6 +114,10 @@ const REF_TEXT = {
     REFERRAL_NOT_NEW: "Этот код — только для новых клиентов, а ты уже продавал у нас",
     REFERRAL_OWN: "Это твой собственный код — его дают друзьям, себе применить нельзя",
     REFERRAL_TAKEN: "Ты уже закреплён за другим кодом — он действует навсегда",
+    campaignOn: "🖤 Black Friday: +{amount} к обычной цене — уже в сумме ниже",
+    campaignOnEmpty: "🖤 Black Friday: +{n}% к каждому скину при выплате на карту",
+    PAYOUT_METHOD: "🖤 Black Friday действует только при выплате на украинскую карту в гривне — это есть на украинской версии сайта",
+    USED: "Ты уже продавал по Black Friday — акция действует один раз на клиента",
   },
   en: {
     reviewBonus: "🎁 Review bonus: +{n}% — already in this sale's prices",
@@ -118,6 +126,10 @@ const REF_TEXT = {
     REFERRAL_NOT_NEW: "This code is for new clients only — you've already sold with us",
     REFERRAL_OWN: "That's your own code — it's for your friends, you can't apply it yourself",
     REFERRAL_TAKEN: "You're already tied to another code — that's for good",
+    campaignOn: "🖤 Black Friday: +{amount} on top of the usual price — already in the total below",
+    campaignOnEmpty: "🖤 Black Friday: +{n}% on every skin when paid to a card",
+    PAYOUT_METHOD: "🖤 Black Friday only works for payouts to a Ukrainian card in UAH — that's on the Ukrainian version of the site",
+    USED: "You've already sold under Black Friday — it's once per client",
   },
 }[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
 
@@ -153,6 +165,35 @@ const reviewLine = document.createElement("p");
 reviewLine.className = "cart-review-bonus";
 reviewLine.style.display = "none";
 referralToggle.after(reviewLine);
+
+// Акція (Black Friday): діє вона зараз для цього продажу чи ні і чому.
+// Стан приходить разом з інвентарем — він залежить від способу виплати.
+let campaignState = null; // { campaign, applied, blocked }
+const campaignLine = document.createElement("p");
+campaignLine.className = "cart-campaign";
+campaignLine.style.display = "none";
+reviewLine.after(campaignLine);
+
+function renderCampaignLine(total, baseTotal) {
+  const c = campaignState;
+  if (!c?.campaign) {
+    campaignLine.style.display = "none";
+    return;
+  }
+  let text;
+  if (c.applied) {
+    const extra = total - baseTotal;
+    text =
+      cart.length && extra > 0.005
+        ? REF_TEXT.campaignOn.replace("{amount}", price(extra))
+        : REF_TEXT.campaignOnEmpty.replace("{n}", c.campaign.bonusPercent);
+  } else {
+    text = REF_TEXT[c.blocked] || "";
+  }
+  campaignLine.textContent = text;
+  campaignLine.classList.toggle("is-off", !c.applied);
+  campaignLine.style.display = text ? "" : "none";
+}
 
 fetch("/api/account/promo")
   .then((r) => r.json())
@@ -284,6 +325,8 @@ payoutPicker?.addEventListener("click", (e) => {
   // щоб людина бачила суму в тій валюті, в якій її й отримає. Без
   // перезавантаження: воно скинуло б щойно обрані предмети.
   window.setCurrency?.(payoutMethod === "crypto" ? "USD" : "UAH", { reload: false });
+  // Акція залежить від способу виплати — ціни треба перечитати з сервера.
+  if (campaignState) return loadInventory();
   renderInventoryList();
   renderCart();
 });
@@ -461,7 +504,7 @@ function restoreCart() {
     const item = inventoryItems.find((it) => it.assetId === assetId);
     // Продане, у трейд-бані чи без ціни — у кошик не повертаємо.
     if (item && item.tradable && item.sellAccept !== false && item.price != null) {
-      cart.push({ assetId, marketHashName: item.marketHashName, price: item.price });
+      cart.push({ assetId, marketHashName: item.marketHashName, price: item.price, basePrice: item.basePrice ?? null });
     }
   }
   cartRestored = true;
@@ -643,7 +686,10 @@ async function loadInventory({ refresh = false } = {}) {
 
   let data;
   try {
-    const res = await fetch(`/api/account/inventory${refresh ? "?refresh=1" : ""}`);
+    // Спосіб виплати — бо від нього залежить акція (лише на картку).
+    const params = new URLSearchParams({ payout: payoutMethod });
+    if (refresh) params.set("refresh", "1");
+    const res = await fetch(`/api/account/inventory?${params}`);
     data = await res.json();
   } catch {
     data = { ok: false, error: "NETWORK" };
@@ -674,6 +720,7 @@ async function loadInventory({ refresh = false } = {}) {
 
   inventoryRetries = 0;
   inventoryItems = data.items;
+  campaignState = data.campaign ? { campaign: data.campaign, applied: !!data.campaignApplied, blocked: data.campaignBlocked } : null;
   // Привиди зникають разом із першим справжнім рендером нижче.
 
   if (!cartRestored) {
@@ -692,7 +739,7 @@ function syncCartPrices() {
   cart = cart
     .map((it) => {
       const fresh = inventoryItems.find((i) => i.assetId === it.assetId);
-      return fresh && fresh.price != null ? { ...it, price: fresh.price } : null;
+      return fresh && fresh.price != null ? { ...it, price: fresh.price, basePrice: fresh.basePrice ?? null } : null;
     })
     .filter(Boolean);
 }
@@ -791,7 +838,7 @@ function renderInventoryList() {
           ${topHtml}
           ${img}
           <div class="inventory-card-name">${nameHtml}</div>
-          <span class="inventory-card-price">${price(it.price)}</span>
+          <span class="inventory-card-price">${wasPrice(it)}${price(it.price)}</span>
         </div>`;
     })
     .join("");
@@ -884,7 +931,7 @@ function addItem(assetId) {
   if (!item || item.price == null) return;
   if (cart.some((c) => c.assetId === assetId)) return;
 
-  cart.push({ assetId, marketHashName: item.marketHashName, price: item.price });
+  cart.push({ assetId, marketHashName: item.marketHashName, price: item.price, basePrice: item.basePrice ?? null });
   renderInventoryList();
   renderCart();
 }
@@ -923,7 +970,9 @@ function renderCart() {
   saveCart();
   const sellBtn = document.getElementById("sellAutoBtn");
   const total = cart.reduce((sum, it) => sum + it.price, 0);
+  const baseTotal = cart.reduce((sum, it) => sum + (it.basePrice ?? it.price), 0);
   renderCartBar(total);
+  renderCampaignLine(total, baseTotal);
 
   // Назв предметів тут немає: вони вже на картках. Натомість те, чого на
   // картках не видно — скільки вийде разом, куди і коли прийдуть гроші.
@@ -981,6 +1030,11 @@ document.addEventListener("currency-rate", () => {
 // лишається в доларах — міняється тільки показ.
 function price(usd) {
   return window.fmtPrice ? window.fmtPrice(usd) : `$${(Number(usd) || 0).toFixed(2)}`;
+}
+
+// Ціна без акції, закреслена перед новою: "було → стало" на кожному скіні.
+function wasPrice(it) {
+  return it.basePrice != null && it.basePrice < it.price ? `<s class="price-was">${price(it.basePrice)}</s> ` : "";
 }
 
 function escapeHtml(s) {
