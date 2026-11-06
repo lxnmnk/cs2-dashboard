@@ -3118,8 +3118,81 @@ a.sender-line { color: var(--gold); }
   font-size: var(--t-sm);
 }
 .bf-dates { color: var(--text); font-weight: 700; font-size: var(--t-md); }
-.bf-timer { margin-left: auto; color: var(--gold); font-weight: 700; font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
-.bf-main { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-5); margin-top: var(--s-5); }
+/* Пропозиція | таймер | приклад: середня колонка рівно по центру банера. */
+.bf-main {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--s-5);
+  margin-top: var(--s-5);
+}
+.bf-main .bf-compare { justify-self: end; }
+.bf-countdown { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); }
+.bf-cd-label {
+  font-size: var(--t-xs);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.bf-cd-units { display: flex; align-items: flex-start; gap: var(--s-2); }
+.bf-cd-unit {
+  position: relative;
+  min-width: 76px;
+  padding: var(--s-3) var(--s-2) var(--s-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--gold-line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(0, 0, 0, 0.25) 50%, rgba(0, 0, 0, 0.1) 100%),
+    #0d0d10;
+  box-shadow: 0 0 24px rgba(215, 168, 78, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  text-align: center;
+}
+/* Тонка лінія посередині — як у перекидного табло. */
+.bf-cd-unit::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.6);
+}
+.bf-cd-unit b {
+  display: block;
+  font-size: 40px;
+  line-height: 1;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(215, 168, 78, 0.45);
+}
+.bf-cd-unit span {
+  display: block;
+  margin-top: var(--s-2);
+  font-size: var(--t-xs);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bf-cd-sep {
+  font-style: normal;
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+  padding-top: var(--s-3);
+  color: var(--gold);
+  opacity: 0.6;
+  animation: bf-blink 1s steps(1) infinite;
+}
+@keyframes bf-blink { 50% { opacity: 0.15; } }
+@media (prefers-reduced-motion: reduce) { .bf-cd-sep { animation: none; } }
+
+/* Середня ширина: таймер окремим рядком по центру над прикладом. */
+@media (max-width: 1180px) {
+  .bf-main { grid-template-columns: 1fr auto; }
+  .bf-countdown { grid-column: 1 / -1; grid-row: 2; }
+}
 .bf-offer { display: flex; align-items: center; gap: var(--s-4); }
 .bf-plus {
   font-size: 72px;
@@ -3176,7 +3249,14 @@ a.sender-line { color: var(--gold); }
 
 @media (max-width: 760px) {
   .bf-banner { padding: var(--s-5) var(--s-4); }
-  .bf-timer { margin-left: 0; width: 100%; }
+  .bf-main { grid-template-columns: 1fr; }
+  .bf-main .bf-compare { justify-self: stretch; }
+  .bf-countdown { grid-row: auto; }
+  .bf-cd-units { gap: 6px; }
+  .bf-cd-unit { min-width: 0; flex: 1; padding: var(--s-2) 4px; }
+  .bf-cd-unit b { font-size: 30px; }
+  .bf-cd-sep { font-size: 24px; padding-top: var(--s-2); }
+  .bf-cd-units { width: 100%; }
   .bf-plus { font-size: 56px; }
   .bf-offer-text { font-size: var(--t-lg); }
   .bf-compare { width: 100%; justify-content: space-between; }

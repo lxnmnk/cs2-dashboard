@@ -22,11 +22,16 @@
   function timeLeft(endsAt) {
     const ms = Date.parse(endsAt) - Date.now();
     if (!(ms > 0)) return null;
-    const h = Math.floor(ms / 3600000);
-    const d = Math.floor(h / 24);
-    const m = Math.floor((ms % 3600000) / 60000);
-    return d ? `${d} д ${h % 24} год` : h ? `${h} год ${m} хв` : `${m} хв`;
+    const s = Math.floor(ms / 1000);
+    return { d: Math.floor(s / 86400), h: Math.floor(s / 3600) % 24, m: Math.floor(s / 60) % 60, s: s % 60 };
   }
+
+  const UNITS = [
+    ["d", "дн"],
+    ["h", "год"],
+    ["m", "хв"],
+    ["s", "сек"],
+  ];
 
   function render(c) {
     const code = c.code.toUpperCase();
@@ -43,12 +48,20 @@
         <div class="bf-head">
           <span class="bf-tag">BLACK FRIDAY</span>
           <span class="bf-dates">6–8 листопада</span>
-          <span class="bf-timer" data-bf-timer></span>
         </div>
         <div class="bf-main">
           <div class="bf-offer">
             <div class="bf-plus">+${c.bonusPercent}%</div>
             <div class="bf-offer-text">до виплати за твої скіни<span>на картку в гривні</span></div>
+          </div>
+          <div class="bf-countdown" role="timer" aria-label="До кінця акції">
+            <div class="bf-cd-label">До кінця акції</div>
+            <div class="bf-cd-units">
+              ${UNITS.map(
+                ([k, label], i) =>
+                  `${i ? '<i class="bf-cd-sep">:</i>' : ""}<div class="bf-cd-unit"><b data-u="${k}">00</b><span>${label}</span></div>`
+              ).join("")}
+            </div>
           </div>
           <div class="bf-compare" aria-label="Приклад">
             <div class="bf-was"><span>Звичайно</span><s>${fmtUah(EXAMPLE_UAH)}</s></div>
@@ -64,17 +77,23 @@
         <p class="bf-terms">Один продаж на акаунт — скільки завгодно скінів у ньому · виплата на картку в гривні · до 8 листопада, 23:59 за Києвом · точна ціна кожного скіна — у кошику</p>
       </section>`;
 
-    const timer = mount.querySelector("[data-bf-timer]");
+    const cells = {};
+    for (const [k] of UNITS) cells[k] = mount.querySelector(`[data-u="${k}"]`);
+    let timerId = 0;
     const tick = () => {
       const left = timeLeft(c.endsAt);
       if (!left) {
+        clearInterval(timerId);
         mount.innerHTML = ""; // акція скінчилась, поки сторінка була відкрита
         return;
       }
-      timer.textContent = `до кінця ${left}`;
+      for (const [k] of UNITS) {
+        const v = String(left[k]).padStart(2, "0");
+        if (cells[k].textContent !== v) cells[k].textContent = v;
+      }
     };
     tick();
-    setInterval(tick, 60000);
+    timerId = setInterval(tick, 1000);
 
     mount.querySelector(".bf-copy").addEventListener("click", (e) => {
       navigator.clipboard?.writeText(code).then(
