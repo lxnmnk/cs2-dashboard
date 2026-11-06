@@ -84,14 +84,17 @@ const MATCH_PRIORITY = ["float", "fifo", "held", "locked"];
  *
  * Доплеры: в трекере название с фазой ("... (Factory New) - Ruby"), а Skinbux
  * в продаже пишет просто "... (Factory New)" — фазу отдаёт отдельным полем, а
- * бывает, что и не отдаёт. Есть фаза — ищем точно по ней. Нет — среди всех фаз
- * этого предмета: сначала позиция, чьего float уже нет в инвентаре (это и
- * есть проданная), дальше по тому же порядку, что и обычно.
+ * бывает, что и не отдаёт. Есть фаза — ищем точно по ней, а если такой нет —
+ * ту же вещь, записанную в трекере без фазы (ручные сделки так и заводятся),
+ * но не другую фазу. Нет фазы — сначала запись без фазы, потом среди всех фаз
+ * этого предмета: первой позиция, чьего float уже нет в инвентаре (это и есть
+ * проданная), дальше по тому же порядку, что и обычно.
  */
 function pickHolding(holdings, item) {
-  const exactName = item.phase ? `${item.name} - ${item.phase}` : item.name;
-  const exact = holdings.get(exactName);
-  if (exact?.length) return exact.shift();
+  for (const name of item.phase ? [`${item.name} - ${item.phase}`, item.name] : [item.name]) {
+    const list = holdings.get(name);
+    if (list?.length) return list.shift();
+  }
   if (item.phase || stripPhaseSuffix(item.name).phase) return null;
 
   const phased = [...holdings].filter(([name, list]) => list.length && name !== item.name && stripPhaseSuffix(name).base === item.name);
@@ -139,7 +142,8 @@ function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, own
       const base = {
         externalId,
         txId: tx.id,
-        marketHashName: item.name,
+        // С фазой, если Skinbux её отдал: в предпросмотре видно, какой доплер продан.
+        marketHashName: item.phase ? `${item.name} - ${item.phase}` : item.name,
         price,
         soldAt: soldAt.toISOString(),
         viaSite: !!sale,
