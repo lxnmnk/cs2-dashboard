@@ -172,6 +172,9 @@ function balanceRows(balances) {
 
 async function collectBank({ state, rows, config, owner, balances = {}, owedToMe = 0, refresh = false }) {
   const errors = [];
+  // Не мешает посчитать банк: сверка со Steam только показывает, чего нет в
+  // трекере, в сумму она не входит. Ошибки (errors) — то, без чего банк неверен.
+  const warnings = [];
 
   // Инвентарь считаем по трекеру сделок, а Steam используем только для
   // сверки: не потерялось ли что-то, чего в трекере нет.
@@ -181,7 +184,7 @@ async function collectBank({ state, rows, config, owner, balances = {}, owedToMe
     const items = await fetchInventory(state.steamId, { force: refresh });
     untracked = untrackedSteamItems(items, { owner, rows, sourcesConfig: config.sources });
   } catch (err) {
-    errors.push(`Сверка с инвентарём Steam не вышла: ${err.message}`);
+    warnings.push(`Сверка с инвентарём Steam не вышла: ${err.message}`);
   }
 
   const money = balanceRows(balances);
@@ -238,6 +241,7 @@ async function collectBank({ state, rows, config, owner, balances = {}, owedToMe
     total: round2(assets - leftover),
     collectedAt: new Date().toISOString(),
     errors,
+    warnings,
   };
 }
 

@@ -49,7 +49,8 @@ function render() {
   const { bank, preview, state, pricesReady } = data;
   document.getElementById("bankUpdatedTop").textContent = "банк на " + new Date(bank.collectedAt).toLocaleString("ru-RU");
 
-  const problems = [...bank.errors];
+  // warnings — сверка со Steam: в банк она не входит и закрыть период не мешает.
+  const problems = [...bank.errors, ...(bank.warnings || [])];
   if (!pricesReady) problems.push("Цены ещё не загрузились — инвентарь посчитан не полностью");
   // Банк считается по трекеру, поэтому предмет, которого там нет, в банк не
   // попадёт. Молчать об этом нельзя — это потерянные деньги. Инвестору этой
@@ -99,9 +100,9 @@ function hideOwnerOnlyBlocks() {
 }
 
 // ---- Прибыль за выбранный отрезок ----
-// Складывается из дневных закрытий на сервере: раз в сутки период закрывается
-// сам, и любой диапазон — это сумма готовых дней. Пересчитывать задним числом
-// нечего и нельзя: доли на каждый день были свои.
+// Складывается из закрытых расчётов: их записывает владелец кнопкой, когда
+// проверил банк, и любой диапазон — это сумма готовых расчётов. Пересчитывать
+// задним числом нечего и нельзя: доли в каждом расчёте были свои.
 let profitDays = 30;
 let profitMode = "days"; // "days" | "custom"
 
@@ -150,8 +151,8 @@ async function loadProfitRange() {
     .join("");
 
   hint.textContent = range.periods
-    ? `Посчитано по ${range.periods} дневным расчётам: с ${fmtDate(range.firstAt)} по ${fmtDate(range.lastAt)}.`
-    : "За этот отрезок расчётов ещё нет — история копится по одному дню, первый появится после ближайшей полуночи.";
+    ? `Посчитано по ${range.periods} расчётам: с ${fmtDate(range.firstAt)} по ${fmtDate(range.lastAt)}.`
+    : "За этот отрезок расчётов ещё нет.";
 }
 
 document.getElementById("capitalPeriodTabs")?.addEventListener("click", (e) => {
@@ -352,20 +353,34 @@ function renderHistory(state) {
   document.getElementById("historyBody").innerHTML = periods.length
     ? periods
         .map(
-          (p) => `<tr>
+          (p, i) => `<tr>
             <td>${fmtDate(p.closedAt)}</td>
             <td>${money(p.bankTotal)}</td>
             <td class="${p.profit >= 0 ? "profit" : "loss"}">${money(p.profit)}</td>
             <td>${p.rows.map((r) => `${escapeHtml(r.name)} ${money(r.profit)}`).join(" · ")}</td>
-            <td>${escapeHtml(p.note)}</td>
+            <td>${escapeHtml(p.note)}${
+              // Отменить можно только последний: после него балансы уже
+              // разнесены дальше, а откат из середины их бы перепутал.
+              i === 0 && !data.investor
+                ? ` <button class="btn-small btn-secondary" id="undoLastBtn" title="Удалить этот расчёт и вернуть балансы участников к его началу">Отменить</button>`
+                : ""
+            }</td>
           </tr>`
         )
         .join("")
-    : `<tr><td colspan="5" class="empty-row">${
-        data.investor
-          ? "Первый расчёт появится после ближайшей полуночи — дальше по одному за каждый день."
-          : "Ещё ни одного закрытого периода."
-      }</td></tr>`;
+    : `<tr><td colspan="5" class="empty-row">Ещё ни одного закрытого периода.</td></tr>`;
+
+  document.getElementById("undoLastBtn")?.addEventListener("click", async () => {
+    const last = periods[0];
+    const lines = last.rows.map((r) => `${r.name}: ${money(r.closing)} → ${money(r.opening)}`).join("\n");
+    if (!confirm(`Отменить расчёт от ${fmtDate(last.closedAt)}?\n\nБанк ${money(last.bankTotal)}, прибыль ${money(last.profit)}\n\nБалансы вернутся:\n${lines}`)) return;
+    try {
+      await api("/api/capital/undo-last", { method: "POST" });
+      await load();
+    } catch (err) {
+      showError(`Не отменилось: ${err.message}`);
+    }
+  });
 }
 
 // ---- Действия ----

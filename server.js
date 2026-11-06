@@ -2281,22 +2281,29 @@ app.get("/capital", requireCapitalAccess, (req, res) => {
 
 // Банк на сейчас + предварительный расчёт периода. refresh=1 — перечитать
 // инвентарь Steam мимо кеша.
+// Банк для страницы "Капитал" и для закрытия периода — один и тот же сбор,
+// иначе кнопка записала бы не то число, что ты проверил глазами (так и было:
+// закрытие собирало банк без балансов площадок и "мне должны").
+async function collectOwnerBank(state, { refresh = false } = {}) {
+  return capitalBank.collectBank({
+    state,
+    rows: cache.rows,
+    config,
+    // Банк — это бизнес владельца, а не того, кто смотрит страницу: у
+    // инвестора своего трекера сделок нет, и инвентарь посчитался бы нулём.
+    owner: SITE_OWNER,
+    // Те же самые карточки, что в My Trades: один источник чисел на два
+    // экрана, иначе они рано или поздно разойдутся.
+    balances: await balancesFor(SITE_OWNER),
+    owedToMe: debts.totalOwed(SITE_OWNER).total,
+    refresh,
+  });
+}
+
 app.get("/api/capital", requireCapitalAccess, async (req, res) => {
   try {
     const state = capital.load();
-    const bank = await capitalBank.collectBank({
-      state,
-      rows: cache.rows,
-      config,
-      // Банк — это бизнес владельца, а не того, кто смотрит страницу: у
-      // инвестора своего трекера сделок нет, и инвентарь посчитался бы нулём.
-      owner: SITE_OWNER,
-      // Те же самые карточки, что в My Trades: один источник чисел на два
-      // экрана, иначе они рано или поздно разойдутся.
-      balances: await balancesFor(SITE_OWNER),
-      owedToMe: debts.totalOwed(SITE_OWNER).total,
-      refresh: req.query.refresh === "1",
-    });
+    const bank = await collectOwnerBank(state, { refresh: req.query.refresh === "1" });
     const preview = capital.previewPeriod(state, bank.total);
 
     if (isInvestor(req)) {
@@ -2409,18 +2416,24 @@ app.delete("/api/capital/movement/:id", requireSiteOwner, (req, res) => {
 app.post("/api/capital/close", requireSiteOwner, async (req, res) => {
   try {
     const state = capital.load();
-    const bank = await capitalBank.collectBank({
-      state,
-      rows: cache.rows,
-      config,
-      owner: req.session.username,
-      refresh: true,
-    });
+    const bank = await collectOwnerBank(state);
+    if (!cache.rows.length) return res.status(400).json({ ok: false, error: "цены ещё не загружены" });
     if (bank.errors.length) {
       return res.status(400).json({ ok: false, error: `Банк собран не полностью: ${bank.errors.join("; ")}` });
     }
     const period = capital.closePeriod(bank.total, bank, { note: req.body?.note });
     res.json({ ok: true, period });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message });
+  }
+});
+
+// Отменить последний расчёт — когда банк в нём оказался неверным. Балансы
+// участников возвращаются к его началу (capital.undoLastPeriod).
+app.post("/api/capital/undo-last", requireSiteOwner, (req, res) => {
+  try {
+    const period = capital.undoLastPeriod();
+    res.json({ ok: true, undone: { closedAt: period.closedAt, bankTotal: period.bankTotal, profit: period.profit } });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });
   }
@@ -2827,83 +2840,6 @@ function parseNullableFloat(value, fallback) {
   return Number.isNaN(n) ? null : n;
 }
 
-// ---- Ежедневное закрытие периода ----
-// Инвестор выбирает отрезок календарём и хочет увидеть прибыль за него. Для
-// этого история должна писаться сама, каждый день: из редких закрытий руками
-// отрезок "с 29 сентября по 6 октября" не собрать.
-//
-// Считает то же самое, что кнопка "Закрыть период", поэтому расхождений между
-// автоматикой и ручным закрытием быть не может — это буквально один вызов.
-const CAPITAL_CLOSE_HOUR = 0; // местное время сервера
-const CAPITAL_CLOSE_MINUTE = 5;
-
-// Больше этого изменения банка за один автоматический расчёт не закрываем.
-const CAPITAL_AUTO_MAX_CHANGE_PCT = 10;
-
-async function runDailyCapitalClose() {
-  try {
-    const state = capital.load();
-    if (!state.participants.length) return; // участники ещё не заведены
-
-    const today = new Date().toDateString();
-    const last = state.periods[state.periods.length - 1];
-    if (last && new Date(last.closedAt).toDateString() === today) return; // за сегодня уже есть
-
-    const bank = await capitalBank.collectBank({
-      state,
-      rows: cache.rows,
-      config,
-      owner: SITE_OWNER,
-      balances: await balancesFor(SITE_OWNER),
-      owedToMe: debts.totalOwed(SITE_OWNER).total,
-    });
-    // Банк с недочитанными балансами занижен, и разница легла бы в убыток
-    // периода, который потом разошёлся бы по людям. Лучше пропустить день:
-    // завтрашний период просто посчитает за двое суток.
-    if (bank.errors.length) {
-      console.warn("[capital] Автозакрытие пропущено:", bank.errors.join(" | "));
-      return;
-    }
-    if (!cache.rows.length) {
-      console.warn("[capital] Автозакрытие пропущено: цены ещё не загружены");
-      return;
-    }
-
-    // Обычный день — это проценты от банка. Если банк скакнул сильнее, почти
-    // всегда виноват учёт (скин посчитан и как скин, и как деньги за него;
-    // не прочитан баланс), а не торговля — и такой результат нельзя молча
-    // раскидывать по инвесторам. Закрывай руками, когда разберёшься.
-    const preview = capital.previewPeriod(state, bank.total);
-    const limit = Math.max(500, preview.openingTotal * (CAPITAL_AUTO_MAX_CHANGE_PCT / 100));
-    if (Math.abs(preview.profit) > limit) {
-      console.warn(
-        `[capital] Автозакрытие пропущено: прибыль $${preview.profit} больше ±$${round2(limit)} ` +
-          `(${CAPITAL_AUTO_MAX_CHANGE_PCT}% банка) — проверь банк и закрой период руками`
-      );
-      return;
-    }
-
-    const period = capital.closePeriod(bank.total, bank, { note: "авто" });
-    console.log(`[capital] Период закрыт: банк $${period.bankTotal}, прибыль $${period.profit}`);
-  } catch (err) {
-    // Чаще всего это "балансы не сходятся с банком" — расчёт не записан, и
-    // разбираться с этим надо руками, а не молча.
-    console.error("[capital] Автозакрытие не удалось:", err.message);
-  }
-}
-
-function scheduleDailyCapitalClose() {
-  const next = new Date();
-  next.setHours(CAPITAL_CLOSE_HOUR, CAPITAL_CLOSE_MINUTE, 0, 0);
-  if (next <= new Date()) next.setDate(next.getDate() + 1);
-
-  setTimeout(() => {
-    runDailyCapitalClose();
-    setInterval(runDailyCapitalClose, 24 * 60 * 60 * 1000);
-  }, next - new Date());
-  console.log(`[capital] Следующее автозакрытие периода: ${next.toLocaleString()}`);
-}
-
 app.listen(PORT, async () => {
   console.log(`CS2 price dashboard: http://localhost:${PORT}`);
   await refreshPrices(); // первая загрузка сразу при старте
@@ -2916,7 +2852,6 @@ app.listen(PORT, async () => {
     setInterval(runScheduledCsfloatBidScan, scanIntervalMs);
   }
 
-  scheduleDailyCapitalClose();
   scheduleSalesWatch();
 
   // on — только новые лоты; all — и выставленные руками тоже.

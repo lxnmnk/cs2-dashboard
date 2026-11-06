@@ -279,9 +279,29 @@ function closePeriod(bankTotal, bankBreakdown, { note } = {}) {
 }
 
 /**
+ * Отменить последний расчёт: балансы участников возвращаются к тем, что были
+ * на его начало, движения денег снова становятся открытыми, а сам расчёт
+ * удаляется из истории. Нужен, когда банк в расчёте оказался неверным.
+ */
+function undoLastPeriod() {
+  const state = load();
+  const period = state.periods.pop();
+  if (!period) throw new Error("Нет ни одного расчёта");
+  for (const row of period.rows) {
+    const participant = state.participants.find((p) => p.id === row.id);
+    if (participant) participant.balance = row.opening;
+  }
+  for (const movement of state.movements) {
+    if (movement.periodId === period.id) delete movement.periodId;
+  }
+  save(state);
+  return period;
+}
+
+/**
  * Прибыль каждого участника за произвольный отрезок — то, что инвестор
- * выбирает календариком. Складывается из уже закрытых периодов: раз в сутки
- * период закрывается сам (server.js), поэтому дни в истории есть всегда.
+ * выбирает календариком. Складывается из уже закрытых периодов — их закрывает
+ * владелец кнопкой, когда сам проверил банк.
  *
  * Берём периоды, закрытые внутри [from, to], и суммируем по каждому его долю
  * прибыли. Взносы и выводы в сумму не идут: это не заработок, а движение
@@ -336,5 +356,6 @@ module.exports = {
   openMovements,
   previewPeriod,
   closePeriod,
+  undoLastPeriod,
   MOVEMENT_TYPES,
 };
