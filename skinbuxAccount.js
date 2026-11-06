@@ -253,6 +253,18 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       payout: matched?.fromClient ? matched.payout : sale && owner === "client" && !sale.paidAt ? round2(sale.totalPrice || 0) : null,
       paidAt: sale?.paidAt || null,
       customerName: sale?.customerName || null,
+      // Чем опознана транзакция — для сверки руками (hold-breakdown.js).
+      journal: sale ? { steamId: String(sale.steamId), kind: sale.kind || "sell", totalPrice: sale.totalPrice } : null,
+      tracker: matched
+        ? matched.trades.map((t) => ({
+            id: t.id,
+            name: t.marketHashName,
+            buySource: t.buySource,
+            buyPrice: t.buyPrice,
+            buyDate: t.buyDate,
+            sellPrice: t.sellPrice,
+          }))
+        : null,
       unlockAt,
       names: (tx.tradeItems || []).map((i) => i.name),
     });

@@ -41,6 +41,15 @@ const VIA = { journal: "журнал сайта", tracker: "трекер", unkno
         `${it.payout != null ? ` · должны ${money(it.payout)}` : ""} · в "моё" ${money(toMine)}`
     );
     for (const name of it.names) console.log(`      ${name}`);
+    if (it.journal) {
+      console.log(`    журнал сайта: steamId ${it.journal.steamId} · ${it.journal.kind} · клиенту ${money(it.journal.totalPrice)}`);
+    }
+    for (const t of it.tracker || []) {
+      console.log(
+        `    трекер: ${t.name} · куплен ${t.buySource} ${money(t.buyPrice)} ${String(t.buyDate).slice(0, 10)}` +
+          ` · продан ${money(t.sellPrice)} · id ${String(t.id).slice(0, 8)}`
+      );
+    }
   }
 
   console.log("\nИТОГО");
