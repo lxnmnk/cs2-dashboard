@@ -18,6 +18,7 @@
 // больше нет, — как раз проданная.
 const trades = require("./trades");
 const tradeFloats = require("./tradeFloats");
+const { stripPhaseSuffix } = require("./itemName");
 
 const DEFAULT_DAYS = 90;
 
@@ -76,6 +77,31 @@ function buildHoldingsIndex(rawTrades, inventory) {
   return index;
 }
 
+const MATCH_PRIORITY = ["float", "fifo", "held", "locked"];
+
+/**
+ * Позиция под проданный предмет (и сразу убирает её из очереди).
+ *
+ * Доплеры: в трекере название с фазой ("... (Factory New) - Ruby"), а Skinbux
+ * в продаже пишет просто "... (Factory New)" — фазу отдаёт отдельным полем, а
+ * бывает, что и не отдаёт. Есть фаза — ищем точно по ней. Нет — среди всех фаз
+ * этого предмета: сначала позиция, чьего float уже нет в инвентаре (это и
+ * есть проданная), дальше по тому же порядку, что и обычно.
+ */
+function pickHolding(holdings, item) {
+  const exactName = item.phase ? `${item.name} - ${item.phase}` : item.name;
+  const exact = holdings.get(exactName);
+  if (exact?.length) return exact.shift();
+  if (item.phase || stripPhaseSuffix(item.name).phase) return null;
+
+  const phased = [...holdings].filter(([name, list]) => list.length && name !== item.name && stripPhaseSuffix(name).base === item.name);
+  for (const by of MATCH_PRIORITY) {
+    const hit = phased.find(([, list]) => list[0].matchedBy === by);
+    if (hit) return hit[1].shift();
+  }
+  return null;
+}
+
 /**
  * Что импорт собирается сделать. Ничего не пишет — это то, что видно в
  * предпросмотре до подтверждения.
@@ -124,8 +150,7 @@ function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, own
         return;
       }
 
-      const list = holdings.get(item.name);
-      const pick = list?.shift();
+      const pick = pickHolding(holdings, item);
       if (!pick) {
         rows.push({ ...base, status: "nomatch" });
         return;
