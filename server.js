@@ -2419,6 +2419,7 @@ app.post("/api/capital/close", requireSiteOwner, async (req, res) => {
     const bank = await collectOwnerBank(state);
     if (!cache.rows.length) return res.status(400).json({ ok: false, error: "цены ещё не загружены" });
     if (bank.errors.length) {
+      console.error("[capital] Период не закрыт, банк собран не полностью:", bank.errors.join("; "));
       return res.status(400).json({ ok: false, error: `Банк собран не полностью: ${bank.errors.join("; ")}` });
     }
     const period = capital.closePeriod(bank.total, bank, { note: req.body?.note });
