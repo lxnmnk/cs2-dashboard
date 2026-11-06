@@ -433,13 +433,32 @@ function createModalTradeRow(source = "catalog") {
   return row;
 }
 
-/** Открытые позиции, кроме той, что сейчас продаём в окне. */
+const HOLDINGS_SHOWN = 60;
+
+// "StatTrak™ AWP | Neo-Noir" -> "stattrak awp neo-noir": ™ и | в поиске
+// никто не набирает, и из-за них "awp neo" ничего не находил.
+const searchText = (s) =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/[™★|()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+/**
+ * Открытые позиции, кроме той, что сейчас продаём в окне. Каждое слово
+ * запроса должно встретиться в названии, качестве или float — в любом
+ * порядке: "neo glock mw" находит Glock-18 | Neo-Noir (Minimal Wear).
+ */
 function findHoldings(query) {
-  const q = (query || "").trim().toLowerCase();
+  const words = searchText(query).split(" ").filter(Boolean);
+  const wearShort = { "Factory New": "fn", "Minimal Wear": "mw", "Field-Tested": "ft", "Well-Worn": "ww", "Battle-Scarred": "bs" };
   return lastTrades
     .filter((t) => t.status === "holding" && t.id !== modalTradeId)
-    .filter((t) => !q || `${t.name} ${t.wear}`.toLowerCase().includes(q))
-    .slice(0, 30);
+    .filter((t) => {
+      const wear = String(t.wear || "").split(" · ")[0];
+      const hay = searchText(`${t.marketHashName} ${t.wear} ${wearShort[wear] || ""} ${t.floatValue ?? ""}`);
+      return words.every((w) => hay.includes(w));
+    });
 }
 
 function renderHoldingsAutocomplete(row, holdings) {
@@ -449,14 +468,18 @@ function renderHoldingsAutocomplete(row, holdings) {
     listEl.classList.add("open");
     return;
   }
-  listEl.innerHTML = holdings
-    .map(
-      (t, i) => `<div class="autocomplete-item" data-idx="${i}">
+  const more = holdings.length - HOLDINGS_SHOWN;
+  holdings = holdings.slice(0, HOLDINGS_SHOWN);
+  listEl.innerHTML =
+    holdings
+      .map(
+        (t, i) => `<div class="autocomplete-item" data-idx="${i}">
         ${escapeHtml(t.name)} <span class="wear">${escapeHtml(t.wear)}</span>
-        <span class="na">· куплено ${fmtMoney(t.buyPrice)} ${fmtDate(t.buyDate)}</span>
+        <span class="na">· ${t.floatValue != null ? `float ${Number(t.floatValue).toFixed(4)} · ` : ""}куплено ${fmtMoney(t.buyPrice)} ${fmtDate(t.buyDate)}</span>
       </div>`
-    )
-    .join("");
+      )
+      .join("") +
+    (more > 0 ? `<div class="autocomplete-item na">…и ещё ${more} — уточни поиск (например, добавь качество: mw, ft)</div>` : "");
   listEl.classList.add("open");
 
   listEl.querySelectorAll(".autocomplete-item[data-idx]").forEach((el, i) => {
