@@ -14,8 +14,10 @@
 //
 // Как прибыль делится:
 //
-//   инвестору = его доля на НАЧАЛО периода × прибыль × (1 − комиссия управляющего)
-//   мне       = всё остальное
+//   прибыль: инвестору = его доля на НАЧАЛО периода × прибыль × (1 − комиссия управляющего)
+//   убыток:  инвестору = его доля на НАЧАЛО периода × убыток — комиссия берётся
+//            только с прибыли, убыток каждый несёт строго по своей доле
+//   мне      = всё остальное
 //
 // Доля берётся на начало периода: деньги, внесённые внутри периода, начинают
 // работать со следующего. Это же правило защищает от старой ошибки в Excel,
@@ -196,9 +198,11 @@ function previewPeriod(state, bankTotal) {
     const share = openingTotal > 0 ? p.balance / openingTotal : 0;
     const deposited = sumOf("deposit", (m) => m.participantId === p.id);
     const withdrawn = sumOf("withdrawal", (m) => m.participantId === p.id);
-    // Доля прибыли инвестора за вычетом комиссии управляющего. У самого
-    // управляющего прибыль считается остатком — ниже.
-    const profitShare = p.isManager ? 0 : round2(share * profit * (1 - feeRate));
+    // Доля прибыли инвестора за вычетом комиссии управляющего; убыток — по
+    // доле целиком, без комиссии. У самого управляющего прибыль считается
+    // остатком — ниже.
+    const investorRate = profit > 0 ? 1 - feeRate : 1;
+    const profitShare = p.isManager ? 0 : round2(share * profit * investorRate);
     if (!p.isManager) investorsProfit = round2(investorsProfit + profitShare);
     rows.push({ id: p.id, name: p.name, isManager: p.isManager, opening: p.balance, share, deposited, withdrawn, profit: profitShare });
   }

@@ -255,7 +255,7 @@ function renderPeople(preview) {
 
   if (data.investor) {
     document.getElementById("peopleHint").textContent = preview.rows.length
-      ? `Доля считается от банка на начало периода. Из прибыли инвестору идёт его доля × ${100 - preview.managerFeePct}%, остальное управляющему.`
+      ? `Доля считается от банка на начало периода. Из прибыли инвестору идёт его доля × ${100 - preview.managerFeePct}%, остальное управляющему. Убыток делится строго по долям.`
       : "";
     return;
   }
@@ -267,7 +267,11 @@ function renderPeople(preview) {
   if (preview.withdrawals) parts.push(`+ выведено ${money(preview.withdrawals)}`);
   if (preview.personalSpend) parts.push(`+ мои личные траты ${money(preview.personalSpend)}`);
   if (preview.personalIncome) parts.push(`− мой доход извне ${money(preview.personalIncome)}`);
-  parts.push(`Инвестору идёт его доля × прибыль × ${100 - preview.managerFeePct}%.`);
+  parts.push(
+    preview.profit > 0
+      ? `Инвестору идёт его доля × прибыль × ${100 - preview.managerFeePct}%.`
+      : "Убыток делится строго по долям: комиссия управляющего берётся только с прибыли."
+  );
   if (Math.abs(preview.mismatch) > 0.05) parts.push(`⚠ балансы не сходятся с банком на ${money(preview.mismatch)}`);
   document.getElementById("peopleHint").textContent = parts.join(" ");
 }
