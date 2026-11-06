@@ -469,7 +469,9 @@ document.getElementById("closeBtn").addEventListener("click", async () => {
     await load();
   } catch (err) {
     showError(`Период не закрыт: ${err.message}`);
-    document.getElementById("closeStatus").textContent = "";
+    // И рядом с кнопкой: ошибка сверху страницы не видна, когда стоишь у
+    // кнопки внизу, и казалось, что нажатие просто ничего не делает.
+    document.getElementById("closeStatus").textContent = `не закрыт: ${err.message}`;
   }
   btn.disabled = false;
 });

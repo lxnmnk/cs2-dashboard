@@ -2422,8 +2422,10 @@ app.post("/api/capital/close", requireSiteOwner, async (req, res) => {
       return res.status(400).json({ ok: false, error: `Банк собран не полностью: ${bank.errors.join("; ")}` });
     }
     const period = capital.closePeriod(bank.total, bank, { note: req.body?.note });
+    console.log(`[capital] Период закрыт: банк $${period.bankTotal}, прибыль $${period.profit}`);
     res.json({ ok: true, period });
   } catch (err) {
+    console.error("[capital] Период не закрыт:", err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
 });
