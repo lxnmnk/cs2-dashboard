@@ -2426,12 +2426,16 @@ app.post("/api/capital/close", requireSiteOwner, async (req, res) => {
   }
 });
 
-// Импорт продаж со Skinbux: закрывает в трекере позиции, которые проданы с
-// нашего аккаунта (skinbuxSalesImport.js). Продажи клиентов и друга через
-// сайт пропускаются — они учтены отдельно и предметы там не наши.
-app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
+// Импорт продаж: закрывает в трекере позиции, проданные с нашего аккаунта
+// (skinbuxSalesImport.planSales). Площадка только отдаёт список продаж —
+// сопоставление с позициями, float'ы и закрытие общие для всех.
+//   Skinbux — продажи клиентов и друга через сайт пропускаются: они учтены
+//   отдельно, и предметы там не наши.
+//   CSFloat — наши проданные лоты; float продажи CSFloat отдаёт сам, так что
+//   из одинаковых скинов позиция находится точно.
+async function handleSalesImport(req, res, { source, tag, loadSales }) {
   try {
-    const transactions = await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY);
+    const sales = await loadSales(req.body?.days);
 
     // Инвентарь нужен, чтобы выбрать из одинаковых скинов проданный: float
     // того, что ещё лежит, виден здесь (tradeFloats.js). force — кэш минутной
@@ -2456,13 +2460,13 @@ app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
     // потому, что он продан, а потому, что он под защитой сделки.
     const rawTrades = trades.listTrades({ owner: req.session.username, rows: cache.rows, config });
     const fill = tradeFloats.planFill(rawTrades, inventory);
-    const plan = skinbuxSalesImport.planImport({
-      transactions,
-      journal: skinbuxSales.loadAll(),
+    const plan = skinbuxSalesImport.planSales({
+      sales,
       rawTrades: tradeFloats.applyFillInMemory(rawTrades, fill.assignments),
       days: req.body?.days,
-      ownerSteamId: skinbuxSales.OWNER_STEAM_ID,
       inventory,
+      source,
+      feeRate: config.sources[source]?.sellFee || 0,
     });
     const floats = { filled: fill.assignments.length, ambiguous: fill.ambiguous, error: inventoryError };
 
@@ -2478,7 +2482,7 @@ app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
         trades.setBuyPrice(holdingId, req.session.username, value);
         edited.push(holdingId);
       } catch (err) {
-        console.error(`[skinbux-import] Цена покупки ${holdingId}: ${err.message}`);
+        console.error(`[${tag}] Цена покупки ${holdingId}: ${err.message}`);
       }
     }
 
@@ -2488,10 +2492,30 @@ app.post("/api/trades/import/skinbux", requireSiteOwner, async (req, res) => {
     });
     res.json({ ok: true, closed, failed, editedPrices: edited.length, floats: { ...floats, filled }, ...plan });
   } catch (err) {
-    console.error("[skinbux-import] Ошибка:", err.message);
+    console.error(`[${tag}] Ошибка:`, err.message);
     res.status(400).json({ ok: false, error: err.message });
   }
-});
+}
+
+app.post("/api/trades/import/skinbux", requireSiteOwner, (req, res) =>
+  handleSalesImport(req, res, {
+    source: "skinbux",
+    tag: "skinbux-import",
+    loadSales: async () =>
+      skinbuxSalesImport.salesFromSkinbux(await skinbuxAccount.fetchTransactions(process.env.SKINBUX_API_KEY), {
+        journal: skinbuxSales.loadAll(),
+        ownerSteamId: skinbuxSales.OWNER_STEAM_ID,
+      }),
+  })
+);
+
+app.post("/api/trades/import/csfloat-sales", requireSiteOwner, (req, res) =>
+  handleSalesImport(req, res, {
+    source: "csfloat",
+    tag: "csfloat-sales-import",
+    loadSales: async (days) => (await csfloatPurchases.fetchSales(process.env.CSFLOAT_API_KEY, { days })).sales,
+  })
+);
 
 // Импорт покупок с CSFloat одной кнопкой (csfloatPurchases.js). Только для
 // владельца: ключ CSFloat один на весь сайт — его, и чужой аккаунт в панели

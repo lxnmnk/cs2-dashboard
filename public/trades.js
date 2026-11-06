@@ -1042,60 +1042,19 @@ function renderCsfloatPreview(data) {
   });
 }
 
-// ---- Импорт продаж со Skinbux ----
-// Зеркало импорта покупок: там позиции открываются, тут закрываются. Сервер
-// сам пропускает продажи клиентов через сайт — предметы в них не наши.
-const skinbuxImportBtn = document.getElementById("skinbuxImportBtn");
-const skinbuxImportStatus = document.getElementById("skinbuxImportStatus");
-const skinbuxImportPreview = document.getElementById("skinbuxImportPreview");
-
-// Поправленные в предпросмотре цены покупки: holdingId -> новая цена.
-// Живут до подтверждения импорта, на сервер уходят вместе с ним.
-let skinbuxBuyPriceEdits = {};
-
-async function skinbuxImport(dryRun) {
-  skinbuxImportBtn.disabled = true;
-  skinbuxImportStatus.textContent = dryRun ? "Asking Skinbux..." : "Closing positions...";
-  let data;
-  try {
-    const res = await fetch("/api/trades/import/skinbux", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        dryRun,
-        days: Number(document.getElementById("skinbuxImportDays").value) || 90,
-        buyPrices: dryRun ? undefined : skinbuxBuyPriceEdits,
-      }),
-    });
-    data = await res.json();
-  } catch (err) {
-    data = { ok: false, error: err.message };
-  }
-  skinbuxImportBtn.disabled = false;
-  return data;
-}
-
-skinbuxImportBtn?.addEventListener("click", async () => {
-  const data = await skinbuxImport(true);
-  if (!data.ok) {
-    skinbuxImportStatus.textContent = "";
-    skinbuxImportPreview.style.display = "none";
-    errorBox.style.display = "block";
-    errorBox.textContent = `Skinbux import failed: ${data.error}`;
-    return;
-  }
-  errorBox.style.display = "none";
-  renderSkinbuxPreview(data);
-});
-
-const SKINBUX_ROW_LABELS = {
+// ---- Импорт продаж (Skinbux, CSFloat) ----
+// Зеркало импорта покупок: там позиции открываются, тут закрываются. Блок один
+// на обе площадки — отличаются только адрес и подписи. Сервер сам пропускает
+// продажи клиентов через сайт — предметы в них не наши.
+const SALES_ROW_LABELS = {
   match: "closes a position",
   already: "already imported",
   nomatch: "not in the tracker",
 };
 
 // Чем выбрана позиция из нескольких одинаковых скинов (см. tradeFloats.js).
-const SKINBUX_MATCH_LABELS = {
+const SALES_MATCH_LABELS = {
+  exact: "by float — exactly the skin that was sold",
   float: "by float — this one is gone from your inventory",
   fifo: "by buy date — float of this position is unknown",
   held: "⚠ by buy date — your inventory still shows this float",
@@ -1103,16 +1062,17 @@ const SKINBUX_MATCH_LABELS = {
 
 // Откуда известно, какой из одинаковых скинов продан. Skinbux float продажи
 // не отдаёт, поэтому смотрим на инвентарь: предмет, который там всё ещё лежит,
-// продать не могли.
-function skinbuxFloatNote(plan) {
+// продать не могли. CSFloat float отдаёт — там совпадение точное.
+function salesFloatNote(plan) {
   const floats = plan.floats || {};
   const parts = [];
 
+  if (plan.byExact) parts.push(`Exact float match with the sold skin: <b>${plan.byExact}</b>.`);
   if (!plan.floatMatching) {
     parts.push(
-      `Could not read your Skinbux inventory${floats.error ? ` (${escapeHtml(floats.error)})` : ""}, so identical skins were picked by buy date only.`
+      `Could not read your Skinbux inventory${floats.error ? ` (${escapeHtml(floats.error)})` : ""}, so identical skins without an exact float were picked by buy date only.`
     );
-  } else {
+  } else if (plan.byFloat || plan.byFifo || plan.byHeld) {
     parts.push(
       `Picked by float: <b>${plan.byFloat || 0}</b> (gone from your inventory)` +
         `${plan.byFifo ? `, by buy date: ${plan.byFifo} (float unknown)` : ""}` +
@@ -1126,94 +1086,144 @@ function skinbuxFloatNote(plan) {
     parts.push(`Float still unknown where several identical skins sit together: ${names} — type it in the Holdings table to be exact.`);
   }
 
-  return `<p class="na">${parts.join(" ")}</p>`;
+  return parts.length ? `<p class="na">${parts.join(" ")}</p>` : "";
 }
 
-function renderSkinbuxPreview(plan) {
-  const rows = (plan.rows || []).filter((r) => r.status !== "already");
-  skinbuxImportStatus.textContent = `${plan.matched} to close, ${plan.already} already in, ${plan.nomatch} without a position`;
+function setupSalesImport({ prefix, label, endpoint }) {
+  const btn = document.getElementById(`${prefix}ImportBtn`);
+  const status = document.getElementById(`${prefix}ImportStatus`);
+  const preview = document.getElementById(`${prefix}ImportPreview`);
+  if (!btn) return;
 
-  if (!rows.length) {
-    skinbuxImportPreview.style.display = "block";
-    skinbuxImportPreview.innerHTML = `<p class="empty-row">Nothing new to import.</p>${skinbuxFloatNote(plan)}`;
-    return;
+  // Поправленные в предпросмотре цены покупки: holdingId -> новая цена.
+  // Живут до подтверждения импорта, на сервер уходят вместе с ним.
+  let buyPriceEdits = {};
+
+  async function runImport(dryRun) {
+    btn.disabled = true;
+    status.textContent = dryRun ? `Asking ${label}...` : "Closing positions...";
+    let data;
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dryRun,
+          days: Number(document.getElementById(`${prefix}ImportDays`).value) || 90,
+          buyPrices: dryRun ? undefined : buyPriceEdits,
+        }),
+      });
+      data = await res.json();
+    } catch (err) {
+      data = { ok: false, error: err.message };
+    }
+    btn.disabled = false;
+    return data;
   }
 
-  skinbuxImportPreview.style.display = "block";
-  skinbuxImportPreview.innerHTML = `
-    <p><b>${plan.matched}</b> position(s) will be closed for ${fmtMoney(plan.matchedSum)}, profit ${fmtMoney(plan.profit)}.${
-      plan.nomatch ? ` ${plan.nomatch} sold item(s) for ${fmtMoney(plan.nomatchSum)} have no position in the tracker — add them by hand if they were yours.` : ""
-    }</p>
-    ${skinbuxFloatNote(plan)}
-    <table class="trades-table">
-      <thead><tr><th>Sold</th><th>Item</th><th>Float</th><th>Sold for</th><th>Bought for</th><th>Profit</th><th>What happens</th></tr></thead>
-      <tbody>
-        ${rows
-          .map(
-            (r) => `<tr>
-              <td>${fmtDate(r.soldAt)}</td>
-              <td>${escapeHtml(r.marketHashName)}${r.viaSite ? ' <span class="na">via site</span>' : ""}</td>
-              <td>${r.floatValue != null ? r.floatValue.toFixed(6) : '<span class="na">—</span>'}</td>
-              <td>${fmtMoney(r.price)}</td>
-              <td>${
-                // Свою цену можно поправить прямо здесь: продажа уже видна, и
-                // ошибку в закупке дешевле исправить до закрытия позиции.
-                r.holdingId
-                  ? `<input class="import-buy-price" type="number" step="0.01" min="0" value="${r.buyPrice ?? ""}" data-id="${escapeHtml(
-                      r.holdingId
-                    )}" data-price="${r.price}" title="Your buy price. Change it and the profit below updates; it is saved when you confirm the import." />`
-                  : '<span class="na">—</span>'
-              }</td>
-              <td class="${r.profit >= 0 ? "profit" : "loss"}" data-profit-for="${escapeHtml(r.holdingId || "")}">${
-                r.profit != null ? fmtMoney(r.profit) : '<span class="na">—</span>'
-              }</td>
-              <td class="na">${escapeHtml(SKINBUX_ROW_LABELS[r.status] || r.status)}${
-                r.matchedBy ? `, ${escapeHtml(SKINBUX_MATCH_LABELS[r.matchedBy] || r.matchedBy)}` : ""
-              }</td>
-            </tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-    ${plan.matched ? `<button id="skinbuxImportConfirm" class="btn-small">Close these ${plan.matched} position(s)</button>` : ""}`;
+  function showError(error) {
+    errorBox.style.display = "block";
+    errorBox.textContent = `${label} import failed: ${error}`;
+  }
 
-  skinbuxBuyPriceEdits = {};
-  skinbuxImportPreview.querySelectorAll(".import-buy-price").forEach((input) => {
-    const original = input.value;
-    input.addEventListener("input", () => {
-      const value = Number(input.value);
-      const cell = skinbuxImportPreview.querySelector(`[data-profit-for="${input.dataset.id}"]`);
-      if (!(value > 0)) {
-        delete skinbuxBuyPriceEdits[input.dataset.id];
-        if (cell) cell.textContent = "—";
-        return;
-      }
-      if (input.value === original) delete skinbuxBuyPriceEdits[input.dataset.id];
-      else skinbuxBuyPriceEdits[input.dataset.id] = value;
+  function render(plan) {
+    const rows = (plan.rows || []).filter((r) => r.status !== "already");
+    status.textContent = `${plan.matched} to close, ${plan.already} already in, ${plan.nomatch} without a position`;
+    preview.style.display = "block";
 
-      const profit = Number(input.dataset.price) - value;
-      if (cell) {
-        cell.textContent = fmtMoney(Math.round(profit * 100) / 100);
-        cell.className = profit >= 0 ? "profit" : "loss";
-      }
-    });
-  });
-
-  document.getElementById("skinbuxImportConfirm")?.addEventListener("click", async () => {
-    const result = await skinbuxImport(false);
-    if (!result.ok) {
-      errorBox.style.display = "block";
-      errorBox.textContent = `Skinbux import failed: ${result.error}`;
+    if (!rows.length) {
+      preview.innerHTML = `<p class="empty-row">Nothing new to import.</p>${salesFloatNote(plan)}`;
       return;
     }
-    skinbuxImportPreview.style.display = "none";
-    skinbuxImportStatus.textContent = `Closed ${result.closed}${
-      result.editedPrices ? `, ${result.editedPrices} buy price(s) updated` : ""
-    }${result.failed?.length ? `, ${result.failed.length} failed: ${result.failed[0]}` : ""}`;
-    skinbuxBuyPriceEdits = {};
-    await loadTrades();
+
+    preview.innerHTML = `
+      <p><b>${plan.matched}</b> position(s) will be closed for ${fmtMoney(plan.matchedSum)}, profit ${fmtMoney(plan.profit)}${
+        plan.source === "csfloat" ? " (after the 2% CSFloat fee)" : ""
+      }.${
+        plan.nomatch ? ` ${plan.nomatch} sold item(s) for ${fmtMoney(plan.nomatchSum)} have no position in the tracker — add them by hand if they were yours.` : ""
+      }</p>
+      ${salesFloatNote(plan)}
+      <table class="trades-table">
+        <thead><tr><th>Sold</th><th>Item</th><th>Float</th><th>Sold for</th><th>Bought for</th><th>Profit</th><th>What happens</th></tr></thead>
+        <tbody>
+          ${rows
+            .map((r) => {
+              const shownFloat = r.floatValue ?? r.soldFloat;
+              return `<tr>
+                <td>${fmtDate(r.soldAt)}</td>
+                <td>${escapeHtml(r.marketHashName)}${r.viaSite ? ' <span class="na">via site</span>' : ""}</td>
+                <td>${shownFloat != null ? Number(shownFloat).toFixed(6) : '<span class="na">—</span>'}</td>
+                <td>${fmtMoney(r.price)}</td>
+                <td>${
+                  // Свою цену можно поправить прямо здесь: продажа уже видна, и
+                  // ошибку в закупке дешевле исправить до закрытия позиции.
+                  r.holdingId
+                    ? `<input class="import-buy-price" type="number" step="0.01" min="0" value="${r.buyPrice ?? ""}" data-id="${escapeHtml(
+                        r.holdingId
+                      )}" data-price="${r.net ?? r.price}" title="Your buy price. Change it and the profit below updates; it is saved when you confirm the import." />`
+                    : '<span class="na">—</span>'
+                }</td>
+                <td class="${r.profit >= 0 ? "profit" : "loss"}" data-profit-for="${escapeHtml(r.holdingId || "")}">${
+                  r.profit != null ? fmtMoney(r.profit) : '<span class="na">—</span>'
+                }</td>
+                <td class="na">${escapeHtml(SALES_ROW_LABELS[r.status] || r.status)}${
+                  r.matchedBy ? `, ${escapeHtml(SALES_MATCH_LABELS[r.matchedBy] || r.matchedBy)}` : ""
+                }</td>
+              </tr>`;
+            })
+            .join("")}
+        </tbody>
+      </table>
+      ${plan.matched ? `<button class="btn-small" data-confirm-import>Close these ${plan.matched} position(s)</button>` : ""}`;
+
+    buyPriceEdits = {};
+    preview.querySelectorAll(".import-buy-price").forEach((input) => {
+      const original = input.value;
+      input.addEventListener("input", () => {
+        const value = Number(input.value);
+        const cell = preview.querySelector(`[data-profit-for="${input.dataset.id}"]`);
+        if (!(value > 0)) {
+          delete buyPriceEdits[input.dataset.id];
+          if (cell) cell.textContent = "—";
+          return;
+        }
+        if (input.value === original) delete buyPriceEdits[input.dataset.id];
+        else buyPriceEdits[input.dataset.id] = value;
+
+        const profit = Number(input.dataset.price) - value;
+        if (cell) {
+          cell.textContent = fmtMoney(Math.round(profit * 100) / 100);
+          cell.className = profit >= 0 ? "profit" : "loss";
+        }
+      });
+    });
+
+    preview.querySelector("[data-confirm-import]")?.addEventListener("click", async () => {
+      const result = await runImport(false);
+      if (!result.ok) return showError(result.error);
+      preview.style.display = "none";
+      status.textContent = `Closed ${result.closed}${
+        result.editedPrices ? `, ${result.editedPrices} buy price(s) updated` : ""
+      }${result.failed?.length ? `, ${result.failed.length} failed: ${result.failed[0]}` : ""}`;
+      buyPriceEdits = {};
+      await loadTrades();
+    });
+  }
+
+  btn.addEventListener("click", async () => {
+    const data = await runImport(true);
+    if (!data.ok) {
+      status.textContent = "";
+      preview.style.display = "none";
+      return showError(data.error);
+    }
+    errorBox.style.display = "none";
+    render(data);
   });
 }
+
+setupSalesImport({ prefix: "skinbux", label: "Skinbux", endpoint: "/api/trades/import/skinbux" });
+setupSalesImport({ prefix: "csfloatSales", label: "CSFloat", endpoint: "/api/trades/import/csfloat-sales" });
 
 // ---- Сверка с инвентарём: чего уже нет ----
 // Импорт продаж закрывает только то, что продано через Skinbux. Проданное на

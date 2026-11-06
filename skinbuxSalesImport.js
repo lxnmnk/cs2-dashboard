@@ -79,8 +79,23 @@ function buildHoldingsIndex(rawTrades, inventory) {
 
 const MATCH_PRIORITY = ["float", "fifo", "held", "locked"];
 
+/** Убрать конкретную запись из очередей индекса — её уже забрала продажа. */
+function takeEntry(holdings, entry) {
+  for (const list of holdings.values()) {
+    const at = list.indexOf(entry);
+    if (at >= 0) {
+      list.splice(at, 1);
+      return entry;
+    }
+  }
+  return entry;
+}
+
 /**
  * Позиция под проданный предмет (и сразу убирает её из очереди).
+ *
+ * Площадка знает float проданного (CSFloat) — сначала ищем позицию ровно с
+ * этим float: тут угадывать нечего, это тот самый предмет.
  *
  * Доплеры: в трекере название с фазой ("... (Factory New) - Ruby"), а Skinbux
  * в продаже пишет просто "... (Factory New)" — фазу отдаёт отдельным полем, а
@@ -91,7 +106,17 @@ const MATCH_PRIORITY = ["float", "fifo", "held", "locked"];
  * проданная), дальше по тому же порядку, что и обычно.
  */
 function pickHolding(holdings, item) {
-  for (const name of item.phase ? [`${item.name} - ${item.phase}`, item.name] : [item.name]) {
+  const names = item.phase ? [`${item.name} - ${item.phase}`, item.name] : [item.name];
+
+  if (item.float != null) {
+    const sameItem = [...holdings]
+      .filter(([name]) => names.includes(name) || (!item.phase && stripPhaseSuffix(name).base === item.name))
+      .flatMap(([, list]) => list);
+    const exact = sameItem.find((entry) => tradeFloats.sameFloat(entry.position.floatValue, item.float));
+    if (exact) return { ...takeEntry(holdings, exact), matchedBy: "exact" };
+  }
+
+  for (const name of names) {
     const list = holdings.get(name);
     if (list?.length) return list.shift();
   }
@@ -106,71 +131,97 @@ function pickHolding(holdings, item) {
 }
 
 /**
+ * Продажи Skinbux -> общий вид продажи для planSales. Пропускает
+ * незавершённые и продажи клиентов и друга через сайт: они учтены отдельно,
+ * и предметы там не наши.
+ */
+function salesFromSkinbux(transactions, { journal, ownerSteamId }) {
+  const journalById = new Map(journal.map((s) => [String(s.id), s]));
+  const sales = [];
+  for (const tx of transactions) {
+    if (tx.status !== "completed") continue;
+    const sale = journalById.get(String(tx.id));
+    if (sale && String(sale.steamId) !== String(ownerSteamId)) continue;
+    const soldAt = new Date(tx.updatedAt || tx.createdAt).toISOString();
+    (tx.tradeItems || []).forEach((item, index) => {
+      sales.push({
+        externalId: itemExternalId(tx.id, index),
+        txId: tx.id,
+        name: item.name,
+        phase: item.phase || null,
+        float: null, // Skinbux float продажи не отдаёт
+        price: round2((Number(item.price) || 0) / 100),
+        soldAt,
+        viaSite: !!sale,
+      });
+    });
+  }
+  return sales;
+}
+
+/**
  * Что импорт собирается сделать. Ничего не пишет — это то, что видно в
  * предпросмотре до подтверждения.
+ *
+ * sales — проданные предметы в общем виде:
+ *   { externalId, name (без фазы), phase, float, price (до комиссии), soldAt }.
+ * source — площадка продажи (skinbux, csfloat): так позиция и закроется.
+ * feeRate — комиссия площадки: прибыль в предпросмотре — с ней, как и в
+ * трекере после закрытия (trades.sellTrade вычитает её сам).
  *
  * Для каждого проданного предмета одна строка:
  *   match   — нашли открытую позицию, закроем её по цене продажи;
  *   already — уже импортировано раньше (по sellExternalId);
  *   nomatch — такого предмета в трекере нет, занести нечего.
  *
- * matchedBy говорит, чем именно выбрана позиция: "float" — предмета с таким
- * float в инвентаре больше нет (самый надёжный случай), "fifo" — float
- * неизвестен, взяли самую раннюю покупку, "held" — инвентарь уверяет, что
- * предмет на месте, и других вариантов не осталось.
+ * matchedBy говорит, чем именно выбрана позиция: "exact" — float продажи
+ * совпал с float позиции, "float" — предмета с таким float в инвентаре
+ * больше нет, "fifo" — float неизвестен, взяли самую раннюю покупку, "held" —
+ * инвентарь уверяет, что предмет на месте, и других вариантов не осталось.
  */
-function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, ownerSteamId, inventory = null }) {
+function planSales({ sales, rawTrades, days = DEFAULT_DAYS, inventory = null, source = "skinbux", feeRate = 0 }) {
   const cutoff = Date.now() - Math.max(1, Number(days) || DEFAULT_DAYS) * 86400000;
-  const journalById = new Map(journal.map((s) => [String(s.id), s]));
   const holdings = buildHoldingsIndex(rawTrades, inventory);
   const importedIds = new Set(rawTrades.filter((t) => t.sellExternalId).map((t) => t.sellExternalId));
 
   const rows = [];
-  for (const tx of transactions) {
-    if (tx.status !== "completed") continue;
-    const soldAt = new Date(tx.updatedAt || tx.createdAt);
-    if (!(soldAt.getTime() >= cutoff)) continue;
+  for (const item of sales) {
+    if (!(new Date(item.soldAt).getTime() >= cutoff)) continue;
+    const net = round2(item.price * (1 - feeRate));
+    const base = {
+      externalId: item.externalId,
+      txId: item.txId ?? null,
+      source,
+      // С фазой, если площадка её отдала: в предпросмотре видно, какой доплер продан.
+      marketHashName: item.phase ? `${item.name} - ${item.phase}` : item.name,
+      price: item.price,
+      net,
+      soldFloat: item.float ?? null,
+      soldAt: item.soldAt,
+      viaSite: !!item.viaSite,
+    };
 
-    // Продажа клиента или друга через сайт — она уже учтена отдельно, и
-    // предметы там не наши.
-    const sale = journalById.get(String(tx.id));
-    if (sale && String(sale.steamId) !== String(ownerSteamId)) continue;
+    if (importedIds.has(item.externalId)) {
+      rows.push({ ...base, status: "already" });
+      continue;
+    }
 
-    (tx.tradeItems || []).forEach((item, index) => {
-      const externalId = itemExternalId(tx.id, index);
-      const price = round2((Number(item.price) || 0) / 100);
-      const base = {
-        externalId,
-        txId: tx.id,
-        // С фазой, если Skinbux её отдал: в предпросмотре видно, какой доплер продан.
-        marketHashName: item.phase ? `${item.name} - ${item.phase}` : item.name,
-        price,
-        soldAt: soldAt.toISOString(),
-        viaSite: !!sale,
-      };
+    const pick = pickHolding(holdings, item);
+    if (!pick) {
+      rows.push({ ...base, status: "nomatch" });
+      continue;
+    }
 
-      if (importedIds.has(externalId)) {
-        rows.push({ ...base, status: "already" });
-        return;
-      }
-
-      const pick = pickHolding(holdings, item);
-      if (!pick) {
-        rows.push({ ...base, status: "nomatch" });
-        return;
-      }
-
-      const holding = pick.position;
-      rows.push({
-        ...base,
-        status: "match",
-        matchedBy: pick.matchedBy,
-        holdingId: holding.id,
-        floatValue: holding.floatValue ?? null,
-        buyPrice: round2(holding.buyPrice),
-        buyDate: holding.buyDate,
-        profit: round2(price - holding.buyPrice),
-      });
+    const holding = pick.position;
+    rows.push({
+      ...base,
+      status: "match",
+      matchedBy: pick.matchedBy,
+      holdingId: holding.id,
+      floatValue: holding.floatValue ?? null,
+      buyPrice: round2(holding.buyPrice),
+      buyDate: holding.buyDate,
+      profit: round2(net - holding.buyPrice),
     });
   }
 
@@ -178,10 +229,12 @@ function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, own
   const countBy = (by) => rows.filter((r) => r.status === "match" && r.matchedBy === by).length;
   return {
     rows,
+    source,
     days: Math.max(1, Number(days) || DEFAULT_DAYS),
     // Работало ли сопоставление по float вообще: без инвентаря это обычный FIFO,
     // и в интерфейсе об этом честно написано.
     floatMatching: !!inventory,
+    byExact: countBy("exact"),
     byFloat: countBy("float"),
     byFifo: countBy("fifo"),
     byHeld: countBy("held"),
@@ -192,6 +245,12 @@ function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, own
     nomatch: rows.filter((r) => r.status === "nomatch").length,
     nomatchSum: sum((r) => r.status === "nomatch"),
   };
+}
+
+/** Старый вход для Skinbux: транзакции как есть. */
+function planImport({ transactions, journal, rawTrades, days = DEFAULT_DAYS, ownerSteamId, inventory = null }) {
+  const sales = salesFromSkinbux(transactions, { journal, ownerSteamId });
+  return planSales({ sales, rawTrades, days, inventory, source: "skinbux" });
 }
 
 /** Закрывает позиции по плану. Возвращает, сколько получилось и что нет. */
@@ -205,10 +264,11 @@ function applyImport(plan, { owner, sourcesConfig }) {
         row.holdingId,
         owner,
         {
-          sellSource: "skinbux",
+          sellSource: row.source || plan.source || "skinbux",
           sellPrice: row.price,
           sellDate: row.soldAt,
-          sellSide: "bid",
+          // Skinbux — выкуп по bid; на CSFloat у нас купили наш лот, то есть по ask.
+          sellSide: (row.source || plan.source) === "csfloat" ? "ask" : "bid",
           sellExternalId: row.externalId,
         },
         sourcesConfig
@@ -221,4 +281,4 @@ function applyImport(plan, { owner, sourcesConfig }) {
   return { closed, failed };
 }
 
-module.exports = { planImport, applyImport, DEFAULT_DAYS };
+module.exports = { planSales, salesFromSkinbux, planImport, applyImport, DEFAULT_DAYS };

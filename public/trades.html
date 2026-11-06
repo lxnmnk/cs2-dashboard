@@ -144,6 +144,18 @@
   </section>
   <div id="skinbuxImportPreview" class="csfloat-import-preview" style="display:none;"></div>
 
+  <!-- Наши лоты, проданные на CSFloat: float продажи CSFloat отдаёт сам, так
+       что из одинаковых скинов позиция находится точно. -->
+  <section class="trade-form csfloat-import">
+    <button id="csfloatSalesImportBtn" class="btn-small btn-secondary" type="button">Import sales from CSFloat</button>
+    <label class="csfloat-import-days">from the last
+      <input id="csfloatSalesImportDays" type="number" min="1" max="3650" value="30" title="Only sales where the buyer already accepted the Steam trade. The 2% CSFloat fee is taken off automatically." />
+      days
+    </label>
+    <span id="csfloatSalesImportStatus" class="field-hint"></span>
+  </section>
+  <div id="csfloatSalesImportPreview" class="csfloat-import-preview" style="display:none;"></div>
+
   <!-- Продажи мимо Skinbux (Youpin, прямой трейд) нигде не отмечаются, а
        предмет из инвентаря исчезает. Эта кнопка показывает такие позиции —
        закрывает их владелец сам, вписав цену и дату. -->

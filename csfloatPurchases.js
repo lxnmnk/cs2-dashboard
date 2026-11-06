@@ -173,17 +173,68 @@ function tradeTime(raw) {
  * старше отсечки перестаём листать.
  */
 async function fetchPurchases(apiKey, { maxPages = MAX_PAGES, days = DEFAULT_DAYS, mode = "purchased" } = {}) {
+  const { items, fetched, skipped } = await fetchTrades(apiKey, "buyer", { maxPages, days }, (raw) =>
+    normalizeTrade(raw, mode)
+  );
+  return { purchases: items, fetched, skipped, mode, days: Math.max(1, Number(days) || DEFAULT_DAYS) };
+}
+
+/**
+ * Наши продажи на CSFloat (роль "продавец") — для импорта продаж в трекер
+ * (skinbuxSalesImport.planSales). Продажа считается состоявшейся, когда
+ * покупатель принял Steam-обмен: предмет ушёл. Пока обмен не принят — это
+ * ещё не продажа, отменённые и откаты не берём никогда.
+ *
+ * price — сколько заплатил покупатель, до комиссии CSFloat: её вычитает сам
+ * трекер при закрытии позиции (trades.sellTrade, sellFee в config.json).
+ */
+function normalizeSale(raw) {
+  const state = String(pick(raw, ["state", "status"]) || "").toLowerCase();
+  if (DEAD_STATES.has(state) || !isReceived(raw)) return null;
+
+  const marketHashName = pick(raw, [
+    "contract.item.market_hash_name",
+    "item.market_hash_name",
+    "contract.market_hash_name",
+    "market_hash_name",
+  ]);
+  const cents = Number(pick(raw, ["price", "contract.price", "total_price", "contract.total_price"]));
+  if (!marketHashName || !Number.isFinite(cents) || cents <= 0) return null;
+
+  const { base, phase } = stripPhaseSuffix(withPhase(String(marketHashName), raw));
+  const floatValue = Number(pick(raw, ["contract.item.float_value", "item.float_value"]));
+  return {
+    externalId: `csfloat-sale:${pick(raw, ["id", "trade_id", "contract.id"]) || ""}`,
+    txId: pick(raw, ["id", "trade_id"]),
+    name: base,
+    phase,
+    float: Number.isFinite(floatValue) && floatValue > 0 ? floatValue : null,
+    price: Math.round(cents) / 100,
+    soldAt: pick(raw, ["accepted_at", "created_at", "verified_at"]) || new Date().toISOString(),
+  };
+}
+
+async function fetchSales(apiKey, { maxPages = MAX_PAGES, days = DEFAULT_DAYS } = {}) {
+  const { items, fetched, skipped } = await fetchTrades(apiKey, "seller", { maxPages, days }, normalizeSale);
+  return { sales: items, fetched, skipped };
+}
+
+/**
+ * Сделки аккаунта в роли role за последние days дней, от свежих к старым,
+ * каждая через normalize (null — пропустить).
+ */
+async function fetchTrades(apiKey, role, { maxPages = MAX_PAGES, days = DEFAULT_DAYS } = {}, normalize) {
   if (!apiKey) throw new Error("CSFLOAT_API_KEY не задан в .env");
 
   const cutoff = Date.now() - Math.max(1, Number(days) || DEFAULT_DAYS) * 86400000;
-  const purchases = [];
+  const items = [];
   const seenIds = new Set();
   let skipped = 0;
   let fetched = 0;
   let reachedCutoff = false;
 
   for (let page = 0; page < maxPages && !reachedCutoff; page++) {
-    const payload = await apiGet(apiKey, `/api/v1/me/trades?role=buyer&page=${page}&limit=${PAGE_LIMIT}`);
+    const payload = await apiGet(apiKey, `/api/v1/me/trades?role=${role}&page=${page}&limit=${PAGE_LIMIT}`);
     const batch = tradesOf(payload);
     if (!batch.length) break;
 
@@ -204,13 +255,13 @@ async function fetchPurchases(apiKey, { maxPages = MAX_PAGES, days = DEFAULT_DAY
         reachedCutoff = true;
         continue;
       }
-      const trade = normalizeTrade(raw, mode);
-      if (trade) purchases.push(trade);
+      const item = normalize(raw);
+      if (item) items.push(item);
       else skipped++;
     }
   }
 
-  return { purchases, fetched, skipped, mode, days: Math.max(1, Number(days) || DEFAULT_DAYS) };
+  return { items, fetched, skipped };
 }
 
-module.exports = { fetchPurchases, normalizeTrade, tradesOf, withPhase, BASE_URL };
+module.exports = { fetchPurchases, fetchSales, normalizeTrade, normalizeSale, tradesOf, withPhase, BASE_URL };
