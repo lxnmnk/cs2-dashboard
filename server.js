@@ -2837,6 +2837,9 @@ function parseNullableFloat(value, fallback) {
 const CAPITAL_CLOSE_HOUR = 0; // местное время сервера
 const CAPITAL_CLOSE_MINUTE = 5;
 
+// Больше этого изменения банка за один автоматический расчёт не закрываем.
+const CAPITAL_AUTO_MAX_CHANGE_PCT = 10;
+
 async function runDailyCapitalClose() {
   try {
     const state = capital.load();
@@ -2863,6 +2866,20 @@ async function runDailyCapitalClose() {
     }
     if (!cache.rows.length) {
       console.warn("[capital] Автозакрытие пропущено: цены ещё не загружены");
+      return;
+    }
+
+    // Обычный день — это проценты от банка. Если банк скакнул сильнее, почти
+    // всегда виноват учёт (скин посчитан и как скин, и как деньги за него;
+    // не прочитан баланс), а не торговля — и такой результат нельзя молча
+    // раскидывать по инвесторам. Закрывай руками, когда разберёшься.
+    const preview = capital.previewPeriod(state, bank.total);
+    const limit = Math.max(500, preview.openingTotal * (CAPITAL_AUTO_MAX_CHANGE_PCT / 100));
+    if (Math.abs(preview.profit) > limit) {
+      console.warn(
+        `[capital] Автозакрытие пропущено: прибыль $${preview.profit} больше ±$${round2(limit)} ` +
+          `(${CAPITAL_AUTO_MAX_CHANGE_PCT}% банка) — проверь банк и закрой период руками`
+      );
       return;
     }
 
