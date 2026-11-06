@@ -25,12 +25,8 @@ const VIA = { journal: "журнал сайта", tracker: "трекер", unkno
   const items = [...split.items].sort((a, b) => new Date(a.unlockAt) - new Date(b.unlockAt));
   let mineSum = 0;
   for (const it of items) {
-    // В "моё": своя продажа — целиком, клиентская — сумма минус долг клиенту,
-    // партнёрская — ноль (если уже вернул, то целиком).
-    let toMine;
-    if (it.owner === "mine") toMine = it.amount;
-    else if (it.owner === "client") toMine = it.amount - (it.payout || 0);
-    else toMine = it.paidAt ? it.amount : 0;
+    // В "моё" — сумма транзакции минус чужое в ней (клиенту и партнёрам).
+    const toMine = it.toMine;
     mineSum += toMine;
 
     const who =

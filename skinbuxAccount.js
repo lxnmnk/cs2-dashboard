@@ -9,6 +9,8 @@
 // В банк идут оба: деньги в холде никуда не денутся, просто придут позже —
 // ровно как предметы в трейд-бане. Но показываем их отдельной строкой, чтобы
 // было видно, какая часть банка сейчас недоступна.
+const { stripPhaseSuffix } = require("./itemName");
+
 const BASE = "https://api.skinbux.com/v1";
 
 async function fetchBalance(apiKey) {
@@ -107,14 +109,22 @@ function normalizeSource(value) {
     .replace(/[^a-zа-яё0-9]+/gi, "");
 }
 
-/** Проданные через Skinbux сделки трекера: название -> список, по одной штуке. */
+/**
+ * Проданные через Skinbux сделки трекера: название -> список, по одной штуке.
+ * Ключ — название без фазы: в трекере доплер "... (Factory New) - Ruby", а
+ * Skinbux в транзакции пишет "... (Factory New)". Ошибиться тут не даёт цена:
+ * совпасть должна ещё и она.
+ */
+const baseName = (name) => stripPhaseSuffix(String(name || "")).base;
+
 function buildTrackerIndex(trackerSales) {
   const index = new Map();
   for (const t of trackerSales) {
     if (t.status !== "sold" || normalizeSource(t.sellSource) !== "skinbux") continue;
-    const list = index.get(t.marketHashName) || [];
+    const key = baseName(t.marketHashName);
+    const list = index.get(key) || [];
     list.push(t);
-    index.set(t.marketHashName, list);
+    index.set(key, list);
   }
   return index;
 }
@@ -134,7 +144,7 @@ function matchTracker(tx, index) {
 
   const found = [];
   for (const item of items) {
-    const list = index.get(item.name);
+    const list = index.get(baseName(item.name));
     if (!list?.length) continue;
     const price = round2((Number(item.price) || 0) / 100);
     const at = list.findIndex((t) => Math.abs(round2(t.sellPrice) - price) < 0.02);
@@ -143,22 +153,47 @@ function matchTracker(tx, index) {
   }
   if (!found.length) return null;
 
-  const fromClient = found.some(boughtFromClient);
-  // Долг клиенту — цена покупки за вычетом того, что ему уже отдали:
-  // часть денег нередко уходит человеку ещё до конца трейд-бана, и без
-  // этого банк считал бы своими деньгами то, что уже выплачено.
-  const payout = round2(
-    found.reduce((sum, t) => sum + Math.max(0, (Number(t.buyPrice) || 0) - (Number(t.clientPaid) || 0)), 0)
-  );
-  // Если из нескольких предметов транзакции нашлась только часть, относить
-  // к клиенту всю сумму нельзя: выручка считалась бы по всем предметам, а
-  // выплата по найденным, и маржа выходила бы завышенной.
-  const matchedAmount = round2(found.reduce((sum, t) => sum + (Number(t.sellPrice) || 0), 0));
-  // cost — полная цена покупки у клиента. Долг (payout) от неё отличается на
-  // уже выплаченное, но заработок считается именно от цены покупки: частичная
-  // выплата меняет сроки расчёта, а не маржу.
-  const cost = round2(found.reduce((sum, t) => sum + (Number(t.buyPrice) || 0), 0));
-  return { trades: found, fromClient, payout, cost, matchedAmount };
+  // В одной транзакции бывают вперемешку свои предметы и купленные у клиента
+  // (или за партнёра). Долг — только по чужим: раньше один клиентский AWP
+  // делал долгом клиенту цены покупки всех 16 предметов транзакции.
+  //
+  // Долг — цена покупки за вычетом того, что человеку уже отдали: часть
+  // денег нередко уходит ещё до конца трейд-бана, и без этого банк считал бы
+  // своими деньгами то, что уже выплачено.
+  const owed = (list) =>
+    round2(list.reduce((sum, t) => sum + Math.max(0, (Number(t.buyPrice) || 0) - (Number(t.clientPaid) || 0)), 0));
+  const sold = (list) => round2(list.reduce((sum, t) => sum + (Number(t.sellPrice) || 0), 0));
+
+  const clientTrades = found.filter(boughtFromClient);
+  const partners = {};
+  for (const t of found) {
+    const name = partnerOfTrade(t);
+    if (!name) continue;
+    (partners[name] = partners[name] || []).push(t);
+  }
+  return {
+    trades: found,
+    fromClient: clientTrades.length > 0,
+    client: {
+      // Выручка только по клиентским предметам: иначе маржа считалась бы с
+      // чужой (нашей) выручки.
+      amount: sold(clientTrades),
+      payout: owed(clientTrades),
+      // cost — полная цена покупки у клиента. Долг от неё отличается на уже
+      // выплаченное, но заработок считается от цены покупки: частичная
+      // выплата меняет сроки расчёта, а не маржу.
+      cost: round2(clientTrades.reduce((sum, t) => sum + (Number(t.buyPrice) || 0), 0)),
+    },
+    partners: Object.fromEntries(Object.entries(partners).map(([name, list]) => [name, owed(list)])),
+  };
+}
+
+// Сделка за партнёра, заведённая руками: в Bought On пишешь его имя
+// ("tarhun"). Деньги за такой предмет его, вернуть — цену покупки.
+const PARTNER_BUY_SOURCES = { tarhun: "TARHUN" };
+
+function partnerOfTrade(trade) {
+  return PARTNER_BUY_SOURCES[normalizeSource(trade.buySource)] || null;
 }
 
 function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partners = {}, holdDays = HOLD_DAYS }) {
@@ -199,22 +234,32 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
     // куплен и где продан. Сопоставляем по названию и цене предмета — Skinbux
     // отдаёт их в tradeItems, комиссии у него нет, поэтому цены совпадают.
     const matched = steamId ? null : matchTracker(tx, trackerIndex);
+    const partnerDebt = matched ? Object.values(matched.partners).reduce((sum, v) => sum + v, 0) : 0;
     let owner;
+    let debt = 0; // сколько из транзакции чужое: клиенту и партнёрам
 
-    if (matched && matched.fromClient) {
-      owner = "client";
-      const known = round2(Math.min(matched.matchedAmount, amount));
-      result.clients.gross = round2(result.clients.gross + known);
-      result.clients.payout = round2(result.clients.payout + matched.payout);
-      result.clients.margin = round2(result.clients.margin + (known - matched.cost));
-      // Не опознанный остаток транзакции остаётся в "моё" (см. ниже).
-      result.identifiedRest = round2((result.identifiedRest || 0) + (amount - known));
+    if (matched && (matched.fromClient || partnerDebt > 0)) {
+      // Чужие предметы из трекера; всё остальное в транзакции — моё.
+      owner = matched.fromClient ? "client" : Object.keys(matched.partners)[0];
+      if (matched.fromClient) {
+        const known = round2(Math.min(matched.client.amount, amount));
+        result.clients.gross = round2(result.clients.gross + known);
+        result.clients.payout = round2(result.clients.payout + matched.client.payout);
+        result.clients.margin = round2(result.clients.margin + (known - matched.client.cost));
+      }
+      for (const [name, sum] of Object.entries(matched.partners)) {
+        result.partners[name] = round2((result.partners[name] || 0) + sum);
+      }
+      debt = round2(matched.client.payout + partnerDebt);
     } else if (!steamId) {
-      // Продажа мимо сайта, которой нет в трекере: деньги наши, просто
-      // подтвердить их нечем — считаем в "моё" и отмечаем как неподтверждённые.
       owner = "mine";
-      result.unconfirmed.sum = round2(result.unconfirmed.sum + amount);
-      result.unconfirmed.count++;
+      // Продажа мимо сайта, которой нет и в трекере: деньги наши, просто
+      // подтвердить их нечем — отмечаем как неподтверждённые. Найденные в
+      // трекере свои продажи подтверждены: там видно, что это наши покупки.
+      if (!matched) {
+        result.unconfirmed.sum = round2(result.unconfirmed.sum + amount);
+        result.unconfirmed.count++;
+      }
     } else if (steamId === ownerSteamId) {
       owner = "mine";
     } else if (partners[steamId]) {
@@ -226,6 +271,7 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       } else {
         const prev = result.partners[owner] || 0;
         result.partners[owner] = round2(prev + amount);
+        debt = amount;
       }
     } else {
       owner = "client";
@@ -240,6 +286,7 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
         result.paidAhead.count++;
       } else {
         result.clients.payout = round2(result.clients.payout + owed);
+        debt = owed;
       }
     }
 
@@ -250,7 +297,9 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
       steamId,
       // Откуда узнали владельца: журнал сайта, пометка руками или никак.
       via: steamId ? "journal" : matched ? "tracker" : "unknown",
-      payout: matched?.fromClient ? matched.payout : sale && owner === "client" && !sale.paidAt ? round2(sale.totalPrice || 0) : null,
+      // payout — чужое в транзакции (клиенту и партнёрам), toMine — остальное.
+      payout: debt > 0 ? debt : null,
+      toMine: round2(amount - debt),
       paidAt: sale?.paidAt || null,
       customerName: sale?.customerName || null,
       // Чем опознана транзакция — для сверки руками (hold-breakdown.js).
@@ -275,7 +324,6 @@ function splitHold(transactions, { sales, trackerSales = [], ownerSteamId, partn
   // Три строки в сумме дают весь холд: моё + партнёры + выплата клиентам.
   const partnersTotal = Object.values(result.partners).reduce((sum, v) => sum + v, 0);
   result.mine = round2(result.total - partnersTotal - result.clients.payout);
-  delete result.identifiedRest;
   return result;
 }
 

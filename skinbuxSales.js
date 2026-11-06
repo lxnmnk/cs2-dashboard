@@ -17,7 +17,8 @@ const FILE = path.join(__dirname, "skinbuxSales.json");
 const OWNER_STEAM_ID = "76561199060089261"; // lxnmnk
 // Друзья, которые продают через наш аккаунт Skinbux: деньги за их продажи
 // приходят к нам, но принадлежат им — это долг, а не заработок.
-const PARTNER_STEAM_IDS = { "76561198158130074": "TARHUN" };
+// У TARHUN два аккаунта: второй (ник picture) продаёт через сайт так же.
+const PARTNER_STEAM_IDS = { "76561198158130074": "TARHUN", "76561199557269637": "TARHUN" };
 const OWN_STEAM_IDS = new Set([OWNER_STEAM_ID, ...Object.keys(PARTNER_STEAM_IDS)]);
 const HOLD_DAYS = 7;
 
