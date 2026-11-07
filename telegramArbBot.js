@@ -16,6 +16,18 @@ const path = require("path");
 const { applyDisplayFilters, findBestFlip, normalizeSourceSide } = require("./pricingEngine");
 const { DOPPLER_PHASES } = require("./itemName");
 const csfloatLive = require("./csfloatLive");
+const { createBargainer } = require("./csfloatAutoBargain");
+
+// Автобарги (csfloatAutoBargain.js) — деньги одного CSFloat-аккаунта, поэтому
+// управлять ими может только чат владельца, а не любой подписчик бота.
+let bargainer = null;
+function bargainOwnerChatId(config) {
+  return String(config.csfloatAutoBargain?.ownerChatId || process.env.TELEGRAM_CHAT_ID || "");
+}
+function isBargainOwner(config, chatId) {
+  const owner = bargainOwnerChatId(config);
+  return !!owner && owner === String(chatId);
+}
 
 const SUBSCRIBERS_FILE = path.join(__dirname, "telegramArbSubscribers.json");
 const TELEGRAM_API = "https://api.telegram.org";
@@ -148,6 +160,7 @@ function helpText() {
     "/phase — выбрать фазу Doppler/Gamma Doppler",
     "/reset — сбросить фильтры по умолчанию",
     "/stop — остановить уведомления",
+    "/bargain — автобарги CSFloat (только владелец): on | off | test | buy on|off | reserve 1000 | ttl 30 | discount 10",
   ].join("\n");
 }
 
@@ -292,6 +305,46 @@ async function handleMessage(token, config, msg) {
       saveSubscribers(subs);
       await sendMessage(token, chatId, "Уведомления остановлены. /start — включить снова.");
       break;
+
+    case "/bargain": {
+      if (!bargainer || !isBargainOwner(config, chatId)) {
+        await sendMessage(token, chatId, "Автобарги доступны только владельцу аккаунта CSFloat.");
+        break;
+      }
+      const [action, val] = args;
+      const n = parseFloat(val);
+      if (action === "on") {
+        bargainer.setSetting("enabled", true);
+        bargainer.setSetting("dryRun", false);
+      } else if (action === "test") {
+        bargainer.setSetting("enabled", true);
+        bargainer.setSetting("dryRun", true);
+      } else if (action === "off") {
+        bargainer.setSetting("enabled", false);
+      } else if (action === "buy" && (val === "on" || val === "off")) {
+        bargainer.setSetting("autoBuy", val === "on");
+      } else if (action === "reserve" && n >= 0) {
+        bargainer.setSetting("reserveUsd", n);
+      } else if (action === "ttl" && n >= 30) {
+        bargainer.setSetting("ttlMinutes", n);
+      } else if (action === "discount" && n > 0 && n < 100) {
+        bargainer.setSetting("assumedMaxDiscountPercent", n);
+      } else if (action) {
+        await sendMessage(
+          token,
+          chatId,
+          "Формат: /bargain on | off | test | buy on|off | reserve 1000 | ttl 30 | discount 10\n(ttl — не меньше 30 мин: раньше CSFloat барг не отменит)"
+        );
+        break;
+      }
+      await sendMessage(
+        token,
+        chatId,
+        bargainer.statusText() +
+          "\n\nИз твоих фильтров (/status) для баргов берутся только исключения, спреды, фаза и мин./макс. цена."
+      );
+      break;
+    }
 
     case "/reset":
       Object.assign(sub, defaultFilters());
@@ -513,15 +566,44 @@ function formatLiveLot(listing, row, flip, config) {
 const liveState = csfloatLive.createState();
 let liveErrorLogged = false;
 
+// Чат владельца, если у него включены автобарги: по его фильтрам считаем барги.
+function bargainSub(subs, config) {
+  if (!bargainer?.settings().enabled) return null;
+  return subs.find((s) => s.active && isBargainOwner(config, s.chatId)) || null;
+}
+
+/**
+ * Кандидаты в барг: лоты, не выгодные по полной цене, но выгодные по цене в
+ * пределах скидки продавца (правила — в csfloatAutoBargain.js). Из фильтров
+ * владельца — исключения/спреды/фаза и мин./макс. цена (по цене лота).
+ */
+function bargainCandidates(listings, index, sub) {
+  const out = [];
+  const { minPrice, maxPrice, ...rest } = displayFiltersFor(sub);
+  const filters = { ...rest, minPrice: null, maxPrice: null };
+  for (const listing of listings) {
+    const row = index.get(listing.rowKey);
+    if (!row) continue;
+    if (minPrice != null && listing.price < minPrice) continue;
+    if (maxPrice != null && listing.price > maxPrice) continue;
+    if (!applyDisplayFilters([row], filters).length) continue;
+    const bp = bargainer.bargainPrice(listing, row);
+    if (bp) out.push({ listing, row, offerPrice: bp.offerPrice, buyNow: bp.buyNow, flip: bp.flip });
+  }
+  return out;
+}
+
 async function scanCsfloatLive(token, getRows, config) {
-  const subs = loadSubscribers().filter((s) => s.active && isLiveSub(s));
-  if (!subs.length) return; // никто не слушает — CSFloat не дёргаем
+  const allSubs = loadSubscribers();
+  const subs = allSubs.filter((s) => s.active && isLiveSub(s));
+  const owner = bargainSub(allSubs, config);
+  if (!subs.length && !owner) return; // никто не слушает — CSFloat не дёргаем
   const rows = getRows();
   if (!rows.length) return;
 
   // Общий нижний порог для запроса — самый низкий среди подписчиков (если у
   // кого-то порога нет, то без него).
-  const mins = subs.map((s) => s.minPrice ?? null);
+  const mins = [...subs, ...(owner ? [owner] : [])].map((s) => s.minPrice ?? null);
   const minPriceUsd = mins.includes(null) ? null : Math.min(...mins);
 
   let listings;
@@ -537,6 +619,7 @@ async function scanCsfloatLive(token, getRows, config) {
   if (!listings.length) return;
 
   const index = rowIndex(rows);
+  if (owner) bargainer.consider(bargainCandidates(listings, index, owner));
   for (const sub of subs) {
     const hits = [];
     for (const listing of listings) {
@@ -609,6 +692,15 @@ function startTelegramArbBot(getRows, config) {
     console.log("[telegram-arb-bot] TELEGRAM_ARB_BOT_TOKEN не задан — бот не запущен.");
     return;
   }
+
+  bargainer = createBargainer({
+    config,
+    notify: async (text) => {
+      const chatId = bargainOwnerChatId(config);
+      if (chatId) await sendMessage(token, chatId, text);
+    },
+  });
+  bargainer.start();
 
   pollLoop(token, config); // фоновый цикл, живёт пока жив процесс
 

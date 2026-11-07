@@ -88,6 +88,12 @@ function normalize(l) {
     float: item.float_value ?? null,
     paintSeed: item.paint_seed ?? null,
     stickers: Array.isArray(item.stickers) ? item.stickers.length : 0,
+    // Для автобаргов (csfloatAutoBargain.js): насколько продавец пускает
+    // скидку — в базисных пунктах (1000 = 10%), и мин. цена барга, если
+    // CSFloat её отдаёт. Нет поля (или 0 — непонятно, "запрещено" это или
+    // "по умолчанию") — null, тогда берём assumedMaxDiscountPercent.
+    maxOfferDiscount: Number(l.max_offer_discount) > 0 ? Number(l.max_offer_discount) : null,
+    minOfferPrice: Number(l.min_offer_price) > 0 ? Math.round(Number(l.min_offer_price)) / 100 : null,
   };
 }
 

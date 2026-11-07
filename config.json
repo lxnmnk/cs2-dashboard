@@ -144,6 +144,19 @@
     "_comment": "Интерактивный Telegram-бот мониторинга арбитража (telegramArbBot.js) — свои фильтры на каждый чат, свой токен TELEGRAM_ARB_BOT_TOKEN в .env (отдельный от TELEGRAM_BOT_TOKEN, чтобы не конфликтовать по getUpdates с csfloat-bot).",
     "intervalMinutes": 5
   },
+  "csfloatAutoBargain": {
+    "_comment": "Автобарги CSFloat по live-лотам бота арбитража (csfloatAutoBargain.js). Включаются из Telegram командой /bargain on (или /bargain test — без отправки); команды /bargain reserve|ttl|discount перекрывают значения ниже и хранятся в csfloatAutoBargains.json. Управлять может только чат ownerChatId (пусто — TELEGRAM_CHAT_ID из .env).",
+    "ownerChatId": "",
+    "autoBuy": true,
+    "reserveUsd": 1000,
+    "ttlMinutes": 30,
+    "assumedMaxDiscountPercent": 10,
+    "rules": [
+      { "sell": ["youpin:bid", "skinbux:bid"], "minProfitPercent": 7 },
+      { "sell": ["skinbux:bid"], "minProfitPercent": 10 },
+      { "fromAsk": "youpin:ask", "discountPercent": 7, "_comment": "барг = Youpin ask − 7%, если Youpin bid не ниже этой цены" }
+    ]
+  },
   "uahRate": 45.5,
   "_uahRateComment": "Курс долара до гривні для показу балансу клієнта в кабінеті. Той самий курс, що зашитий у QUOTE_CONFIG на сторінках прайс-чекера — правити треба в обох місцях.",
   "catalog": {

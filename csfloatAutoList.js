@@ -298,4 +298,4 @@ function summary(report) {
   return `${report.apply ? "" : "план (ничего не менялось): "}выставлено ${count("list")}, переоценено ${count("reprice")}, снято ${count("delist")}, пропущено ${count("skip")}${errors ? `, ошибок ${errors}` : ""}`;
 }
 
-module.exports = { run, summary, settings, decide };
+module.exports = { run, summary, settings, decide, api };
