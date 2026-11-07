@@ -3094,6 +3094,9 @@ a.sender-line { color: var(--gold); }
 /* ---- Акція (Black Friday): банер на головній і в кабінеті, campaign.js ----
    Чорна плашка з золотом — у фірмових кольорах, але темніша за решту
    сторінки, щоб читалась як тимчасова подія, а не частина інтерфейсу. */
+/* Ширина — як у картки інвентарю під банером; на головній — як у вітрини. */
+#campaignBanner { max-width: 1400px; margin: 0 auto; }
+#campaignBanner.is-landing { max-width: 1100px; padding: 0 var(--s-5); }
 .bf-banner {
   position: relative;
   overflow: hidden;
