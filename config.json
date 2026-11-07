@@ -154,7 +154,7 @@
     "rules": [
       { "sell": ["youpin:bid", "skinbux:bid"], "minProfitPercent": 7 },
       { "sell": ["skinbux:bid"], "minProfitPercent": 10 },
-      { "fromAsk": "youpin:ask", "discountPercent": 7, "_comment": "барг = Youpin ask − 7%, если Youpin bid не ниже этой цены" }
+      { "fromAsk": "youpin:ask", "discountPercent": 7, "maxListPercentOfAsk": 96, "_comment": "барг = Youpin ask − 7%, если Youpin bid не ниже этой цены и лот выставлен не дороже 96% от Youpin ask" }
     ]
   },
   "uahRate": 45.5,

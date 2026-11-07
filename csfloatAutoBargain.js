@@ -52,14 +52,15 @@ const DEFAULTS = {
   rules: [
     { sell: ["youpin:bid", "skinbux:bid"], minProfitPercent: 7 },
     { sell: ["skinbux:bid"], minProfitPercent: 10 },
-    // Youpin ask − 7%, если Youpin bid не ниже этой цены.
-    { fromAsk: "youpin:ask", discountPercent: 7 },
+    // Youpin ask − 7%, если Youpin bid не ниже этой цены и лот выставлен не
+    // дороже 96% от Youpin ask (лоты "по рынку Youpin" на −7% не уступят).
+    { fromAsk: "youpin:ask", discountPercent: 7, maxListPercentOfAsk: 96 },
   ],
 };
 
 function ruleLabel(rule) {
   return rule.fromAsk
-    ? `${rule.fromAsk} −${rule.discountPercent}% (bid не ниже)`
+    ? `${rule.fromAsk} −${rule.discountPercent}% (bid не ниже${rule.maxListPercentOfAsk ? `, лот ≤ ${rule.maxListPercentOfAsk}% ask` : ""})`
     : `${rule.minProfitPercent}% под ${rule.sell.join(" + ")}`;
 }
 const MIN_TTL_MINUTES = 30;
@@ -90,15 +91,17 @@ function saveState(state) {
  * (после комиссий из config.sources). Нет цены у какой-то площадки — правило
  * не подходит.
  */
-function maxBuyCents(rule, row, sources) {
+function maxBuyCents(rule, row, sources, listCents) {
   const buyFee = sources.csfloat?.buyFee || 0;
   // Правило от ask: барг = ask − discountPercent, но только если bid той же
-  // площадки не ниже этой цены (Youpin ask 100, bid ≥ 93 → барг 93).
+  // площадки не ниже этой цены (Youpin ask 100, bid ≥ 93 → барг 93) и лот
+  // выставлен не дороже maxListPercentOfAsk % от ask.
   if (rule.fromAsk) {
     const [source] = rule.fromAsk.split(":");
     const ask = row.prices?.[source]?.ask;
     const bid = row.prices?.[source]?.bid;
     if (ask == null || bid == null || !sources[source]?.enabled) return null;
+    if (rule.maxListPercentOfAsk != null && listCents > ask * rule.maxListPercentOfAsk) return null;
     const price = Math.floor(ask * (1 - rule.discountPercent / 100) * 100);
     if (Math.round(bid * 100) < price) return null;
     return { cents: price, binding: { source, side: "bid", value: bid, net: bid * (1 - (sources[source].sellFee || 0)) } };
@@ -129,7 +132,7 @@ function bargainPrice(listing, row, cfg, sources) {
   const listCents = cents(listing.price);
   let best = null;
   for (const rule of cfg.rules) {
-    const r = maxBuyCents(rule, row, sources);
+    const r = maxBuyCents(rule, row, sources, listCents);
     if (r && (!best || r.cents > best.cents)) best = { ...r, rule };
   }
   if (!best) return null;
@@ -140,6 +143,13 @@ function bargainPrice(listing, row, cfg, sources) {
   const priceCents = buyNow ? listCents : best.cents;
 
   if (!buyNow) {
+    // Продавец может сразу слить предмет в buy order на CSFloat. Барг не выше
+    // него CSFloat помечает как невыгодный ("можно продать дороже") — его не
+    // примут, а деньги замёрзнут на 30 мин. Комиссия продавца одна и та же,
+    // так что сравниваем цены напрямую.
+    const csfloatBid = row.prices?.csfloat?.bid;
+    if (csfloatBid != null && best.cents <= cents(csfloatBid)) return null;
+
     const maxDiscountPct =
       listing.maxOfferDiscount != null ? listing.maxOfferDiscount / 100 : cfg.assumedMaxDiscountPercent;
     let lo = Math.ceil(listCents * (1 - maxDiscountPct / 100));
