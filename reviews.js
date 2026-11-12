@@ -13,6 +13,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const skinbuxSales = require("./skinbuxSales");
+const trades = require("./trades");
+const { boughtFromClient } = require("./skinbuxAccount");
 
 const FILE = path.join(__dirname, "reviews.json");
 // Бонуси за відгук: за кожну угоду, на яку людина вперше лишила відгук,
@@ -163,6 +165,29 @@ function listAll() {
 const isClientSale = (s) => ACCEPTED.has(s.status);
 
 /**
+ * Ручні продажі через сайт: клієнт продав нам скін напряму, а власник завів
+ * угоду в My Trades з Bought On = gaben.market (skinbuxAccount.boughtFromClient).
+ * Для людей це така сама угода на gaben.market, тому і в стрічці вона є.
+ * Ніка в трекері немає — у стрічці замість нього маска. steamId у кожної свій,
+ * щоб чергування продавців (alternateSellers) не склеїло їх в одного.
+ */
+function manualClientSales() {
+  return trades
+    .listAllRawTrades()
+    .filter(boughtFromClient)
+    .map((t) => ({
+      id: `manual-${t.id}`,
+      steamId: `manual:${t.id}`,
+      customerName: t.clientName || null,
+      kind: "sell",
+      status: "hold",
+      totalPrice: Number(t.buyPrice) || 0,
+      items: [{ name: t.marketHashName, float: t.floatValue ?? null }],
+      createdAt: t.buyDate,
+    }));
+}
+
+/**
  * Один і той самий продавець не стоїть двічі поспіль. Коли хтось продає
  * багато (TARHUN), стрічка складалась з нього одного; а якщо його угоди
  * просто викидати, вона виглядала покинутою — "12 хвилин, 3 дні, 7 днів,
@@ -193,9 +218,7 @@ function alternateSellers(sales) {
 async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
   const reviews = load().filter((r) => !r.hidden);
   const reviewBySale = new Map(reviews.map((r) => [r.saleId, r]));
-  let sales = skinbuxSales
-    .loadAll()
-    .filter(isClientSale)
+  let sales = [...skinbuxSales.loadAll().filter(isClientSale), ...manualClientSales()]
     .sort((a, b) => new Date(b.heldAt || b.createdAt) - new Date(a.heldAt || a.createdAt));
   const dealsTotal = sales.length;
   if (withReviews) sales = sales.filter((s) => reviewBySale.has(String(s.id)));
