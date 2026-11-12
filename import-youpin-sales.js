@@ -118,6 +118,37 @@ const SALES = [
   { float: 0.1355136930942535, cny: 291.5, soldAt: "2026-10-25T10:37:06", name: "M4A4 | Temukau (MW)", cn: "M4A4 | 反冲精英" },
   { float: 0.5222278237342834, cny: 166.5, soldAt: "2026-10-25T10:35:32", name: "M4A4 | Temukau (BS)", cn: "M4A4 | 反冲精英" },
   { float: 0.1375677138566971, cny: 343.8, soldAt: "2026-10-25T10:08:40", name: "USP-S | Printstream (MW)", cn: "USP 消音版 | 印花集" },
+
+  // --- шестая пачка скриншотов: 29.10-08.11 (холд 7 дней — запускать с --hold 7) ---
+  { float: 0.4389395415782928, cny: 179.98, soldAt: "2026-11-08T13:20:15", name: "M4A4 | Temukau (WW)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3574755787849426, cny: 182.5, soldAt: "2026-11-08T12:38:45", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.342382401227951, cny: 182.5, soldAt: "2026-11-08T12:36:28", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  // время на скриншоте обрезано — между 12:04 и 12:36
+  { float: 0.3461871445178985, cny: 182.5, soldAt: "2026-11-08T12:30:24", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3393398225307464, cny: 182.5, soldAt: "2026-11-08T12:04:06", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3141471147537231, cny: 609.75, soldAt: "2026-11-08T09:42:14", name: "USP-S | Neo-Noir (FT)", cn: "USP 消音版 | 黑色魅影" },
+  { float: 0.2772764861583709, cny: 182.5, soldAt: "2026-11-07T19:44:00", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.2314687967300415, cny: 182.5, soldAt: "2026-11-07T14:36:50", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3182981014251709, cny: 192.75, soldAt: "2026-11-07T13:42:00", name: "StatTrak™ M4A4 | Temukau (FT)", cn: "M4A4（StatTrak™）| 反冲精英" },
+  { float: 0.3182092905044555, cny: 182.5, soldAt: "2026-11-07T13:04:36", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.4498510360717773, cny: 214.5, soldAt: "2026-11-07T09:50:25", name: "USP-S | Printstream (WW)", cn: "USP 消音版 | 印花集" },
+  { float: 0.3814075887203216, cny: 214.5, soldAt: "2026-11-07T09:50:14", name: "USP-S | Printstream (WW)", cn: "USP 消音版 | 印花集" },
+  { float: 0.381619930267334, cny: 214.5, soldAt: "2026-11-07T09:50:05", name: "USP-S | Printstream (WW)", cn: "USP 消音版 | 印花集" },
+  { float: 0.2272263020277023, cny: 113.37, soldAt: "2026-11-07T09:28:47", name: "Galil AR | Rainbow Spoon (FT)", cn: "加利尔 AR | 彩虹勺" },
+  { float: 0.4483590126037597, cny: 603.5, soldAt: "2026-11-07T09:01:57", name: "AK-47 | The Empress (WW)", cn: "AK-47 | 皇后" },
+  { float: 0.4141548275947571, cny: 603.5, soldAt: "2026-11-07T08:59:50", name: "AK-47 | The Empress (WW)", cn: "AK-47 | 皇后" },
+  { float: 0.284428209066391, cny: 184.1, soldAt: "2026-11-07T07:49:52", name: "M4A4 | Neo-Noir (FT)", cn: "M4A4 | 黑色魅影" },
+  { float: 0.2738930284976959, cny: 182.5, soldAt: "2026-11-06T22:36:24", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3165423572063446, cny: 182.5, soldAt: "2026-11-06T22:15:44", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.2800569236278534, cny: 182.5, soldAt: "2026-11-06T22:07:49", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.280070036649704, cny: 182.5, soldAt: "2026-11-06T22:07:46", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3252006471157074, cny: 182.5, soldAt: "2026-11-06T21:29:52", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3291914463043213, cny: 182.5, soldAt: "2026-11-06T21:29:49", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.3088202178478241, cny: 182.5, soldAt: "2026-11-06T21:29:46", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.2463378757238388, cny: 182.5, soldAt: "2026-11-06T21:23:09", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.2851831614971161, cny: 182.5, soldAt: "2026-11-06T21:12:20", name: "M4A4 | Temukau (FT)", cn: "M4A4 | 反冲精英" },
+  { float: 0.476478099822998, cny: 161.2, soldAt: "2026-10-29T15:13:42", name: "M4A4 | Temukau (BS)", cn: "M4A4 | 反冲精英" },
+  { float: 0.4381257891654968, cny: 243.0, soldAt: "2026-10-29T12:55:27", name: "AWP | Printstream (WW)", cn: "AWP | 印花集" },
 ];
 
 function arg(name) {
