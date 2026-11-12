@@ -33,3 +33,6 @@ curl.txt
 csfloatAutoListings.json
 capital.backup-*.json
 csfloatAutoBargains.json
+sellAdvisorState.json
+pricingSettings.json
+telegramArbSubscribers.json
