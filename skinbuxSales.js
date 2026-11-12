@@ -55,7 +55,7 @@ function saveAll(sales) {
 // reviewBonusPercent — разовий бонус за відгук, який увійшов у ціну цього продажу.
 function record({ id, steamId, customerName, items, totalPrice, offerId, expiresAt, botSteamId, botProfile, kind, payoutMethod, payoutDetails, promoCode, referrerSteamId, referralPercent, referralTopUp, reviewBonusPercent, uahRate }) {
   const sales = loadAll();
-  sales.push({
+  const sale = {
     id,
     steamId,
     customerName,
@@ -78,8 +78,10 @@ function record({ id, steamId, customerName, items, totalPrice, offerId, expires
     status: "created",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-  });
+  };
+  sales.push(sale);
   saveAll(sales);
+  return sale;
 }
 
 function updateStatus(id, status, steamOfferId) {
@@ -199,6 +201,21 @@ function markNotifiedPayable(id) {
   return sale;
 }
 
+/**
+ * Службова позначка на угоді ("вже сповістили про X") — щоб сповіщення
+ * не приходило двічі. Ставиться лише раз: повторний виклик її не зсуває.
+ */
+function setFlag(id, field) {
+  const sales = loadAll();
+  const sale = sales.find((s) => String(s.id) === String(id));
+  if (!sale) return null;
+  if (!sale[field]) {
+    sale[field] = new Date().toISOString();
+    saveAll(sales);
+  }
+  return sale;
+}
+
 /** Останні реквізити клієнта — щоб не вписувати картку при кожному продажу. */
 function lastPayout(steamId) {
   const sale = loadAll()
@@ -216,4 +233,4 @@ function amountOwed(sale) {
   return round2((Number(sale.totalPrice) || 0) + (Number(sale.referralTopUp) || 0));
 }
 
-module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, payableNow, markNotifiedPayable, lastPayout, amountOwed, HOLD_DAYS };
+module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, payableNow, markNotifiedPayable, setFlag, lastPayout, amountOwed, HOLD_DAYS };

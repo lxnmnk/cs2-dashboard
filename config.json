@@ -145,7 +145,7 @@
     "intervalMinutes": 5
   },
   "csfloatAutoBargain": {
-    "_comment": "Автобарги CSFloat по live-лотам бота арбитража (csfloatAutoBargain.js). Включаются из Telegram командой /bargain on (или /bargain test — без отправки); команды /bargain reserve|ttl|discount перекрывают значения ниже и хранятся в csfloatAutoBargains.json. Управлять может только чат ownerChatId (пусто — TELEGRAM_CHAT_ID из .env).",
+    "_comment": "Автобарги CSFloat по live-лотам CSFloat (csfloatAutoBargain.js). Управляются в отдельном боте csf_bargains (TELEGRAM_BARGAIN_BOT_TOKEN): /on, /test, /off, /reserve, /ttl, /discount, /counters — перекрывают значения ниже и хранятся в csfloatAutoBargains.json. Управлять может только чат ownerChatId (пусто — TELEGRAM_CHAT_ID из .env). У правила openProfitPercent — с чего начинаем барг, minProfitPercent — до чего торгуемся на контр-оффер.",
     "ownerChatId": "",
     "autoBuy": true,
     "reserveUsd": 1000,
@@ -153,7 +153,7 @@
     "assumedMaxDiscountPercent": 10,
     "rules": [
       { "sell": ["youpin:bid", "skinbux:bid"], "minProfitPercent": 7 },
-      { "sell": ["skinbux:bid"], "minProfitPercent": 10 },
+      { "sell": ["skinbux:bid"], "openProfitPercent": 10, "minProfitPercent": 8, "_comment": "первый барг — цена с 10% профита под Skinbux; на контр-оффер продавца торгуемся до 8%" },
       { "fromAsk": "youpin:ask", "discountPercent": 7, "maxListPercentOfAsk": 96, "_comment": "барг = Youpin ask − 7%, если Youpin bid не ниже этой цены и лот выставлен не дороже 96% от Youpin ask" }
     ]
   },

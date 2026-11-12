@@ -16,21 +16,16 @@ const path = require("path");
 const { applyDisplayFilters, findBestFlip, normalizeSourceSide } = require("./pricingEngine");
 const { DOPPLER_PHASES } = require("./itemName");
 const csfloatLive = require("./csfloatLive");
-const { createBargainer } = require("./csfloatAutoBargain");
+const { sendMessage, escapeHtml, escapeAttr, startPolling } = require("./telegramBot");
 
-// Автобарги (csfloatAutoBargain.js) — деньги одного CSFloat-аккаунта, поэтому
-// управлять ими может только чат владельца, а не любой подписчик бота.
-let bargainer = null;
-function bargainOwnerChatId(config) {
-  return String(config.csfloatAutoBargain?.ownerChatId || process.env.TELEGRAM_CHAT_ID || "");
-}
-function isBargainOwner(config, chatId) {
-  const owner = bargainOwnerChatId(config);
-  return !!owner && owner === String(chatId);
-}
+// Этот бот — только ручные покупки: присылает выгодные лоты, покупаешь сам.
+// Автобарги живут в отдельном боте (telegramBargainBot.js), но лоты CSFloat
+// для них берутся из того же live-опроса, что и здесь: два опроса одного и
+// того же списка зря тратили бы лимит CSFloat. Поэтому бот баргов
+// подключается сюда через liveHooks: { wants(), minPrice(), onListings() }.
+let liveHooks = null;
 
 const SUBSCRIBERS_FILE = path.join(__dirname, "telegramArbSubscribers.json");
-const TELEGRAM_API = "https://api.telegram.org";
 
 const SOURCE_LABELS = {
   csfloat: "CSFloat",
@@ -73,34 +68,6 @@ function defaultFilters() {
     maxBuffSpreadPercent: null,
     phase: null,
   };
-}
-
-// ---- Telegram Bot API — низкоуровневые вызовы ----
-async function tgCall(token, method, body) {
-  const res = await fetch(`${TELEGRAM_API}/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return res.json();
-}
-
-async function sendMessage(token, chatId, text, extra = {}) {
-  return tgCall(token, "sendMessage", {
-    chat_id: chatId,
-    text,
-    parse_mode: "HTML",
-    disable_web_page_preview: true,
-    ...extra,
-  });
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-function escapeHtml(s) {
-  return (s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 }
 
 // Какие стороны цены источник вообще когда-либо отдаёт — независимо от
@@ -160,7 +127,8 @@ function helpText() {
     "/phase — выбрать фазу Doppler/Gamma Doppler",
     "/reset — сбросить фильтры по умолчанию",
     "/stop — остановить уведомления",
-    "/bargain — автобарги CSFloat (только владелец): on | off | test | buy on|off | reserve 1000 | ttl 30 | discount 10",
+    "",
+    "Автобарги CSFloat — в отдельном боте @csf_bargainsbot.",
   ].join("\n");
 }
 
@@ -306,45 +274,9 @@ async function handleMessage(token, config, msg) {
       await sendMessage(token, chatId, "Уведомления остановлены. /start — включить снова.");
       break;
 
-    case "/bargain": {
-      if (!bargainer || !isBargainOwner(config, chatId)) {
-        await sendMessage(token, chatId, "Автобарги доступны только владельцу аккаунта CSFloat.");
-        break;
-      }
-      const [action, val] = args;
-      const n = parseFloat(val);
-      if (action === "on") {
-        bargainer.setSetting("enabled", true);
-        bargainer.setSetting("dryRun", false);
-      } else if (action === "test") {
-        bargainer.setSetting("enabled", true);
-        bargainer.setSetting("dryRun", true);
-      } else if (action === "off") {
-        bargainer.setSetting("enabled", false);
-      } else if (action === "buy" && (val === "on" || val === "off")) {
-        bargainer.setSetting("autoBuy", val === "on");
-      } else if (action === "reserve" && n >= 0) {
-        bargainer.setSetting("reserveUsd", n);
-      } else if (action === "ttl" && n >= 30) {
-        bargainer.setSetting("ttlMinutes", n);
-      } else if (action === "discount" && n > 0 && n < 100) {
-        bargainer.setSetting("assumedMaxDiscountPercent", n);
-      } else if (action) {
-        await sendMessage(
-          token,
-          chatId,
-          "Формат: /bargain on | off | test | buy on|off | reserve 1000 | ttl 30 | discount 10\n(ttl — не меньше 30 мин: раньше CSFloat барг не отменит)"
-        );
-        break;
-      }
-      await sendMessage(
-        token,
-        chatId,
-        bargainer.statusText() +
-          "\n\nИз твоих фильтров (/status) для баргов берутся только исключения, спреды, фаза и мин./макс. цена."
-      );
+    case "/bargain":
+      await sendMessage(token, chatId, "Автобарги переехали в отдельного бота @csf_bargainsbot — команды теперь там.");
       break;
-    }
 
     case "/reset":
       Object.assign(sub, defaultFilters());
@@ -361,8 +293,6 @@ async function handleMessage(token, config, msg) {
 async function handleCallback(token, cq) {
   const chatId = cq.message.chat.id;
   const data = cq.data || "";
-
-  await tgCall(token, "answerCallbackQuery", { callback_query_id: cq.id }).catch(() => {});
 
   const subs = loadSubscribers();
   const sub = findSub(subs, chatId);
@@ -431,10 +361,6 @@ function marketLink(config, source, linkName) {
   const template = config.marketUrls?.[source];
   if (!template) return null;
   return template.replace("{name}", encodeURIComponent(linkName));
-}
-
-function escapeAttr(s) {
-  return (s || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 }
 
 function sourceLink(config, source, side, linkName) {
@@ -566,44 +492,18 @@ function formatLiveLot(listing, row, flip, config) {
 const liveState = csfloatLive.createState();
 let liveErrorLogged = false;
 
-// Чат владельца, если у него включены автобарги: по его фильтрам считаем барги.
-function bargainSub(subs, config) {
-  if (!bargainer?.settings().enabled) return null;
-  return subs.find((s) => s.active && isBargainOwner(config, s.chatId)) || null;
-}
-
-/**
- * Кандидаты в барг: лоты, не выгодные по полной цене, но выгодные по цене в
- * пределах скидки продавца (правила — в csfloatAutoBargain.js). Из фильтров
- * владельца — исключения/спреды/фаза и мин./макс. цена (по цене лота).
- */
-function bargainCandidates(listings, index, sub) {
-  const out = [];
-  const { minPrice, maxPrice, ...rest } = displayFiltersFor(sub);
-  const filters = { ...rest, minPrice: null, maxPrice: null };
-  for (const listing of listings) {
-    const row = index.get(listing.rowKey);
-    if (!row) continue;
-    if (minPrice != null && listing.price < minPrice) continue;
-    if (maxPrice != null && listing.price > maxPrice) continue;
-    if (!applyDisplayFilters([row], filters).length) continue;
-    const bp = bargainer.bargainPrice(listing, row);
-    if (bp) out.push({ listing, row, offerPrice: bp.offerPrice, buyNow: bp.buyNow, flip: bp.flip });
-  }
-  return out;
-}
-
 async function scanCsfloatLive(token, getRows, config) {
-  const allSubs = loadSubscribers();
-  const subs = allSubs.filter((s) => s.active && isLiveSub(s));
-  const owner = bargainSub(allSubs, config);
-  if (!subs.length && !owner) return; // никто не слушает — CSFloat не дёргаем
+  // Без токена этого бота подписчиков нет — опрос нужен только баргам.
+  const subs = token ? loadSubscribers().filter((s) => s.active && isLiveSub(s)) : [];
+  const bargains = !!liveHooks?.wants();
+  if (!subs.length && !bargains) return; // никто не слушает — CSFloat не дёргаем
   const rows = getRows();
   if (!rows.length) return;
 
-  // Общий нижний порог для запроса — самый низкий среди подписчиков (если у
+  // Общий нижний порог для запроса — самый низкий среди слушателей (если у
   // кого-то порога нет, то без него).
-  const mins = [...subs, ...(owner ? [owner] : [])].map((s) => s.minPrice ?? null);
+  const mins = subs.map((s) => s.minPrice ?? null);
+  if (bargains) mins.push(liveHooks.minPrice() ?? null);
   const minPriceUsd = mins.includes(null) ? null : Math.min(...mins);
 
   let listings;
@@ -619,7 +519,13 @@ async function scanCsfloatLive(token, getRows, config) {
   if (!listings.length) return;
 
   const index = rowIndex(rows);
-  if (owner) bargainer.consider(bargainCandidates(listings, index, owner));
+  if (bargains) {
+    try {
+      liveHooks.onListings(listings, index);
+    } catch (err) {
+      console.error(`[telegram-arb-bot] барги: ${err.message}`);
+    }
+  }
   for (const sub of subs) {
     const hits = [];
     for (const listing of listings) {
@@ -645,68 +551,27 @@ async function scanCsfloatLive(token, getRows, config) {
   }
 }
 
-// ---- Long polling ----
-async function pollLoop(token, config) {
-  let offset = 0;
-
-  try {
-    const seed = await tgCall(token, "getUpdates", { offset: -1, timeout: 0 });
-    if (seed.ok && seed.result.length) offset = seed.result[seed.result.length - 1].update_id + 1;
-  } catch {
-    // не критично — просто начнём с текущего момента после первого успешного вызова
-  }
-
-  for (;;) {
-    try {
-      const res = await tgCall(token, "getUpdates", { offset, timeout: 30 });
-      if (!res.ok) {
-        await sleep(3000);
-        continue;
-      }
-      for (const update of res.result) {
-        offset = update.update_id + 1;
-        if (update.message) {
-          await handleMessage(token, config, update.message).catch((e) =>
-            console.error("[telegram-arb-bot] handleMessage:", e.message)
-          );
-        } else if (update.callback_query) {
-          await handleCallback(token, update.callback_query).catch((e) =>
-            console.error("[telegram-arb-bot] handleCallback:", e.message)
-          );
-        }
-      }
-    } catch (err) {
-      console.error(`[telegram-arb-bot] polling error: ${err.message}`);
-      await sleep(3000);
-    }
-  }
-}
-
 /**
  * @param {() => Array} getRows - возвращает актуальный cache.rows на момент вызова
  * @param {Object} config - config.json
+ * @param {Object} [opts.liveHooks] - потребитель live-лотов CSFloat (бот баргов)
  */
-function startTelegramArbBot(getRows, config) {
-  const token = process.env.TELEGRAM_ARB_BOT_TOKEN;
-  if (!token) {
-    console.log("[telegram-arb-bot] TELEGRAM_ARB_BOT_TOKEN не задан — бот не запущен.");
-    return;
+function startTelegramArbBot(getRows, config, opts = {}) {
+  liveHooks = opts.liveHooks || null;
+  const token = process.env.TELEGRAM_ARB_BOT_TOKEN || null;
+  if (!token) console.log("[telegram-arb-bot] TELEGRAM_ARB_BOT_TOKEN не задан — бот ручных покупок не запущен.");
+  if (!token && !liveHooks) return;
+
+  if (token) {
+    startPolling(token, "telegram-arb-bot", {
+      onMessage: (msg) => handleMessage(token, config, msg),
+      onCallback: (cq) => handleCallback(token, cq),
+    });
+
+    const intervalMs = (config.telegramArbBot?.intervalMinutes || 5) * 60 * 1000;
+    scanAndNotify(token, getRows, config);
+    setInterval(() => scanAndNotify(token, getRows, config), intervalMs);
   }
-
-  bargainer = createBargainer({
-    config,
-    notify: async (text) => {
-      const chatId = bargainOwnerChatId(config);
-      if (chatId) await sendMessage(token, chatId, text);
-    },
-  });
-  bargainer.start();
-
-  pollLoop(token, config); // фоновый цикл, живёт пока жив процесс
-
-  const intervalMs = (config.telegramArbBot?.intervalMinutes || 5) * 60 * 1000;
-  scanAndNotify(token, getRows, config);
-  setInterval(() => scanAndNotify(token, getRows, config), intervalMs);
 
   // Live-скан CSFloat: следующий опрос — только после окончания предыдущего,
   // чтобы медленный ответ не наслаивал запросы.
@@ -717,13 +582,14 @@ function startTelegramArbBot(getRows, config) {
   };
   liveLoop();
 
-  console.log("[telegram-arb-bot] Запущен.");
+  if (token) console.log("[telegram-arb-bot] Запущен.");
 }
 
 module.exports = {
   startTelegramArbBot,
   // Экспортировано дополнительно для тестов и переиспользования логики.
   computeQualifying,
+  displayFiltersFor,
   formatLot,
   liveFlipFor,
   formatLiveLot,

@@ -1,11 +1,19 @@
-// Автобарги на CSFloat по лотам из live-ленты бота арбитража (telegramArbBot.js).
+// Автобарги на CSFloat по лотам из live-ленты (опрос в telegramArbBot.js,
+// управление и уведомления — бот csf_bargains, telegramBargainBot.js).
 //
-// Бот каждые 30 с берёт новые лоты CSFloat. Лот, который НЕ выгоден по полной
+// Каждые 30 с приходят новые лоты CSFloat. Лот, который НЕ выгоден по полной
 // цене, но стал бы выгоден по цене в пределах разрешённой скидки продавца,
-// попадает сюда: цена барга = самая высокая цена, при которой чистый профит
-// ещё не ниже порога правил (rules ниже: 7% под Youpin bid и Skinbux сразу,
-// или 10% под один Skinbux). Из фильтров владельца в боте берутся только
-// исключения и диапазон цен (/status), не связка и не мин. профит.
+// попадает сюда. У каждого правила (rules ниже) два порога:
+//   openProfitPercent — с какого профита начинаем (первый барг);
+//   minProfitPercent  — ниже какого профита не опускаемся (потолок цены).
+// Например, под Skinbux: первый барг — цена, дающая 10% профита, а если
+// продавец присылает контр-оффер, торгуемся до 8%. У правил без
+// openProfitPercent запаса на торг нет: первый барг сразу по потолку.
+//
+// Контр-оффер продавца (наш барг он этим закрывает):
+//   - цена не выше потолка → принимаем (если хватает денег сверх резерва);
+//   - выше, но наш барг был ниже потолка → отвечаем контром по потолку;
+//   - иначе — не отвечаем, пишем в Telegram; предложение истечёт само.
 //
 // Деньги:
 //   - всегда оставляем reserveUsd (по умолчанию $1000) на балансе;
@@ -14,8 +22,7 @@
 //     очереди (самый выгодный, ещё не протухший).
 //
 // CSFloat замораживает сумму барга до 24 ч; отменить барг можно не раньше
-// чем через 30 мин — тогда деньги сразу снова доступны. Поэтому ttlMinutes
-// не меньше 30. Не известно только, показывает ли поле balance в /me уже
+// чем через 30 мин. Не известно только, показывает ли поле balance в /me уже
 // за вычетом замороженного. Пока не узнали — считаем осторожно: balance минус
 // сумма наших висящих баргов. После первого барга сравниваем баланс до и
 // после и запоминаем ответ (reservesBalance в csfloatAutoBargains.json).
@@ -23,12 +30,16 @@
 // Эндпоинты взяты из открытых клиентов (официальной документации нет):
 //   POST   /offers {contract_id, price, cancel_previous_offer}
 //   GET    /me/offers-timeline?limit=N
-//   DELETE /offers/:id  — отмена (в клиентах не описана, проверяем вживую;
-//                          если CSFloat её не примет — ошибка придёт в Telegram)
+//   DELETE /offers/:id                 — отмена
+//   POST   /offers/:id/accept          — принять контр-оффер продавца
+//   POST   /offers/:id/counter-offer {price} — ответить контром
+// Если CSFloat какой-то из них не примет — ошибка придёт в Telegram.
 const fs = require("fs");
 const path = require("path");
 const { api } = require("./csfloatAutoList");
 const { fetchBalance } = require("./csfloatAccount");
+const { normalize: normalizeListing } = require("./csfloatLive");
+const { paintIndexFor } = require("./buyoutLookup");
 
 const STATE_FILE = path.join(__dirname, "csfloatAutoBargains.json");
 
@@ -43,6 +54,8 @@ const DEFAULTS = {
   assumedMaxDiscountPercent: 10,
   // Лот проходит правила уже по полной цене — покупаем сразу, без барга.
   autoBuy: true,
+  // Отвечать на контр-офферы продавцов (принять / контр на контр).
+  answerCounters: true,
   // Кандидат ждёт денег в очереди не дольше этого — потом лот уже купили.
   queueMinutes: 15,
   maxQueue: 50,
@@ -51,7 +64,8 @@ const DEFAULTS = {
   // Из правил берётся то, что даёт самую высокую цену барга.
   rules: [
     { sell: ["youpin:bid", "skinbux:bid"], minProfitPercent: 7 },
-    { sell: ["skinbux:bid"], minProfitPercent: 10 },
+    // Начинаем с 10% под Skinbux, на контр-оффер торгуемся до 8%.
+    { sell: ["skinbux:bid"], openProfitPercent: 10, minProfitPercent: 8 },
     // Youpin ask − 7%, если Youpin bid не ниже этой цены и лот выставлен не
     // дороже 96% от Youpin ask (лоты "по рынку Youpin" на −7% не уступят).
     { fromAsk: "youpin:ask", discountPercent: 7, maxListPercentOfAsk: 96 },
@@ -59,9 +73,12 @@ const DEFAULTS = {
 };
 
 function ruleLabel(rule) {
-  return rule.fromAsk
-    ? `${rule.fromAsk} −${rule.discountPercent}% (bid не ниже${rule.maxListPercentOfAsk ? `, лот ≤ ${rule.maxListPercentOfAsk}% ask` : ""})`
-    : `${rule.minProfitPercent}% под ${rule.sell.join(" + ")}`;
+  if (rule.fromAsk) {
+    const open = rule.openDiscountPercent != null && rule.openDiscountPercent !== rule.discountPercent ? `${rule.openDiscountPercent}%→` : "";
+    return `${rule.fromAsk} −${open}${rule.discountPercent}% (bid не ниже${rule.maxListPercentOfAsk ? `, лот ≤ ${rule.maxListPercentOfAsk}% ask` : ""})`;
+  }
+  const open = rule.openProfitPercent != null && rule.openProfitPercent !== rule.minProfitPercent ? `${rule.openProfitPercent}%→` : "";
+  return `${open}${rule.minProfitPercent}% под ${rule.sell.join(" + ")}`;
 }
 const MIN_TTL_MINUTES = 30;
 const TICK_MS = 60 * 1000;
@@ -73,11 +90,11 @@ const cents = (usd) => Math.round(usd * 100);
 const usd = (c) => (Math.round(c) / 100).toFixed(2);
 
 function loadState() {
+  const empty = { settings: {}, offers: {}, tried: {}, counters: {}, reservesBalance: null };
   try {
-    const s = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"));
-    return { settings: {}, offers: {}, tried: {}, reservesBalance: null, ...s };
+    return { ...empty, ...JSON.parse(fs.readFileSync(STATE_FILE, "utf8")) };
   } catch {
-    return { settings: {}, offers: {}, tried: {}, reservesBalance: null };
+    return empty;
   }
 }
 
@@ -86,12 +103,12 @@ function saveState(state) {
 }
 
 /**
- * Самая высокая цена покупки (в центах), при которой правило выполняется:
- * чистый профит не ниже minProfitPercent против КАЖДОЙ площадки правила
- * (после комиссий из config.sources). Нет цены у какой-то площадки — правило
- * не подходит.
+ * Пределы цены покупки (в центах) по правилу:
+ *   max  — потолок: выше него правило не выполняется (minProfitPercent);
+ *   open — с чего начинаем барг (openProfitPercent, по умолчанию = max).
+ * Нет цены у какой-то площадки — правило не подходит (null).
  */
-function maxBuyCents(rule, row, sources, listCents) {
+function ruleLimits(rule, row, sources, listCents) {
   const buyFee = sources.csfloat?.buyFee || 0;
   // Правило от ask: барг = ask − discountPercent, но только если bid той же
   // площадки не ниже этой цены (Youpin ask 100, bid ≥ 93 → барг 93) и лот
@@ -102,74 +119,85 @@ function maxBuyCents(rule, row, sources, listCents) {
     const bid = row.prices?.[source]?.bid;
     if (ask == null || bid == null || !sources[source]?.enabled) return null;
     if (rule.maxListPercentOfAsk != null && listCents > ask * rule.maxListPercentOfAsk) return null;
-    const price = Math.floor(ask * (1 - rule.discountPercent / 100) * 100);
-    if (Math.round(bid * 100) < price) return null;
-    return { cents: price, binding: { source, side: "bid", value: bid, net: bid * (1 - (sources[source].sellFee || 0)) } };
+    const max = Math.floor(ask * (1 - rule.discountPercent / 100) * 100);
+    if (Math.round(bid * 100) < max) return null;
+    const open = Math.floor(ask * (1 - (rule.openDiscountPercent ?? rule.discountPercent) / 100) * 100);
+    return { max, open: Math.min(open, max), binding: { source, side: "bid", value: bid, net: bid * (1 - (sources[source].sellFee || 0)) } };
   }
   let max = Infinity;
+  let open = Infinity;
   let binding = null;
+  const limitAt = (net, pct) => Math.floor((net / (1 + pct / 100) / (1 + buyFee)) * 100);
   for (const point of rule.sell) {
     const [source, side] = point.split(":");
     const value = row.prices?.[source]?.[side];
     if (value == null || !sources[source]?.enabled) return null;
     const net = value * (1 - (sources[source].sellFee || 0));
-    const limit = Math.floor((net / (1 + rule.minProfitPercent / 100) / (1 + buyFee)) * 100);
+    const limit = limitAt(net, rule.minProfitPercent);
     if (limit < max) {
       max = limit;
       binding = { source, side, value, net };
     }
+    open = Math.min(open, limitAt(net, rule.openProfitPercent ?? rule.minProfitPercent));
   }
-  return Number.isFinite(max) ? { cents: max, binding } : null;
+  return Number.isFinite(max) ? { max, open: Math.min(open, max), binding } : null;
+}
+
+function flipAt(priceCents, binding, sources, rule) {
+  const buyCost = (priceCents / 100) * (1 + (sources.csfloat?.buyFee || 0));
+  const profitUsd = Math.round((binding.net - buyCost) * 100) / 100;
+  return {
+    sellSource: binding.source,
+    sellSide: binding.side,
+    sellPrice: Math.round(binding.value * 100) / 100,
+    profitUsd,
+    profitPercent: Math.round((profitUsd / buyCost) * 10000) / 100,
+    rule: ruleLabel(rule),
+  };
 }
 
 /**
- * Цена барга для лота по правилам cfg.rules (по умолчанию: 7% под Youpin bid
- * И Skinbux одновременно, либо 10% под один Skinbux — берём то, что даёт
- * цену выше). Возвращает { offerPrice, flip } или null, если барг не нужен
- * (выгоден и по полной цене) или не поможет (не выгоден даже со скидкой).
+ * Цена барга для лота по правилам cfg.rules — берём правило с самым высоким
+ * потолком. Возвращает { offerPrice, maxPrice, ruleIndex, buyNow, flip } или
+ * null, если барг не нужен (выгоден по полной цене, а autoBuy выключен) или
+ * не поможет (не выгоден даже со скидкой, которую пускает продавец).
  */
 function bargainPrice(listing, row, cfg, sources) {
   const listCents = cents(listing.price);
   let best = null;
-  for (const rule of cfg.rules) {
-    const r = maxBuyCents(rule, row, sources, listCents);
-    if (r && (!best || r.cents > best.cents)) best = { ...r, rule };
-  }
+  cfg.rules.forEach((rule, ruleIndex) => {
+    const r = ruleLimits(rule, row, sources, listCents);
+    if (r && (!best || r.max > best.max)) best = { ...r, rule, ruleIndex };
+  });
   if (!best) return null;
 
   // Выгоден уже по полной цене — барг не нужен, покупаем сразу (autoBuy).
-  const buyNow = best.cents >= listCents;
+  const buyNow = best.max >= listCents;
   if (buyNow && !cfg.autoBuy) return null;
-  const priceCents = buyNow ? listCents : best.cents;
+  let priceCents = listCents;
 
   if (!buyNow) {
+    const maxDiscountPct =
+      listing.maxOfferDiscount != null ? listing.maxOfferDiscount / 100 : cfg.assumedMaxDiscountPercent;
+    let lo = Math.ceil(listCents * (1 - maxDiscountPct / 100));
+    if (listing.minOfferPrice != null) lo = Math.max(lo, cents(listing.minOfferPrice));
     // Продавец может сразу слить предмет в buy order на CSFloat. Барг не выше
     // него CSFloat помечает как невыгодный ("можно продать дороже") — его не
     // примут, а деньги замёрзнут на 30 мин. Комиссия продавца одна и та же,
     // так что сравниваем цены напрямую.
     const csfloatBid = row.prices?.csfloat?.bid;
-    if (csfloatBid != null && best.cents <= cents(csfloatBid)) return null;
-
-    const maxDiscountPct =
-      listing.maxOfferDiscount != null ? listing.maxOfferDiscount / 100 : cfg.assumedMaxDiscountPercent;
-    let lo = Math.ceil(listCents * (1 - maxDiscountPct / 100));
-    if (listing.minOfferPrice != null) lo = Math.max(lo, cents(listing.minOfferPrice));
-    if (best.cents < lo) return null; // нужна скидка больше, чем пускает продавец
+    if (csfloatBid != null) lo = Math.max(lo, cents(csfloatBid) + 1);
+    if (best.max < lo) return null; // нужна скидка больше, чем пускает продавец
+    // Начинаем с открывающей цены, но не ниже того, что продавец вообще пустит.
+    priceCents = Math.max(best.open, lo);
   }
 
-  const buyCost = (priceCents / 100) * (1 + (sources.csfloat?.buyFee || 0));
-  const profitUsd = Math.round((best.binding.net - buyCost) * 100) / 100;
   return {
     offerPrice: priceCents / 100,
+    maxPrice: best.max / 100,
+    ruleIndex: best.ruleIndex,
     buyNow,
-    flip: {
-      sellSource: best.binding.source,
-      sellSide: best.binding.side,
-      sellPrice: Math.round(best.binding.value * 100) / 100,
-      profitUsd,
-      profitPercent: Math.round((profitUsd / buyCost) * 10000) / 100,
-      rule: ruleLabel(best.rule),
-    },
+    flip: flipAt(priceCents, best.binding, sources, best.rule),
   };
 }
 
@@ -178,8 +206,11 @@ function offerIdOf(res) {
   return id != null ? String(id) : null;
 }
 
-function createBargainer({ config, notify }) {
+const contractIdOf = (o) => String(o?.contract_id ?? o?.contract?.id ?? "");
+
+function createBargainer({ config, notify, getRows = () => [] }) {
   const state = loadState();
+  state.counters = state.counters || {};
   const queue = new Map(); // listingId -> candidate
   const errors = new Map(); // key -> { lastSent, suppressed }
   let running = null;
@@ -224,9 +255,22 @@ function createBargainer({ config, notify }) {
     return { balanceCents: cents(available), free: cents(available) - reserved - cents(cfg.reserveUsd) };
   }
 
+  /** Потолок цены для нашего барга сейчас: по свежим ценам, если они есть. */
+  function currentMaxCents(o, cfg) {
+    const rule = o.ruleIndex != null ? cfg.rules[o.ruleIndex] : null;
+    const row = getRows().find((r) => r.marketHashName === (o.rowKey || o.name));
+    if (rule && row) {
+      const r = ruleLimits(rule, row, config.sources, cents(o.listPrice));
+      if (r) return r.max;
+    }
+    // Старые записи без правила — не выше того, что сами предлагали.
+    return cents(o.maxPrice ?? o.price);
+  }
+
   // ---- 1. Что стало с нашими баргами ----
-  async function syncOffers() {
-    if (!openOffers().length) return;
+  async function syncOffers(cfg) {
+    const live = openOffers().filter(([, o]) => !o.dryRun);
+    if (!live.length) return;
     let list;
     try {
       const data = await api(apiKey(), "GET", "/me/offers-timeline?limit=100");
@@ -236,8 +280,27 @@ function createBargainer({ config, notify }) {
       return;
     }
     const byId = new Map(list.map((o) => [String(o.id), o]));
-    for (const [id, o] of openOffers()) {
+    for (const [id, o] of live) {
+      // Контр-оффер продавца — новое предложение по тому же лоту, которого
+      // мы не отправляли. Наш барг он закрывает, отменять его уже нечего.
+      const counter = list
+        .filter(
+          (x) =>
+            contractIdOf(x) === String(o.listingId) &&
+            !state.offers[String(x.id)] &&
+            !state.counters[String(x.id)] &&
+            (!x.state || x.state === "active") &&
+            !(Date.parse(x.created_at) < Date.parse(o.sentAt) - 5 * 60 * 1000)
+        )
+        .sort((a, b) => (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0))[0];
+      if (counter) {
+        await answerCounter(id, o, counter, cfg);
+        saveState(state);
+        continue;
+      }
+
       const remote = byId.get(id);
+      o.remoteMissing = !remote;
       if (!remote?.state || remote.state === "active") continue;
       o.state = remote.state;
       o.closedAt = new Date().toISOString();
@@ -247,6 +310,80 @@ function createBargainer({ config, notify }) {
         await notify(`↩️ Барг закрыт (${remote.state}): ${o.name} $${usd(cents(o.price))}`).catch(() => {});
       }
     }
+  }
+
+  // ---- 1b. Ответ на контр-оффер продавца ----
+  async function answerCounter(ourId, o, counter, cfg) {
+    const counterId = String(counter.id);
+    const now = new Date().toISOString();
+    const counterCents = Math.round(Number(counter.price));
+    state.counters[counterId] = now;
+    Object.assign(o, { state: "countered", closedAt: now, counterId, counterPrice: counterCents / 100 });
+
+    const maxCents = currentMaxCents(o, cfg);
+    const head = `<b>${o.name}</b>: наш барг $${usd(cents(o.price))}, продавец ответил $${usd(counterCents)} (лот $${usd(cents(o.listPrice))}, наш потолок $${usd(maxCents)})`;
+
+    if (!Number.isFinite(counterCents) || counterCents <= 0) {
+      await reportError("counter-price", `контр-оффер ${counterId} без цены — ${o.name}: ${JSON.stringify(counter).slice(0, 160)}`);
+      return;
+    }
+    if (!cfg.answerCounters || !cfg.enabled) {
+      await notify(`💬 Контр-оффер: ${head}\nОтвечать на контры выключено — реши сам.\n${o.url}`).catch(() => {});
+      return;
+    }
+
+    if (counterCents <= maxCents) {
+      let budget;
+      try {
+        budget = await freeCents(cfg);
+      } catch (err) {
+        await reportError("balance", `не прочитал баланс для контра: ${err.message}`);
+        return;
+      }
+      if (counterCents > budget.free) {
+        await notify(`💰 Контр-оффер подходит, но денег сверх резерва не хватает (свободно $${usd(Math.max(0, budget.free))}): ${head}\n${o.url}`).catch(() => {});
+        return;
+      }
+      try {
+        await api(apiKey(), "POST", `/offers/${counterId}/accept`, {});
+        state.buys = state.buys || {};
+        state.buys[o.listingId] = { ...o, price: counterCents / 100, state: "bought", boughtAt: now };
+        await notify(`✅ Принял контр-оффер: ${head}\n${o.url}`).catch(() => {});
+      } catch (err) {
+        await reportError(`counter-accept:${err.status || "x"}`, `не принял контр-оффер (${o.name}, $${usd(counterCents)}): ${err.message}`);
+      }
+      return;
+    }
+
+    if (maxCents > cents(o.price)) {
+      let res;
+      try {
+        res = await api(apiKey(), "POST", `/offers/${counterId}/counter-offer`, { price: maxCents });
+      } catch (err) {
+        // Нет такого эндпоинта — новый барг по лоту тоже отвечает продавцу.
+        if (![404, 405].includes(err.status)) {
+          await reportError(`counter-send:${err.status || "x"}`, `не ответил контром (${o.name}, $${usd(maxCents)}): ${err.message}`);
+          return;
+        }
+        try {
+          res = await api(apiKey(), "POST", "/offers", { contract_id: o.listingId, price: maxCents, cancel_previous_offer: true });
+        } catch (err2) {
+          await reportError(`counter-send:${err2.status || "x"}`, `не ответил контром (${o.name}, $${usd(maxCents)}): ${err2.message}`);
+          return;
+        }
+      }
+      const id = offerIdOf(res);
+      if (!id) {
+        await reportError("counter-id", `CSFloat не вернул id контра (${o.name}): ${JSON.stringify(res).slice(0, 160)}`);
+        return;
+      }
+      const { counterId: _c, counterPrice: _p, closedAt: _x, remoteMissing: _m, ...base } = o;
+      state.offers[id] = { ...base, price: maxCents / 100, sentAt: now, state: "active", round: (o.round || 1) + 1, inReplyTo: counterId };
+      await notify(`↪️ Ответил контром $${usd(maxCents)} (наш потолок): ${head}\n${o.url}`).catch(() => {});
+      return;
+    }
+
+    await notify(`🚫 Контр-оффер выше нашего потолка — не отвечаю, предложение продавца истечёт само: ${head}\n${o.url}`).catch(() => {});
   }
 
   // ---- 2. Отмена баргов без ответа ----
@@ -264,19 +401,48 @@ function createBargainer({ config, notify }) {
         o.closedAt = new Date().toISOString();
         await notify(`⏱ Барг без ответа ${cfg.ttlMinutes} мин — отменил: ${o.name} $${usd(cents(o.price))}`).catch(() => {});
       } catch (err) {
-        // 404 / уже не активен — барг закрылся сам (принят или отклонён),
-        // следующий syncOffers это увидит. Остальное — в Telegram.
+        // 404 / уже не активен — барг закрылся сам (принят, отклонён или его
+        // закрыл контр-оффер), следующий syncOffers это увидит. Если в ленте
+        // его нет вовсе, а CSFloat отвечает "нельзя" — он уже не активен.
         // Первые минуты после 30-й CSFloat может ещё считать, что рано
         // (разница часов) — тогда тихо пробуем на следующем тике.
-        if (err.status === 404) o.state = "gone";
-        else if (Date.now() - Date.parse(o.sentAt) < ttlMs + 3 * 60 * 1000) console.warn(`[csfloat-bargain] отмена ${id} не прошла, повторю: ${err.message}`);
-        else await reportError("cancel", `не отменил барг ${o.name} (${id}): ${err.message}`);
+        // 409 "you can only cancel active offers" — CSFloat прямо говорит, что
+        // барг уже не активен (так бывает после контр-оффера продавца).
+        if (err.status === 404 || err.status === 409 || (o.remoteMissing && [400, 422].includes(err.status))) {
+          o.state = "gone";
+          o.closedAt = new Date().toISOString();
+          await notify(`↩️ Барг уже не активен на CSFloat — снял с учёта: ${o.name} $${usd(cents(o.price))}`).catch(() => {});
+        } else if (Date.now() - Date.parse(o.sentAt) < ttlMs + 3 * 60 * 1000) {
+          console.warn(`[csfloat-bargain] отмена ${id} не прошла, повторю: ${err.message}`);
+        } else {
+          await reportError("cancel", `не отменил барг ${o.name} (${id}): ${err.message}`);
+        }
       }
       await sleep(CALL_GAP_MS);
     }
   }
 
   // ---- 3. Отправка новых баргов из очереди ----
+  /**
+   * Другие лоты того же предмета не дороже priceCents (для покупки — строго
+   * дешевле), от дешёвых к дорогим. Доплеры — по paint_index фазы: у всех
+   * фаз один market_hash_name.
+   */
+  async function cheaperLots(c, priceCents) {
+    const limit = c.buyNow ? priceCents - 1 : priceCents;
+    const qs = new URLSearchParams({ limit: "10", sort_by: "lowest_price", type: "buy_now", market_hash_name: c.listing.name, max_price: String(limit) });
+    const paint = paintIndexFor(c.listing.name, c.listing.phase);
+    if (paint) qs.set("paint_index", String(paint));
+    const res = await api(apiKey(), "GET", `/listings?${qs}`);
+    const list = Array.isArray(res) ? res : res?.data || [];
+    return list
+      .filter((l) => String(l.id) !== String(c.listing.id))
+      .filter((l) => !(mySteamId && String(l.seller?.steam_id) === String(mySteamId)))
+      .map(normalizeListing)
+      .filter((l) => l.rowKey === c.listing.rowKey && cents(l.price) <= limit)
+      .sort((a, b) => a.price - b.price);
+  }
+
   async function sendFromQueue(cfg) {
     const now = Date.now();
     for (const [lid, c] of queue) {
@@ -315,11 +481,38 @@ function createBargainer({ config, notify }) {
         continue;
       }
 
+      // Тот же предмет (с той же фазой) уже лежит на рынке не дороже нашего
+      // барга — барговать этот лот глупо: дешевле просто взять тот. Тот лот
+      // сами ставим в очередь — если он проходит по правилам, купим/побаргуем его.
+      try {
+        await sleep(CALL_GAP_MS);
+        const cheaper = await cheaperLots(c, price);
+        if (cheaper.length) {
+          const best = cheaper[0];
+          console.log(
+            `[csfloat-bargain] пропустил ${c.row.marketHashName} (лот ${c.listing.id}, ${c.buyNow ? "покупка" : "барг"} $${usd(price)}): на рынке есть за $${best.price.toFixed(2)} (${best.id})`
+          );
+          for (const l of cheaper) {
+            if (state.tried[l.id] || queue.has(l.id)) continue;
+            const bp = bargainPrice(l, c.row, cfg, config.sources);
+            if (bp) queue.set(l.id, { listing: l, row: c.row, ...bp, queuedAt: Date.now() });
+          }
+          continue;
+        }
+      } catch (err) {
+        // Не проверили — не рискуем: лучше пропустить лот, чем переплатить.
+        await reportError(`cheaper:${err.status || "x"}`, `не проверил, нет ли ${c.row.marketHashName} дешевле: ${err.message}`);
+        continue;
+      }
+
       const record = {
         listingId: c.listing.id,
         url: c.listing.url,
         name: c.row.marketHashName,
+        rowKey: c.row.marketHashName,
         price: c.offerPrice,
+        maxPrice: c.maxPrice,
+        ruleIndex: c.ruleIndex,
         listPrice: c.listing.price,
         sellSource: c.flip.sellSource,
         sellPrice: c.flip.sellPrice,
@@ -327,9 +520,11 @@ function createBargainer({ config, notify }) {
         profitPercent: c.flip.profitPercent,
         sentAt: new Date().toISOString(),
         state: "active",
+        round: 1,
       };
       record.rule = c.flip.rule;
-      const deal = `${record.rule}; ${record.sellSource} bid $${record.sellPrice}, профит $${record.profitUsd} / ${record.profitPercent}%`;
+      const room = !c.buyNow && c.maxPrice > c.offerPrice ? `, торгуюсь до $${c.maxPrice.toFixed(2)}` : "";
+      const deal = `${record.rule}; ${record.sellSource} bid $${record.sellPrice}, профит $${record.profitUsd} / ${record.profitPercent}%${room}`;
 
       if (c.buyNow) {
         const buyLine = `<b>${record.name}</b> за $${usd(price)} без барга (${deal})\n${record.url}`;
@@ -403,6 +598,9 @@ function createBargainer({ config, notify }) {
     for (const [id, at] of Object.entries(state.tried)) {
       if (Date.now() - Date.parse(at) > day) delete state.tried[id];
     }
+    for (const [id, at] of Object.entries(state.counters)) {
+      if (Date.now() - Date.parse(at) > 7 * day) delete state.counters[id];
+    }
     for (const [id, b] of Object.entries(state.buys || {})) {
       if (Date.now() - Date.parse(b.boughtAt) > 7 * day) delete state.buys[id];
     }
@@ -419,7 +617,7 @@ function createBargainer({ config, notify }) {
         .then((me) => me?.user?.steam_id || null)
         .catch(() => null);
     }
-    await syncOffers();
+    await syncOffers(cfg);
     // Отменяем просроченные даже при выключенных баргах — деньги не должны висеть.
     await cancelExpired(cfg);
     if (cfg.enabled) await sendFromQueue(cfg);
@@ -440,7 +638,7 @@ function createBargainer({ config, notify }) {
     return running;
   }
 
-  /** Новые кандидаты из live-ленты: [{ listing, row, offerPrice, flip }]. */
+  /** Новые кандидаты из live-ленты: [{ listing, row, offerPrice, maxPrice, ruleIndex, buyNow, flip }]. */
   function consider(candidates) {
     const cfg = settings();
     if (!cfg.enabled) return;
@@ -469,6 +667,7 @@ function createBargainer({ config, notify }) {
       `Статус: ${cfg.enabled ? (cfg.dryRun ? "включены, ТЕСТ (ничего не отправляю)" : "включены") : "выключены"}`,
       `Правила: ${cfg.rules.map(ruleLabel).join("  или  ")}`,
       `Покупка без барга, если лот проходит правила по полной цене: ${cfg.autoBuy ? "да" : "нет"}`,
+      `Отвечать на контр-офферы: ${cfg.answerCounters ? "да (принять до потолка / контр по потолку)" : "нет"}`,
       `Резерв на балансе: $${cfg.reserveUsd}`,
       `Отмена без ответа через: ${cfg.ttlMinutes} мин`,
       `Скидка, если лот её не сообщает: до ${cfg.assumedMaxDiscountPercent}%`,
@@ -478,7 +677,7 @@ function createBargainer({ config, notify }) {
     ];
     for (const [, o] of open.slice(0, 10)) {
       const left = Math.max(0, Math.round((Date.parse(o.sentAt) + cfg.ttlMinutes * 60000 - Date.now()) / 60000));
-      lines.push(`• ${o.name} $${usd(cents(o.price))} (ещё ${left} мин)`);
+      lines.push(`• ${o.name} $${usd(cents(o.price))}${o.round > 1 ? " (контр)" : ""} (ещё ${left} мин)`);
     }
     return lines.join("\n");
   }
@@ -499,4 +698,4 @@ function createBargainer({ config, notify }) {
   };
 }
 
-module.exports = { createBargainer, bargainPrice, DEFAULTS };
+module.exports = { createBargainer, bargainPrice, ruleLimits, DEFAULTS };

@@ -26,6 +26,9 @@ const pricingSettings = require("./pricingSettings");
 const { localizedAlt } = require("./skinNamesI18n");
 const { matchesSearchQuery, parseItemName } = require("./itemName");
 const { startTelegramArbBot } = require("./telegramArbBot");
+const { startTelegramBargainBot } = require("./telegramBargainBot");
+const { startTelegramSellBot } = require("./telegramSellBot");
+const gabenInfo = require("./gabenInfoBot");
 const steamAuth = require("./steamAuth");
 const customers = require("./customers");
 const balanceAdjustments = require("./balanceAdjustments");
@@ -992,7 +995,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       !tradeMode && req.body?.useReferralBalance ? referrals.spendOnSale(customer.steamId, result.id) : 0;
     // Бонус за відгук уже сидить у ціні — тепер він використаний.
     const reviewBonusPercent = !tradeMode && disc.reviewUsed ? reviews.useBonus(customer.steamId, result.id) : 0;
-    skinbuxSales.record({
+    const recordedSale = skinbuxSales.record({
       id: result.id,
       steamId: customer.steamId,
       customerName: customer.displayName,
@@ -1020,6 +1023,13 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       referralTopUp,
       reviewBonusPercent,
     });
+    // Владельцу в gaben.market_info: кто, что и за сколько продал.
+    // Свої акаунти й TARHUN (OWN_STEAM_IDS) — не клієнти, про них не пишемо.
+    if (!skinbuxSales.OWN_STEAM_IDS.has(String(customer.steamId))) {
+      gabenInfo
+        .notifySaleCreated(recordedSale, { uahRateSell: pricingSettings.get().uahRateSell })
+        .catch((err) => console.error(`[sales] Сповіщення про продаж ${result.id}:`, err.message));
+    }
 
     res.json({ ok: true, totalPrice, referralTopUp, ...result });
   } catch (err) {
@@ -1185,11 +1195,26 @@ async function refreshOpenSaleStatuses(sales) {
       // steamTradeId — так поле зветься саме у відповіді /transaction/status
       // (у вебхуку те саме значення приходить як steamOfferId).
       if (result?.status && result.status !== sale.status) {
-        skinbuxSales.updateStatus(sale.id, result.status, result.steamTradeId);
+        await afterSaleStatus(skinbuxSales.updateStatus(sale.id, result.status, result.steamTradeId));
       }
     } catch (err) {
       console.error(`[sales] Не вдалося перевірити статус угоди ${sale.id}:`, err.message);
     }
+  }
+}
+
+// Обмін прийнято (hold, або одразу completed) — продаж відбувся: кажемо
+// власнику в gaben.market_info. Позначка notifiedAcceptedAt — щоб не двічі.
+// Кличемо лише на зміні статусу, тож старі угоди після деплою не посиплються.
+async function afterSaleStatus(sale) {
+  if (!sale || !["hold", "completed"].includes(sale.status) || sale.notifiedAcceptedAt) return;
+  if (skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId))) return;
+  try {
+    const res = await gabenInfo.notifySaleAccepted(sale, { uahRateSell: pricingSettings.get().uahRateSell });
+    if (res.sent) skinbuxSales.setFlag(sale.id, "notifiedAcceptedAt");
+    else console.warn(`[sales] Угода ${sale.id} прийнята, але сповіщення не надіслано: ${res.reason}`);
+  } catch (err) {
+    console.error(`[sales] Сповіщення про прийняту угоду ${sale.id}:`, err.message);
   }
 }
 
@@ -1201,15 +1226,17 @@ async function refreshOpenSaleStatuses(sales) {
 // скани CSFloat (TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID). Якщо для виплат
 // зручніший окремий бот або окремий чат, задається парою
 // TELEGRAM_PAYOUT_BOT_TOKEN/TELEGRAM_PAYOUT_CHAT_ID — міняти код не треба.
+// Тепер це бот gaben.market_info (TELEGRAM_INFO_BOT_TOKEN), а без нього —
+// як раніше (gabenInfoBot.infoBotCredentials).
 function payoutBotCredentials() {
-  return {
-    botToken: process.env.TELEGRAM_PAYOUT_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
-    chatId: process.env.TELEGRAM_PAYOUT_CHAT_ID || process.env.TELEGRAM_CHAT_ID,
-  };
+  return gabenInfo.infoBotCredentials();
 }
 
 async function notifyPayableSales() {
-  const pending = skinbuxSales.payableNow().filter((sale) => !sale.notifiedPayableAt);
+  // TARHUN і наші акаунти — не клієнти: "можно платить" по них не шлемо.
+  const pending = skinbuxSales
+    .payableNow()
+    .filter((sale) => !sale.notifiedPayableAt && !skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId)));
   if (!pending.length) return;
 
   for (const sale of pending) {
@@ -1255,6 +1282,8 @@ function scheduleSalesWatch() {
   const tick = async () => {
     try {
       await refreshOpenSaleStatuses(skinbuxSales.loadAll().filter((s) => !s.paidAt));
+      // За 6 і за 2 години до виплати — нагадування в gaben.market_info.
+      await gabenInfo.remindUpcomingPayouts({ uahRateSell: pricingSettings.get().uahRateSell });
       await notifyPayableSales();
     } catch (err) {
       console.error("[payout] Перевірка угод не вдалася:", err.message);
@@ -1395,7 +1424,7 @@ app.post("/api/webhooks/skinbux", (req, res) => {
   }
 
   const { id, status, steamOfferId } = req.body || {};
-  skinbuxSales.updateStatus(id, status, steamOfferId);
+  afterSaleStatus(skinbuxSales.updateStatus(id, status, steamOfferId));
   console.log(`[skinbux-webhook] Транзакция ${id} -> ${status}`);
   res.json({ ok: true });
 });
@@ -2975,7 +3004,11 @@ app.listen(PORT, async () => {
     console.log("[csfloat-autolist] Включено.");
   }
 
-  startTelegramArbBot(() => cache.rows, config);
+  // Боты: csf_bargains берёт лоты CSFloat из live-опроса бота арбитража,
+  // sell-бот советует, где и почём продать мой инвентарь из My Trades.
+  const bargainHooks = startTelegramBargainBot(() => cache.rows, config);
+  startTelegramArbBot(() => cache.rows, config, { liveHooks: bargainHooks });
+  startTelegramSellBot(() => cache.rows, config);
 });
 
 // Корректно закрываем headless-браузер (если открывался) при остановке сервера,

@@ -97,4 +97,4 @@ function normalize(l) {
   };
 }
 
-module.exports = { createState, fetchNewListings };
+module.exports = { createState, fetchNewListings, normalize };

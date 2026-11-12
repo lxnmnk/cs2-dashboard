@@ -219,6 +219,20 @@ function setAskPrice(id, owner, askPrice) {
 }
 
 /**
+ * Под какую площадку предмет брали ("csmoney" — под выкуп CS.Money). Нужно
+ * sell-боту (telegramSellBot.js): выкуп CS.Money советуем только для того,
+ * что под него и покупали. Пустое значение — снять пометку.
+ */
+function setSellTarget(id, owner, target) {
+  const all = loadTrades();
+  const trade = findOwnedTrade(all, id, owner);
+  if (target) trade.sellTarget = String(target).toLowerCase();
+  else delete trade.sellTarget;
+  saveTrades(all);
+  return trade;
+}
+
+/**
  * Сколько клиенту за этот предмет уже выплачено.
  *
  * Ручная покупка у клиента (Bought On: gaben.market) не всегда
@@ -687,6 +701,11 @@ function listExternalIds(owner) {
   return new Set(loadTrades().filter((t) => t.owner === owner && t.externalId).map((t) => t.externalId));
 }
 
+/** Все сделки всех владельцев как есть — для публичной живой ленты. */
+function listAllRawTrades() {
+  return loadTrades();
+}
+
 /** Сделки владельца как они лежат в файле, без расчётных полей. */
 function listRawTrades(owner) {
   return loadTrades().filter((t) => t.owner === owner);
@@ -696,6 +715,7 @@ module.exports = {
   addTrade,
   listExternalIds,
   listRawTrades,
+  listAllRawTrades,
   findAllSellOptions,
   sellTrade,
   setUnlockAt,
@@ -704,6 +724,7 @@ module.exports = {
   setFloatMany,
   renameItem,
   setAskPrice,
+  setSellTarget,
   setClientPaid,
   setBuyPrice,
   deleteTrade,
