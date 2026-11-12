@@ -213,7 +213,7 @@ function buyoutCell(r, source) {
     r.bestBuyPrice > 0 ? ((res.price - r.bestBuyPrice) / r.bestBuyPrice) * 100 : null;
   const details = [
     res.instant ? null : `⚠ ${res.skipReason}`,
-    res.matchedBy === "float" ? `float ${res.float.toFixed(4)}, same as a CSFloat listing` : "similar item on CSFloat",
+    res.matchedBy === "float" ? `float ${res.float.toFixed(4)}, same as a CSFloat listing` : "same item name on CSFloat",
     res.csfloatPrice != null ? `CSFloat ask $${res.csfloatPrice.toFixed(2)}` : null,
     vsBuy != null ? `${vsBuy >= 0 ? "+" : ""}${vsBuy.toFixed(1)}% vs best buy $${r.bestBuyPrice.toFixed(2)}` : null,
     `checked ${new Date(res.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,

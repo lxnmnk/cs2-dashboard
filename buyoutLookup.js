@@ -6,6 +6,11 @@
 //   4. смотрим инвентарь этого аккаунта на площадке — там цена выкупа;
 //   5. находим в нём именно этот экземпляр и берём его цену.
 //
+// Площадка с ignoresFloat (skins.com) платит за название и качество, а не за
+// экземпляр: для неё float и паттерн не учитываем совсем — самый дешёвый лот
+// с любым float и любой предмет с тем же названием. Свёрено владельцем
+// 12.11.2026.
+//
 // Общего прайса у этих площадок нет, поэтому только по запросу и с кэшем:
 // каждая проверка — их запросы из их лимита.
 //
@@ -100,6 +105,8 @@ function missText(items, base, phase) {
 async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat = null, debug = false } = {}) {
   const adapter = SOURCES[source];
   if (!adapter) throw new Error(`Неизвестная площадка: ${source}`);
+  const useFloat = !adapter.ignoresFloat;
+  if (!useFloat) minFloat = maxFloat = null;
 
   const cacheKey = `${source}|${marketHashName}|${minFloat}|${maxFloat}`;
   const hit = cache.get(cacheKey);
@@ -109,7 +116,7 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
   let listings = await csfloatListings(base, { phase, minFloat, maxFloat });
   // Рядом по float никто не продаёт — берём любой экземпляр того же качества:
   // цена чуть менее точная, но лучше, чем ничего.
-  let floatRange = minFloat != null || maxFloat != null ? "near" : "any";
+  let floatRange = !useFloat ? null : minFloat != null || maxFloat != null ? "near" : "any";
   if (!listings.length && floatRange === "near") {
     listings = await csfloatListings(base, { phase });
     floatRange = "any";
@@ -140,11 +147,12 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
       continue;
     }
 
-    // Ищем именно этот экземпляр: то же название, та же фаза и тот же float,
-    // что у лота. Фазу проверяем отдельно — в названии у площадок её нет.
+    // То же название и та же фаза (её проверяем отдельно — в названии у
+    // площадок её нет). Где float важен — именно тот экземпляр, что у лота;
+    // для skins.com годится любой с таким названием.
     const candidates = inv.items.filter(isWanted);
     const exact =
-      listing.float != null
+      useFloat && listing.float != null
         ? candidates.find((it) => it.float != null && Math.abs(it.float - listing.float) < FLOAT_TOLERANCE)
         : null;
     const item = exact || candidates[0];
@@ -180,4 +188,4 @@ async function buyoutPrice(source, marketHashName, { minFloat = null, maxFloat =
   return { ok: false, reason: `Не удалось получить цену: ${tried.join("; ") || "нет подходящих продавцов"}` };
 }
 
-module.exports = { buyoutPrice, SOURCES };
+module.exports = { buyoutPrice, SOURCES, paintIndexFor };

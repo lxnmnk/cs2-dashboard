@@ -204,7 +204,7 @@ function buyoutRowHtml(trade, source) {
 
   const profitClass = r.profitUsd >= 0 ? "profit-positive" : "profit-negative";
   const details = [
-    r.matchedBy === "float" ? `same float as a CSFloat listing (${r.float.toFixed(4)})` : "similar item on CSFloat",
+    r.matchedBy === "float" ? `same float as a CSFloat listing (${r.float.toFixed(4)})` : "same item name on CSFloat",
     r.floatRange === "any" ? "nobody sells one with a close float — any float of this wear" : null,
     r.csfloatPrice != null ? `CSFloat ask ${fmtMoney(r.csfloatPrice)}` : null,
     `checked ${new Date(r.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,

@@ -258,4 +258,6 @@ async function findItems(partner, opts) {
   }
 }
 
-module.exports = { findItems, searchTermFor };
+// skins.com платит за название и качество — float и паттерн на цену не
+// влияют (сверено владельцем 12.11.2026), поэтому buyoutLookup их не учитывает.
+module.exports = { findItems, searchTermFor, ignoresFloat: true };
