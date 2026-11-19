@@ -201,7 +201,93 @@ async function run(config, { getAvailable, notify = async () => {} }) {
       ).catch(() => {});
     }
   }
+
+  // 3. Ручні холди власника з датою виходу й автовиплатою.
+  await runHoldReleases(cfg, apiKey, { getAvailable, notify });
   return handled;
+}
+
+/** Куди платити клієнту: реквізити з останньої продажі, інакше останній вивід. */
+function cryptoDetailsFor(steamId) {
+  const last = skinbuxSales.lastPayout(String(steamId));
+  if (last?.details?.method === "crypto" && PAIRS[last.details.network] && last.details.address) {
+    return { network: last.details.network, address: last.details.address };
+  }
+  const w = loadWd().filter((x) => x.steamId === String(steamId) && PAIRS[x.network] && x.address && !["failed", "rejected"].includes(x.status))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  return w ? { network: w.network, address: w.address } : null;
+}
+
+/**
+ * Власник поставив клієнту +$X у hold на N днів з автовиплатою (продав його
+ * скін сам). Коли холд вийшов — виводимо рівно цю суму (не більше за
+ * "доступно") на криптореквізити клієнта. Вивід пишемо в cryptoWithdrawals
+ * як звичайний вивід клієнта: syncClientWithdrawals стежить за статусом і
+ * при відмові повертає гроші на баланс; клієнт бачить вивід у профілі.
+ */
+async function runHoldReleases(cfg, apiKey, { getAvailable, notify }) {
+  for (const { steamId, entry } of customerBalances.releasedAutoPayouts()) {
+    if (entry.autoPayout?.status !== "waiting") continue;
+    const set = (patch) => customerBalances.update(steamId, entry.id, { autoPayout: { ...entry.autoPayout, ...patch, updatedAt: new Date().toISOString() } });
+    const label = `холд $${entry.amount.toFixed(2)} клиента ${steamId}${entry.note ? ` («${entry.note}»)` : ""}`;
+
+    const details = cryptoDetailsFor(steamId);
+    if (!details) {
+      set({ status: "no-details" });
+      notify(`ℹ️ Вышел ${label}, но у клиента нет крипто-реквизитов. Деньги у него в «доступно» — выведет сам или заплати вручную.`).catch(() => {});
+      continue;
+    }
+    const pair = PAIRS[details.network];
+    const pay = round2(Math.min(entry.amount, Math.max(0, getAvailable(steamId))));
+    const fee = round2(cfg.feeUsd[details.network] ?? 1);
+    const send = round2(pay - fee);
+    const where = `${pair.label} · ${details.address}`;
+    if (pay < cfg.minUsd || send <= 0) {
+      set({ status: "manual", reason: `доступно $${pay.toFixed(2)} — меньше минимума $${cfg.minUsd}` });
+      notify(`ℹ️ Вышел ${label}: к выплате $${pay.toFixed(2)} — меньше минимума $${cfg.minUsd}, автоматически не плачу. Деньги у клиента в «доступно».`).catch(() => {});
+      continue;
+    }
+    if (cfg.dryRun) {
+      set({ status: "dry-run", pay, fee, send });
+      notify(`🧪 ТЕСТ (ничего не отправлено): вышел ${label} → отправили бы $${send.toFixed(2)} (комиссия $${fee.toFixed(2)})\n${where}`).catch(() => {});
+      continue;
+    }
+
+    const id = crypto.randomUUID();
+    const key = `hold-${entry.id}`;
+    const body = { amount: Math.round(send * 100), coin: pair.coin, chain: pair.chain, withdrawal_address: details.address };
+    const adjustmentId = customerBalances.add({
+      steamId,
+      amount: -pay,
+      bucket: "available",
+      note: `Автовыплата холда $${pay.toFixed(2)} ${pair.label} (#${id.slice(0, 8)})`,
+      by: "hold-payout",
+    }).id;
+    const now = new Date().toISOString();
+    const all = loadWd();
+    all.push({ id, steamId: String(steamId), network: details.network, address: details.address, amount: pay, fee, send, key, body, closedSales: [], adjustmentId, source: "hold", entryId: entry.id, status: "requesting", createdAt: now, updatedAt: now });
+    saveWd(all);
+    set({ status: "sent", withdrawId: id, pay, fee, send });
+
+    const r = await withdraw(apiKey, key, body);
+    if (r.failed) {
+      const w = updateWd(id, { status: "failed", error: r.error, code: r.code ?? null });
+      undoDebit(w);
+      set({ status: "failed", error: r.error });
+      notify(
+        `❌ Автовыплата холда не прошла: ${r.error}${r.code === 8 ? " (на балансе Skinbux не хватает денег)" : ""}${r.code === 49 ? " (Skinbux не принял адрес)" : ""}.\n` +
+          `${label}: деньги у клиента в «доступно», заплати вручную: ${where}, $${send.toFixed(2)}`
+      ).catch(() => {});
+      continue;
+    }
+    if (r.ambiguous) {
+      updateWd(id, { status: "unknown", error: r.error });
+      notify(`⚠️ Автовыплата холда клиенту ${steamId} $${send.toFixed(2)}: Skinbux не ответил — повторю тем же запросом, двойной выплаты не будет. Вручную НЕ плати.`).catch(() => {});
+      continue;
+    }
+    updateWd(id, { status: r.withdrawal?.status || "pending", withdrawalId: r.withdrawal?.id ?? null });
+    notify(`💸 Выплачен холд автоматически: ${label}\n$${send.toFixed(2)} (${pair.label}, комиссия $${fee.toFixed(2)} с клиента)\n${details.address}\nSkinbux вывод #${r.withdrawal?.id ?? "?"}`).catch(() => {});
+  }
 }
 
 // ---- Вивід за кнопкою клієнта ("Вивести" у профілі → Баланс) ----

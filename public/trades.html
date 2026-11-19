@@ -262,6 +262,12 @@
       <label>What for
         <input id="custBalNoteInput" type="text" maxlength="200" placeholder="e.g. paid $50 in cash, rest stays" />
       </label>
+      <label class="cust-bal-hold-only" style="display:none;" title="After this many days the money moves to Available">Release in, days
+        <input id="custBalReleaseDaysInput" type="number" min="0" max="60" step="1" value="7" />
+      </label>
+      <label class="cust-bal-hold-only" style="display:none;" title="When the hold ends, the site pays this amount (minus the network fee) to the client's last crypto address">
+        <span><input id="custBalAutoPayInput" type="checkbox" checked /> Auto-pay in crypto after release</span>
+      </label>
       <button id="custBalAddBtn">Correct</button>
       <span id="custBalStatus" class="field-hint"></span>
     </section>

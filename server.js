@@ -3246,8 +3246,8 @@ app.get("/api/customer-balances", requireSiteOwner, (req, res) => {
 
 app.post("/api/customer-balances", requireSiteOwner, (req, res) => {
   try {
-    const { steamId, amount, bucket, note } = req.body || {};
-    const entry = customerBalances.add({ steamId, amount, bucket, note, by: req.session.username });
+    const { steamId, amount, bucket, note, releaseDays, autoPayout } = req.body || {};
+    const entry = customerBalances.add({ steamId, amount, bucket, note, releaseDays, autoPayout: !!autoPayout, by: req.session.username });
     res.json({ ok: true, entry, clients: customerBalanceRows() });
   } catch (err) {
     res.status(400).json({ ok: false, error: err.message });

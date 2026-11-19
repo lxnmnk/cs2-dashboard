@@ -2613,7 +2613,7 @@ function renderCustomerBalanceLog() {
       (e) => `<tr>
         <td>${fmtDate(e.createdAt)}</td>
         <td>${escapeHtml(e.name || e.steamId)}</td>
-        <td>${CUST_BAL_WALLETS[e.bucket] || e.bucket}</td>
+        <td>${CUST_BAL_WALLETS[e.bucket] || e.bucket}${custBalHoldInfo(e)}</td>
         <td class="${e.amount > 0 ? "loss" : "profit"}">${custBalDelta(e.amount)}</td>
         <td>${escapeHtml(e.note || "")}</td>
         <td><button class="btn-small btn-danger" data-action="cust-bal-delete" data-steamid="${escapeHtml(e.steamId)}" data-id="${e.id}">Undo</button></td>
@@ -2657,6 +2657,30 @@ function describeCustomer() {
 
 document.getElementById("custBalSteamIdInput")?.addEventListener("input", describeCustomer);
 
+function syncCustBalHoldFields() {
+  const hold = document.getElementById("custBalBucketSelect")?.value === "hold";
+  document.querySelectorAll(".cust-bal-hold-only").forEach((el) => (el.style.display = hold ? "" : "none"));
+}
+document.getElementById("custBalBucketSelect")?.addEventListener("change", syncCustBalHoldFields);
+syncCustBalHoldFields();
+
+// Стан холду з датою: коли виходить і що з автовиплатою.
+const HOLD_PAYOUT_LABELS = {
+  waiting: "auto-pay after release",
+  sent: "paid out automatically",
+  "dry-run": "test mode — pay manually",
+  "no-details": "no crypto address — client withdraws",
+  manual: "below minimum — manual",
+  failed: "auto-pay failed — pay manually",
+};
+function custBalHoldInfo(e) {
+  if (!e.releaseAt) return "";
+  const released = new Date(e.releaseAt) <= new Date();
+  const when = released ? `released ${fmtDate(e.releaseAt)}` : `releases ${fmtDate(e.releaseAt)}`;
+  const ap = e.autoPayout ? ` · ${HOLD_PAYOUT_LABELS[e.autoPayout.status] || e.autoPayout.status}` : "";
+  return `<div class="field-hint">${when}${ap}</div>`;
+}
+
 document.getElementById("custBalAddBtn")?.addEventListener("click", async () => {
   const status = document.getElementById("custBalStatus");
   const steamId = document.getElementById("custBalSteamIdInput").value.trim();
@@ -2669,7 +2693,15 @@ document.getElementById("custBalAddBtn")?.addEventListener("click", async () => 
   const was = client ? client.balance[bucket] : 0;
   const who = client ? client.name || steamId : steamId;
   // Клиент это число видит у себя в кабинете, поэтому спрашиваем до записи.
-  if (!confirm(`${who}: ${CUST_BAL_WALLETS[bucket]} ${custBalMoney(was)} -> ${custBalMoney(was + amount)}. Write it?`)) return;
+  // Холд з датою виходу (і, за бажанням, автовиплатою) — лише плюсом.
+  const timedHold = bucket === "hold" && amount > 0;
+  const releaseDays = timedHold ? parseInt(document.getElementById("custBalReleaseDaysInput").value, 10) : null;
+  if (timedHold && !(releaseDays >= 0 && releaseDays <= 60)) return alert("Release in: 0-60 days");
+  const autoPayout = timedHold && document.getElementById("custBalAutoPayInput").checked;
+  const extra = timedHold
+    ? `\nReleases in ${releaseDays} day(s)${autoPayout ? ", then the site pays it out in crypto automatically" : ", then it becomes Available"}.`
+    : "";
+  if (!confirm(`${who}: ${CUST_BAL_WALLETS[bucket]} ${custBalMoney(was)} -> ${custBalMoney(was + amount)}.${extra}\nWrite it?`)) return;
 
   const res = await fetch("/api/customer-balances", {
     method: "POST",
@@ -2679,6 +2711,7 @@ document.getElementById("custBalAddBtn")?.addEventListener("click", async () => 
       amount,
       bucket,
       note: document.getElementById("custBalNoteInput").value.trim(),
+      ...(timedHold ? { releaseDays, autoPayout } : {}),
     }),
   });
   const data = await res.json();

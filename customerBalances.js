@@ -68,12 +68,25 @@ function steamIds() {
  * Добавить поправку. amount со знаком: плюс — мы должны больше, минус —
  * меньше (например, часть уже отдали наличными).
  */
-function add({ steamId, amount, bucket = "available", note, by }) {
+//
+// Холд з датою виходу (releaseDays): напр. власник продав скін клієнта сам
+// через свій мерчант — ставить клієнту +$X у hold на 7 днів. Після releaseAt
+// сума рахується як available, а з autoPayout сайт сам виплачує її в крипті
+// на останні реквізити клієнта (cryptoPayouts.runHoldReleases).
+function add({ steamId, amount, bucket = "available", note, by, releaseDays, autoPayout }) {
   const id = normalizeSteamId(steamId);
   const value = Number(amount);
   if (!Number.isFinite(value) || value === 0) throw new Error("Сумма — число, не ноль (минус уменьшает баланс)");
   if (Math.abs(value) > 100000) throw new Error("Сумма слишком большая — проверь, не опечатка ли");
   if (!BUCKETS.has(bucket)) throw new Error("Неизвестный кошелёк");
+
+  let releaseAt = null;
+  if (bucket === "hold" && releaseDays != null && releaseDays !== "") {
+    const days = Number(releaseDays);
+    if (!Number.isFinite(days) || days < 0 || days > 60) throw new Error("Дней холда — от 0 до 60");
+    if (value <= 0) throw new Error("Холд с датой выхода — только плюсовая сумма");
+    releaseAt = new Date(Date.now() + days * 86400000).toISOString();
+  }
 
   const all = loadAll();
   if (!all[id]) all[id] = [];
@@ -85,6 +98,10 @@ function add({ steamId, amount, bucket = "available", note, by }) {
     by: by || null,
     createdAt: new Date().toISOString(),
   };
+  if (releaseAt) {
+    entry.releaseAt = releaseAt;
+    if (autoPayout) entry.autoPayout = { status: "waiting" };
+  }
   all[id].push(entry);
   saveAll(all);
   return entry;
@@ -102,14 +119,47 @@ function remove(steamId, entryId) {
   return entry;
 }
 
+/** Холд із датою, яка вже настала, — це вже "доступно". */
+function effectiveBucket(entry, now = Date.now()) {
+  if (entry.bucket === "hold" && entry.releaseAt && new Date(entry.releaseAt).getTime() <= now) return "available";
+  return entry.bucket;
+}
+
 /** Сумма поправок клиента по кошелькам. */
 function totalsFor(steamId) {
   const totals = { available: 0, hold: 0, trade: 0 };
+  const now = Date.now();
   for (const entry of listFor(steamId)) {
-    if (!BUCKETS.has(entry.bucket)) continue;
-    totals[entry.bucket] = round2(totals[entry.bucket] + (Number(entry.amount) || 0));
+    const bucket = effectiveBucket(entry, now);
+    if (!BUCKETS.has(bucket)) continue;
+    totals[bucket] = round2(totals[bucket] + (Number(entry.amount) || 0));
   }
   return totals;
+}
+
+/** Злити patch у поправку (стан автовиплати). */
+function update(steamId, entryId, patch) {
+  const id = String(steamId || "").trim();
+  const all = loadAll();
+  const entry = (all[id] || []).find((e) => e.id === entryId);
+  if (!entry) return null;
+  Object.assign(entry, patch);
+  saveAll(all);
+  return entry;
+}
+
+/** Холди з autoPayout, які вже вийшли й чекають виплати. */
+function releasedAutoPayouts(now = Date.now()) {
+  const out = [];
+  const all = loadAll();
+  for (const [steamId, entries] of Object.entries(all)) {
+    for (const e of entries || []) {
+      if (e.bucket !== "hold" || !e.releaseAt || !e.autoPayout) continue;
+      if (new Date(e.releaseAt).getTime() > now) continue;
+      out.push({ steamId, entry: e });
+    }
+  }
+  return out;
 }
 
 /**
@@ -126,4 +176,4 @@ function apply(balance, steamId) {
   };
 }
 
-module.exports = { BUCKETS, listFor, steamIds, add, remove, totalsFor, apply, normalizeSteamId };
+module.exports = { BUCKETS, listFor, steamIds, add, remove, update, totalsFor, apply, normalizeSteamId, effectiveBucket, releasedAutoPayouts };
