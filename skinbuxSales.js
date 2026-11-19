@@ -228,9 +228,22 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
+/**
+ * Стан автовиплати угоди (cryptoPayouts.js) — об'єкт sale.autoPayout.
+ * patch зливається з тим, що вже є.
+ */
+function setAutoPayout(id, patch) {
+  const sales = loadAll();
+  const sale = sales.find((s) => String(s.id) === String(id));
+  if (!sale) return null;
+  sale.autoPayout = { ...(sale.autoPayout || {}), ...patch, updatedAt: new Date().toISOString() };
+  saveAll(sales);
+  return sale;
+}
+
 /** Скільки ми винні клієнту за продаж: ціна його скінів плюс реферальні гроші, які він до неї додав. */
 function amountOwed(sale) {
   return round2((Number(sale.totalPrice) || 0) + (Number(sale.referralTopUp) || 0));
 }
 
-module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, payableNow, markNotifiedPayable, setFlag, lastPayout, amountOwed, HOLD_DAYS };
+module.exports = { OWN_STEAM_IDS, OWNER_STEAM_ID, PARTNER_STEAM_IDS, record, updateStatus, loadAll, listByUser, computeBalance, markPaid, unmarkPaid, unlockAtOf, payableNow, markNotifiedPayable, setFlag, setAutoPayout, lastPayout, amountOwed, HOLD_DAYS };

@@ -3,7 +3,7 @@
 // Раз в 4 часа (server.js):
 //   1. берём инвентарь CSFloat-аккаунта (GET /me/inventory);
 //   2. цена лота = Youpin ask этого предмета из таблицы (для доплеров — цена
-//      своей фазы);
+//      своей фазы), но не ниже лучшего бай-ордера CSFloat под этот float;
 //   3. если Skinbux выкупает за 99%+ от Youpin — на CSFloat не выставляем:
 //      проще и быстрее сдать на Skinbux. Уже выставленный нами лот в таком
 //      случае снимаем;
@@ -36,6 +36,9 @@ const DEFAULTS = {
   // Сувениры не выставляем вообще: средняя цена Youpin для них ничего не
   // значит — всё решают наклейки (так решил владелец).
   excludeSouvenir: true,
+  // Цена лота не ниже лучшего бай-ордера CSFloat под этот предмет плюс
+  // столько %. 0 — ровно по бай-ордеру.
+  buyOrderMarkupPercent: 0,
 };
 const CALL_GAP_MS = 1500;
 
@@ -119,22 +122,59 @@ async function stallListings(apiKey) {
 }
 
 /**
- * Решение по одному предмету: { price } — выставить/переоценить по этой цене,
- * { skip } — не выставлять (и снять, если наш лот висит), с причиной.
+ * Самый дорогой бай-ордер CSFloat, под который подходит этот предмет (с учётом
+ * float-диапазонов ордеров), в долларах; 0 — ордеров нет. Висит наш лот —
+ * спрашиваем ордера этого лота; нет — similar-orders с float предмета (то, что
+ * показывает CSFloat в «Create Buy Order»). Ошибка — пробрасываем: без пола
+ * цены не выставляем.
  */
-function decide(item, row, cfg) {
+async function topBuyOrder(apiKey, item, listingId) {
+  let orders;
+  if (listingId) {
+    orders = await api(apiKey, "GET", `/listings/${listingId}/buy-orders?limit=1`);
+  } else {
+    const body = { market_hash_name: item.name };
+    // CSFloat требует min_float < max_float — берём крошечный диапазон вокруг float.
+    if (Number.isFinite(item.float)) {
+      body.hybrid_properties = { min_float: Math.max(0, item.float - 1e-6), max_float: Math.min(1, item.float + 1e-6) };
+    }
+    orders = await api(apiKey, "POST", "/buy-orders/similar-orders?limit=1", body);
+  }
+  const list = Array.isArray(orders) ? orders : orders?.data || [];
+  const best = Math.max(0, ...list.map((o) => Number(o.price) || 0));
+  return best / 100;
+}
+
+/** Причина не выставлять, которая не зависит от рынка CSFloat, или null. */
+function precheck(item, row, cfg) {
   if (cfg.exclude.some((s) => item.rowKey.includes(s))) return { skip: "в списке исключений" };
   if (cfg.excludeSouvenir && item.rowKey.startsWith("Souvenir ")) return { skip: "сувениры не выставляем" };
   const youpin = row?.prices?.youpin?.ask;
   if (youpin == null) return { skip: "нет цены Youpin", keep: true };
   if (youpin < cfg.minPrice) return { skip: `дешевле $${cfg.minPrice}`, keep: true };
+  return null;
+}
+
+/**
+ * Решение по одному предмету: { price } — выставить/переоценить по этой цене,
+ * { skip } — не выставлять (и снять, если наш лот висит), с причиной.
+ * Цена = Youpin ask, но не ниже лучшего бай-ордера CSFloat (bid) + наценка:
+ * продавать дешевле, чем за предмет уже готовы заплатить, — дарить разницу.
+ */
+function decide(item, row, cfg, bid = 0) {
+  const pre = precheck(item, row, cfg);
+  if (pre) return pre;
+  const youpin = row.prices.youpin.ask;
+  const floor = bid > 0 ? bid * (1 + cfg.buyOrderMarkupPercent / 100) : 0;
+  const price = round2(Math.max(youpin, floor));
+  const basis = floor > youpin ? `бай-ордер CSFloat $${bid.toFixed(2)}` : `Youpin $${youpin.toFixed(2)}`;
   const skinbux = row.prices.skinbux?.bid;
-  if (skinbux != null && skinbux >= youpin * (cfg.skinbuxSkipPercent / 100)) {
+  if (skinbux != null && skinbux >= price * (cfg.skinbuxSkipPercent / 100)) {
     return {
-      skip: `Skinbux $${skinbux.toFixed(2)} = ${Math.round((skinbux / youpin) * 1000) / 10}% от Youpin $${youpin.toFixed(2)} — лучше сдать на Skinbux`,
+      skip: `Skinbux $${skinbux.toFixed(2)} = ${Math.round((skinbux / price) * 1000) / 10}% от цены лота $${price.toFixed(2)} (${basis}) — лучше сдать на Skinbux`,
     };
   }
-  return { price: round2(youpin) };
+  return { price, basis };
 }
 
 /**
@@ -188,12 +228,15 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
 
   for (const [assetId, tracked] of Object.entries(state.listings)) {
     if (!tracked.gone) continue;
-    // Лот исчез, а предмет снова у нас — сняли руками: больше не выставляем.
-    if (tracked.gone !== "sold" && inInventory.has(assetId)) {
-      state.skipAssets[assetId] = { name: tracked.name, at: new Date().toISOString(), why: "лот сняли руками" };
-      note("forget", tracked, { reason: "лот сняли руками — больше не выставляю" });
+    // Лот исчез не продажей (сняли руками, отменили продажу — refunded) —
+    // это решение человека: больше не выставляем. Не важно, видно ли предмет
+    // в инвентаре: его могли сразу перевыставить руками или он ещё в трейде.
+    if (tracked.gone !== "sold") {
+      const why = tracked.gone === "refunded" ? "продажу отменили" : "лот сняли руками";
+      state.skipAssets[assetId] = { name: tracked.name, at: new Date().toISOString(), why };
+      note("forget", tracked, { reason: `${why} — больше не выставляю` });
     } else {
-      note("forget", tracked, { reason: tracked.gone === "sold" ? "продан" : "лота больше нет" });
+      note("forget", tracked, { reason: "продан" });
     }
     if (apply) delete state.listings[assetId];
   }
@@ -231,12 +274,27 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
       continue;
     }
 
-    const verdict = decide(item, index.get(item.rowKey), cfg);
+    const row = index.get(item.rowKey);
+    let verdict = precheck(item, row, cfg);
+    if (!verdict) {
+      let bid;
+      try {
+        bid = await topBuyOrder(apiKey, item, live ? tracked.listingId : null);
+      } catch (err) {
+        // Без пола цены не выставляем и не переоцениваем: лучше пропустить
+        // проход, чем отдать дешевле бай-ордера.
+        note("skip", item, { reason: "бай-ордера CSFloat не прочитались — не трогаю", error: err.message });
+        await sleep(CALL_GAP_MS);
+        continue;
+      }
+      await sleep(CALL_GAP_MS);
+      verdict = decide(item, row, cfg, bid);
+    }
 
     if (verdict.price != null) {
       if (live) {
         if (Math.abs(verdict.price - tracked.price) < 0.01) continue;
-        note("reprice", item, { price: verdict.price, was: tracked.price });
+        note("reprice", item, { price: verdict.price, was: tracked.price, reason: verdict.basis });
         if (apply) {
           try {
             await api(apiKey, "PATCH", `/listings/${tracked.listingId}`, { price: Math.round(verdict.price * 100) });
@@ -247,7 +305,7 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
           await sleep(CALL_GAP_MS);
         }
       } else {
-        note("list", item, { price: verdict.price });
+        note("list", item, { price: verdict.price, reason: verdict.basis });
         if (apply) {
           try {
             const res = await api(apiKey, "POST", "/listings", {
@@ -298,4 +356,4 @@ function summary(report) {
   return `${report.apply ? "" : "план (ничего не менялось): "}выставлено ${count("list")}, переоценено ${count("reprice")}, снято ${count("delist")}, пропущено ${count("skip")}${errors ? `, ошибок ${errors}` : ""}`;
 }
 
-module.exports = { run, summary, settings, decide, api };
+module.exports = { run, summary, settings, decide, api, topBuyOrder };

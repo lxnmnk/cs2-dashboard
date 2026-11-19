@@ -13,7 +13,6 @@
   <header class="site-header">
     <a class="site-brand" href="/">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
-      <a href="/en/my-skins"><span class="nav-icon">📦</span> In stock</a>
       <a href="/en/buy" class="active"><span class="nav-icon">🛒</span> Buy skins</a>
       <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
       <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
@@ -35,8 +34,8 @@
     <h1>Buy <span class="accent">skins</span></h1>
   </section>
 
-  <!-- Каталог: весь прайс Youpin з нашою націнкою. Складу ми не тримаємо,
-       тому тут один рядок на предмет, а не окремі лоти з float. -->
+  <!-- Каталог: Instant — в наявності, P2P — від продавців.
+       Клік по картці — сторінка предмета з float (market-item.js). -->
   <section class="catalog">
     <div class="catalog-toolbar">
       <input id="catalogSearch" class="inventory-search" type="search" placeholder="Search by name..." />
@@ -44,9 +43,11 @@
         <option value="price_desc">Most expensive</option>
         <option value="price_asc">Cheapest first</option>
       </select>
-      <button id="cartOpenBtn" class="btn-gold catalog-cart-btn" type="button">
-        &#128722; Cart <span id="cartCount">0</span> &middot; <span id="cartTotalTop">$0.00</span>
-      </button>
+      <div class="delivery-switch" role="group">
+        <button class="delivery-btn" type="button" data-delivery="">All</button>
+        <button class="delivery-btn" type="button" data-delivery="instant" title="Instant — in stock, the trade arrives within minutes"><span class="delivery-dot instant"></span>Instant</button>
+        <button class="delivery-btn" type="button" data-delivery="p2p" title="P2P — delivered by the seller, trade within 12 hours"><span class="delivery-dot p2p"></span>P2P</button>
+      </div>
     </div>
 
     <div class="catalog-tabs">
@@ -99,6 +100,10 @@
       </aside>
 
       <div class="catalog-main">
+        <div id="ownSection" class="own-section" style="display:none;">
+          <div class="own-section-head"><h3>Our skins</h3><p class="card-hint">On our own account — we send the trade ourselves (P2P). Trade-locked ones go out as soon as the lock ends.</p></div>
+          <div id="ownGrid" class="inventory-grid"></div>
+        </div>
         <p id="catalogStatus" class="card-hint">Loading the catalog...</p>
         <div id="catalogGrid" class="inventory-grid"></div>
         <div id="catalogPager" class="catalog-pager" style="display:none;">
@@ -110,37 +115,20 @@
     </div>
   </section>
 
-  <div id="cartModal" class="modal-overlay" style="display:none;">
-    <div class="modal-panel">
-      <div class="modal-header">
-        <h3>Cart</h3>
-        <button id="cartModalClose" class="modal-close" type="button">&#10005;</button>
-      </div>
-      <p id="cartEmptyLine" class="card-hint">Cart is empty — pick skins from the list</p>
-      <div id="cartList" class="cart-list"></div>
-      <div class="cart-total-row">
-        <span>Total</span>
-        <span id="cartTotal" class="cart-total">$0.00</span>
-      </div>
-      <div class="cart-actions">
-        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/gabenmarket_support" target="_blank">Message us on Telegram to pay</a>
-        <button id="cartClearBtn" class="btn-clear" type="button">Clear</button>
-      </div>
-    </div>
-  </div>
-
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="site-footer-col">
         <h4>Contact</h4>
-        <p>Message me directly on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I reply personally.</p>
-        <p>Reviews and guarantors — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
+        <p>Support on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I answer personally.</p>
+        <p>Reviews of our deals — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
       </div>
       <div class="site-footer-col">
         <h4>Sections</h4>
-        <p>
-          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/sell">Check a price</a>
-        </p>
+        <p><a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/trade">Trade</a> · <a href="/en/sell">Check price</a> · <a href="/en/profile">Profile</a></p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Payments</h4>
+        <p>Top-ups and payouts — USDT (ERC-20, TRC-20) and USDC (ERC-20).</p>
       </div>
     </div>
     <p class="site-footer-legal">
@@ -163,7 +151,13 @@
       "cartEmpty": "Cart is empty — pick skins from the list",
       "msgIntro": "Hi! I want to buy:",
       "selectAll": "Select all",
-      "msgTotal": "Total:"
+      "msgTotal": "Total:",
+      "offers": "{n} offers",
+      "from": "from",
+      "busy": "Too many requests — try again in a minute",
+      "lockedDays": "{n}d trade lock",
+      "showAll": "Show all ({n})",
+      "itemUrl": "/en/buy/item"
 };
   </script>
   <script src="/currency.js"></script>

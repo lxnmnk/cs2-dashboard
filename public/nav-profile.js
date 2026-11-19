@@ -68,10 +68,11 @@ function refreshNavBalance() {
         const tradeLine = trade
           ? `<span class="nav-balance-trade" title="${escapeHtml(navText("tradeTitle"))}">🔄 ${money(trade)}</span>`
           : "";
+        // Клік по балансу — поповнення (профіль, вкладка "Поповнити"): так
+        // вирішив власник. Адреса профілю — з accountUrl тієї ж мовної версії.
+        const topupUrl = `${(NAV_T.accountUrl || "/account").replace("/account", "/profile")}?tab=topup`;
         navBalanceEl.innerHTML = `
-          <a class="nav-balance" href="${escapeHtml(
-            trade && !available && !hold ? NAV_T.tradeUrl || "/trade" : NAV_T.accountUrl
-          )}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
+          <a class="nav-balance" href="${escapeHtml(topupUrl)}" title="${escapeHtml(NAV_T.balanceTitle || "")}">
             <span class="nav-balance-usd">${money(available)}</span>
             ${holdLine}
             ${tradeLine}

@@ -166,6 +166,7 @@ function bargainPrice(listing, row, cfg, sources) {
   const listCents = cents(listing.price);
   let best = null;
   cfg.rules.forEach((rule, ruleIndex) => {
+    if (rule.disabled) return; // выключено из бота (/rule N off)
     const r = ruleLimits(rule, row, sources, listCents);
     if (r && (!best || r.max > best.max)) best = { ...r, rule, ruleIndex };
   });
@@ -659,13 +660,19 @@ function createBargainer({ config, notify, getRows = () => [] }) {
     saveState(state);
   }
 
+  /** Убрать настройку из бота — снова действует config.json. */
+  function resetSetting(key) {
+    delete state.settings[key];
+    saveState(state);
+  }
+
   function statusText() {
     const cfg = settings();
     const open = openOffers();
     const lines = [
       "🤝 <b>Автобарги CSFloat</b>",
       `Статус: ${cfg.enabled ? (cfg.dryRun ? "включены, ТЕСТ (ничего не отправляю)" : "включены") : "выключены"}`,
-      `Правила: ${cfg.rules.map(ruleLabel).join("  или  ")}`,
+      `Правила${state.settings.rules ? " (из бота)" : ""}: ${cfg.rules.filter((r) => !r.disabled).map(ruleLabel).join("  или  ") || "все выключены"}`,
       `Покупка без барга, если лот проходит правила по полной цене: ${cfg.autoBuy ? "да" : "нет"}`,
       `Отвечать на контр-офферы: ${cfg.answerCounters ? "да (принять до потолка / контр по потолку)" : "нет"}`,
       `Резерв на балансе: $${cfg.reserveUsd}`,
@@ -693,9 +700,11 @@ function createBargainer({ config, notify, getRows = () => [] }) {
     start,
     settings,
     setSetting,
+    resetSetting,
+    isOverridden: (key) => Object.prototype.hasOwnProperty.call(state.settings, key),
     statusText,
     bargainPrice: (listing, row) => bargainPrice(listing, row, settings(), config.sources),
   };
 }
 
-module.exports = { createBargainer, bargainPrice, ruleLimits, DEFAULTS };
+module.exports = { createBargainer, bargainPrice, ruleLimits, ruleLabel, DEFAULTS };

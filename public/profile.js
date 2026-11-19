@@ -24,6 +24,16 @@ function esc(s) {
   );
 }
 
+// Кнопки "Поповнити" / "Вивести" в шапці картки — це ті самі вкладки.
+document.querySelectorAll("[data-goto]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tab = document.querySelector(`.profile-tab[data-tab="${btn.dataset.goto}"]`);
+    if (!tab) return;
+    tab.click();
+    tab.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+});
+
 // ---- Вкладки ----
 document.querySelectorAll(".profile-tab").forEach((tab) => {
   tab.addEventListener("click", () => {
@@ -33,7 +43,7 @@ document.querySelectorAll(".profile-tab").forEach((tab) => {
       pane.style.display = pane.dataset.pane === tab.dataset.tab ? "" : "none";
     });
     // Угоди тягнемо лише коли вкладку відкрили: більшість заходить подивитись
-    // баланс, і зайвий запит до Skinbux на кожен вхід ні до чого.
+    // баланс, і зайвий запит на кожен вхід ні до чого.
     if (tab.dataset.tab === "deals") loadDeals();
   });
 });
@@ -68,6 +78,16 @@ async function loadProfile() {
   document.getElementById("balTrade").textContent = money(b.trade);
   const rate = document.getElementById("balRate");
   if (rate && b.uahRate) rate.textContent = `1 $ = ${b.uahRate} ₴`;
+  // Баланс у шапці картки профілю: головне число + холд і trade дрібно.
+  const headAvail = document.getElementById("headAvailable");
+  if (headAvail) headAvail.textContent = money(b.available);
+  const extra = document.getElementById("headExtra");
+  if (extra) {
+    const parts = [];
+    if (b.hold) parts.push(`+${money(b.hold)} ${extra.dataset.hold || ""}`);
+    if (b.trade) parts.push(`${money(b.trade)} ${extra.dataset.trade || ""}`);
+    extra.textContent = parts.join(" · ");
+  }
 
   loadStats();
 }

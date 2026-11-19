@@ -22,7 +22,6 @@
   <header class="site-header">
     <a class="site-brand" href="/">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
-      <a href="/en/my-skins"><span class="nav-icon">📦</span> In stock</a>
       <a href="/en/buy"><span class="nav-icon">🛒</span> Buy skins</a>
       <a href="/en/account" class="active"><span class="nav-icon">💰</span> Sell skins</a>
       <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
@@ -161,14 +160,16 @@
     <div class="site-footer-inner">
       <div class="site-footer-col">
         <h4>Contact</h4>
-        <p>Message me directly on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I reply personally.</p>
-        <p>Reviews and guarantors — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
+        <p>Support on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I answer personally.</p>
+        <p>Reviews of our deals — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
       </div>
       <div class="site-footer-col">
         <h4>Sections</h4>
-        <p>
-          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/sell">Check a price</a>
-        </p>
+        <p><a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/trade">Trade</a> · <a href="/en/sell">Check price</a> · <a href="/en/profile">Profile</a></p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Payments</h4>
+        <p>Top-ups and payouts — USDT (ERC-20, TRC-20) and USDC (ERC-20).</p>
       </div>
     </div>
     <p class="site-footer-legal">
@@ -181,6 +182,7 @@
 
   <script>
     window.ACCOUNT_CONFIG = {
+      minSaleNote: "Minimum sale is {min}. Add {left} more.",
       filtersTitle: "Filters",
       resetLabel: "Reset",
       searchPlaceholder: "Search by name...",

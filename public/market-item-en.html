@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en" data-rate-side="buy">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Buy skin — gaben.market</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <header class="site-header">
+    <a class="site-brand" href="/">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/en/buy" class="active"><span class="nav-icon">🛒</span> Buy skins</a>
+      <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
+      <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
+    </nav>
+    <div class="site-header-right">
+      <div id="currencySwitch"></div>
+      <div class="lang-switch">
+        <a href="/buy/item">UA</a>
+        <a href="/ru/buy/item">RU</a>
+        <a href="/en/buy/item" class="active">EN</a>
+      </div>
+      <div id="navBalance"></div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
+
+  <section class="item-page">
+    <a class="item-back" href="/en/buy">← Back to catalog</a>
+    <p id="itemStatus" class="card-hint">Loading offers...</p>
+    <div id="itemBody" style="display:none;">
+      <div class="item-head">
+        <div class="item-head-img"><img id="itemImg" alt="" /></div>
+        <div class="item-head-info">
+          <div id="itemTags" class="item-tags"></div>
+          <h1 id="itemName" class="item-title"></h1>
+          <div id="itemSummary" class="item-summary"></div>
+          <div class="item-legend">
+            <span><span class="delivery-dot instant"></span>Instant — in stock, trade within minutes</span>
+            <span><span class="delivery-dot p2p"></span>P2P — delivered by the seller, trade within 12 hours</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-toolbar">
+        <div class="delivery-switch" role="group">
+          <button class="delivery-btn" type="button" data-delivery="">All</button>
+          <button class="delivery-btn" type="button" data-delivery="instant"><span class="delivery-dot instant"></span>Instant</button>
+          <button class="delivery-btn" type="button" data-delivery="p2p"><span class="delivery-dot p2p"></span>P2P</button>
+        </div>
+        <input id="floatMin" class="item-float-input" type="number" step="0.001" min="0" max="1" placeholder="Float from" />
+        <input id="floatMax" class="item-float-input" type="number" step="0.001" min="0" max="1" placeholder="Float to" />
+        <select id="itemSort" class="inventory-sort">
+          <option value="price">Cheapest first</option>
+          <option value="-price">Most expensive first</option>
+          <option value="float">Float: low to high</option>
+          <option value="-float">Float: high to low</option>
+        </select>
+        <span id="itemCount" class="item-count"></span>
+      </div>
+      <div id="itemRows" class="lot-list"></div>
+    </div>
+  </section>
+
+  <div id="buyModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Purchase</h3>
+        <button class="modal-close" type="button">&#10005;</button>
+      </div>
+      <div id="buyModalBody"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Contact</h4>
+        <p>Support on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I answer personally.</p>
+        <p>Reviews of our deals — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Sections</h4>
+        <p><a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/trade">Trade</a> · <a href="/en/sell">Check price</a> · <a href="/en/profile">Profile</a></p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Payments</h4>
+        <p>Top-ups and payouts — USDT (ERC-20, TRC-20) and USDC (ERC-20).</p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      This site is not affiliated with Valve Corporation or Steam and is not an official partner.
+      Counter-Strike 2, item names, images and trademarks belong to their respective owners.
+      All item transfers happen directly between users.
+      <br />© 2026 gaben.market. All rights reserved.
+    </p>
+  </footer>
+
+  <script>
+    window.NAV_CONFIG = { signInLabel: "Sign in", accountUrl: "/en/account", loginUrl: "/auth/steam?lang=en", balanceTitle: "Available to withdraw", holdTitle: "On hold" };
+  </script>
+  <script>
+    window.ITEM_CONFIG = {
+      "loading": "Loading offers...",
+      "notFound": "No such item",
+      "loadError": "Couldn't load offers — refresh the page",
+      "busy": "Too many requests — try again in a minute",
+      "soldOut": "No free offers for this item right now",
+      "nothingFiltered": "No offers match these filters",
+      "all": "All",
+      "offers": "{n} offers",
+      "from": "from",
+      "pattern": "Pattern",
+      "inspect": "Inspect in game",
+      "buy": "Buy",
+      "instantTip": "Instant — in stock, trade within minutes",
+      "p2pTip": "P2P — delivered by the seller, trade within 12 hours",
+      "checking": "Checking your balance...",
+      "needLogin": "Sign in with Steam to buy — you pay from your site balance.",
+      "login": "Sign in with Steam",
+      "loginUrl": "/auth/steam?lang=en",
+      "needTradeUrl": "Add your trade URL in your profile — the trade offer goes there.",
+      "setTradeUrl": "Open profile",
+      "profileUrl": "/en/profile",
+      "notEnough": "Your balance is {balance} and this offer costs {price}. Top up with USDT or sell your skins.",
+      "sellSkins": "Sell skins",
+      "sellUrl": "/en/account",
+      "yourBalance": "Your balance",
+      "afterBuy": "After purchase",
+      "noteInstant": "Instant: the trade arrives within minutes.",
+      "noteP2p": "P2P: the seller's trade can take up to 12 hours.",
+      "noteFinal": "Once confirmed, the purchase can't be cancelled.",
+      "noteRefund": "If the trade doesn't go through, the money returns to your balance automatically.",
+      "confirm": "Buy for {price}",
+      "cancel": "Cancel",
+      "buying": "Buying...",
+      "doneInstant": "Done! The trade will arrive in Steam within minutes — accept it.",
+      "doneP2p": "Done! The seller will send the trade within 12 hours — accept it in Steam.",
+      "openTrades": "Open Steam trade offers",
+      "close": "Close",
+      "errPriceChanged": "This offer's price changed: now {price}. Check the list and try again.",
+      "errPriceChangedNoPrice": "This offer's price changed. Refresh the list and try again.",
+      "errGone": "This offer was just bought. Pick another one.",
+      "errPending": "The marketplace didn't answer in time. We're checking the purchase — if it failed, the money returns to your balance.",
+      "errShop": "Buying is unavailable right now. Message us on Telegram and we'll handle it manually.",
+      "errGeneric": "Couldn't buy. Try again or message us on Telegram.",
+      "topUp": "Top up with USDT",
+      "myPurchases": "My purchases",
+      "refundNote": "Purchase status is in your profile, «Purchases» tab. If the trade is cancelled, the money returns to your balance automatically.",
+      "ourSkin": "Ours",
+      "lockedUntil": "until {date}",
+      "lockedTip": "Steam trade lock — we send it as soon as the lock ends",
+      "noteOwn": "This is our skin: we send the trade ourselves, within 12 hours.",
+      "noteOwnLocked": "Trade-locked until {date}: we send the trade right after that date.",
+      "doneOwn": "Done! We will send the trade within 12 hours — accept it in Steam.",
+      "doneOwnLocked": "Done! The skin is trade-locked until {date} — we send the trade right after that date.",
+      "msgIntro": "Hi! I want to buy:"
+    };
+  </script>
+  <script src="/currency.js"></script>
+  <script src="/market-item.js"></script>
+  <script src="/nav-profile.js"></script>
+</body>
+</html>

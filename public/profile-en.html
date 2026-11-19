@@ -22,7 +22,6 @@
   <header class="site-header">
     <a class="site-brand" href="/">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
-      <a href="/en/my-skins"><span class="nav-icon">📦</span> In stock</a>
       <a href="/en/buy"><span class="nav-icon">🛒</span> Buy skins</a>
       <a href="/en/account"><span class="nav-icon">💰</span> Sell skins</a>
       <a href="/en/trade"><span class="nav-icon">🔄</span> Trade</a>
@@ -45,8 +44,7 @@
     </div>
   </header>
 
-  <section class="hero">
-    <span class="eyebrow">CS2 SKINS TRADE</span>
+  <section class="hero hero-compact">
     <h1>Your <span class="accent">profile</span></h1>
   </section>
 
@@ -67,13 +65,24 @@
           <a id="profileSteamLink" href="#" target="_blank">Steam profile</a>
         </p>
       </div>
+      <div class="profile-head-balance">
+        <span class="phb-label">Available to withdraw</span>
+        <span class="phb-amount" id="headAvailable">$0.00</span>
+        <span class="phb-extra" id="headExtra" data-hold="on hold" data-trade="trade"></span>
+        <div class="phb-actions">
+          <button class="btn-gold phb-btn" type="button" data-goto="topup">Top up</button>
+          <button class="btn-outline phb-btn" type="button" data-goto="balance">Withdraw</button>
+        </div>
+      </div>
     </div>
 
     <div class="profile-tabs">
-      <button class="profile-tab active" type="button" data-tab="info">Profile</button>
-      <button class="profile-tab" type="button" data-tab="deals">My deals</button>
-      <button class="profile-tab" type="button" data-tab="balance">Balance</button>
-      <button class="profile-tab" type="button" data-tab="referral">🎁 Referrals</button>
+      <button class="profile-tab active" type="button" data-tab="info"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg><span>Profile</span></button>
+      <button class="profile-tab" type="button" data-tab="deals"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h12l-3-3"/><path d="M17 17H5l3 3"/></svg><span>My deals</span></button>
+      <button class="profile-tab" type="button" data-tab="balance"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M16 15h2"/></svg><span>Balance</span></button>
+      <button class="profile-tab" type="button" data-tab="purchases"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12H6.2L5 8z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span>Purchases</span></button>
+      <button class="profile-tab" type="button" data-tab="topup"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>Top up</span></button>
+      <button class="profile-tab" type="button" data-tab="referral"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M3 7h18v3H3zM12 7v13"/><path d="M12 7c-1.5-3.5-5.5-3-4.5-.2M12 7c1.5-3.5 5.5-3 4.5-.2"/></svg><span>Referrals</span></button>
     </div>
 
     <div class="profile-pane" data-pane="info">
@@ -104,13 +113,28 @@
     </div>
 
     <div class="profile-pane" data-pane="balance" style="display:none;">
-      <div class="profile-stats">
-        <div class="profile-stat"><span class="profile-stat-value" id="balAvailable">$0.00</span><span class="profile-stat-label">Available for payout</span></div>
-        <div class="profile-stat"><span class="profile-stat-value" id="balHold">$0.00</span><span class="profile-stat-label">On hold</span></div>
-        <div class="profile-stat"><span class="profile-stat-value" id="balTrade">$0.00</span><span class="profile-stat-label">Trade balance</span></div>
+      <div class="balance-hero">
+        <div class="bh-main">
+          <span class="bh-label">Available to withdraw</span>
+          <span class="bh-amount" id="balAvailable">$0.00</span>
+          <span class="bh-rate" id="balRate"></span>
+        </div>
+        <div class="bh-side">
+          <div class="bh-tile"><span class="bh-tile-label">On hold</span><span class="bh-tile-value" id="balHold">$0.00</span><span class="bh-tile-hint">arrives after the Steam hold</span></div>
+          <div class="bh-tile"><span class="bh-tile-label">Trade balance</span><span class="bh-tile-value" id="balTrade">$0.00</span><span class="bh-tile-hint">spend it on skins</span></div>
+        </div>
       </div>
-      <p class="card-hint" id="balRate"></p>
-      <p class="card-hint">Payouts go through Telegram — the button shows up on a deal once the Steam hold is over.</p>
+      <div class="profile-panel" id="withdrawRoot"></div>
+    </div>
+
+    <div class="profile-pane" data-pane="purchases" style="display:none;">
+      <p id="purchasesLoading" class="card-hint">Loading...</p>
+      <p id="purchasesEmpty" class="card-hint" style="display:none;">No purchases yet — pick a skin on the «<a href="/en/buy">Buy skins</a>» page.</p>
+      <div id="purchasesList" class="deals-list"></div>
+    </div>
+
+    <div class="profile-pane" data-pane="topup" style="display:none;">
+      <div id="topupRoot"><p class="card-hint">Loading...</p></div>
     </div>
 
     <div class="profile-pane" data-pane="referral" style="display:none;">
@@ -122,14 +146,16 @@
     <div class="site-footer-inner">
       <div class="site-footer-col">
         <h4>Contact</h4>
-        <p>Message me directly on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I reply personally.</p>
-        <p>Reviews and guarantors — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
+        <p>Support on Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. I answer personally.</p>
+        <p>Reviews of our deals — in the <a href="https://t.me/csmarket" target="_blank">@csmarket</a> group.</p>
       </div>
       <div class="site-footer-col">
         <h4>Sections</h4>
-        <p>
-          <a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/sell">Check a price</a>
-        </p>
+        <p><a href="/en/buy">Buy skins</a> · <a href="/en/account">Sell skins</a> · <a href="/en/trade">Trade</a> · <a href="/en/sell">Check price</a> · <a href="/en/profile">Profile</a></p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Payments</h4>
+        <p>Top-ups and payouts — USDT (ERC-20, TRC-20) and USDC (ERC-20).</p>
       </div>
     </div>
     <p class="site-footer-legal">
@@ -254,5 +280,83 @@
   <script src="/deal-card.js"></script>
   <script src="/profile.js"></script>
   <script src="/referral.js"></script>
+  <script>
+    window.WALLET_CONFIG = {
+      "stOwnPending": "Preparing",
+      "stOwnLocked": "Trade-locked",
+      "stOwnSent": "Trade sent",
+      "hintOwnPending": "This is our skin — we send the trade within 12 hours.",
+      "hintOwnLocked": "Steam trade lock until {date} — we send the trade right after.",
+      "hintOwnSent": "We sent the trade — accept it in Steam.",
+      "wdConfirmTitle": "Confirm withdrawal",
+      "wdConfirmNet": "Network",
+      "wdConfirmFee": "Network fee",
+      "wdConfirmAddr": "To address",
+      "wdConfirmWarn": "Blockchain transfers cannot be reversed. Make sure the address is yours and the network matches your wallet.",
+      "wdConfirmOk": "Withdraw {sum}",
+      "wdCancel": "Cancel",
+      "wdMinNote": "Minimum withdrawal — {min}.",
+      "wdTitle": "Withdraw in crypto",
+      "wdIntro": "The money goes to your wallet automatically — pick a network, paste the address and amount.",
+      "wdAddress": "Wallet address",
+      "wdAmount": "Amount, $",
+      "wdAll": "All",
+      "wdSubmit": "Withdraw",
+      "wdSending": "Sending...",
+      "wdReceive": "You receive {sum} (network fee {fee}).",
+      "wdFeeNote": "Network fee {fee} — deducted from the amount.",
+      "wdNeedAddress": "Enter your wallet address.",
+      "wdNoMoney": "You can withdraw up to {available}.",
+      "wdMin": "Minimum withdrawal is {min}.",
+      "wdBadAddress": "This address does not fit the network — check it.",
+      "wdUnavailable": "Withdrawals are unavailable right now. Message us on Telegram.",
+      "wdError": "Could not withdraw. Try again or message us on Telegram.",
+      "wdConfirm": "Withdraw {sum} via {net} to\n{address}?\nBlockchain transfers can't be reversed — check the address.",
+      "wdDone": "Withdrawal created — the money arrives in your wallet within a few minutes.",
+      "wdPending": "Processing",
+      "wdPaid": "Paid",
+      "wdFailed": "Cancelled — money back on balance",
+      "stWaiting": "Waiting for trade",
+      "stDone": "Received",
+      "stRefunded": "Cancelled",
+      "stFailed": "Failed",
+      "stChecking": "Checking",
+      "hintWaitInstant": "The trade will arrive in Steam within minutes — accept it.",
+      "hintWaitP2p": "The seller will send the trade within 12 hours — accept it in Steam.",
+      "hintDone": "The skin is in your inventory.",
+      "hintRefunded": "The trade didn't go through — {price} returned to your balance.",
+      "hintFailed": "The purchase failed, no money was charged.",
+      "hintChecking": "Checking the trade status — if it didn't go through, the money returns to your balance.",
+      "hintUnknown": "The marketplace answered late — we're checking. If the purchase failed, the money returns to your balance.",
+      "openTrades": "Steam trades",
+      "loadError": "Couldn't load — refresh the page.",
+      "unavailable": "Top-up is unavailable right now. Message us on Telegram.",
+      "intro": "Top up your balance with USDT and buy skins on the site. The money goes to your trade balance: you can spend it on skins but not withdraw it.",
+      "needTooBig": "You are {need} short — more than one top-up allows ({max}). Top up in parts: several invoices one after another.",
+      "needNote": "You are {need} short for the purchase — the amount is already filled in, including the network fee.",
+      "amountLabel": "Amount, $",
+      "createBtn": "Get address",
+      "minNote": "Minimum {min}. The network fee charged on crediting is deducted (~{fee}).",
+      "sendExactly": "Send exactly",
+      "toAddress": "To the {net} address",
+      "copy": "Copy",
+      "copied": "Copied",
+      "warnExact": "The amount must be exactly {amount} USDT — that's how we recognise your transfer. If your exchange takes its fee from the amount, add it on top.",
+      "warnNetwork": "USDT only, and only on {net}. Another coin or network — the money will be lost.",
+      "warnFee": "The network fee charged on crediting is deducted — the rest goes to your trade balance.",
+      "warnTime": "This invoice is valid for {min} more min. Crediting happens after network confirmations, usually 3–10 min.",
+      "waiting": "Waiting for your transfer — the page updates by itself.",
+      "newInvoice": "Different amount",
+      "historyTitle": "Top-up history",
+      "historyEmpty": "No top-ups yet.",
+      "tCredited": "Credited {sum}",
+      "tWaiting": "Waiting for transfer",
+      "tExpired": "Invoice closed",
+      "errAmount": "Amount from {min} to {max}.",
+      "errGeneric": "Couldn't create the invoice. Try again or message us on Telegram."
+    };
+  </script>
+  <script src="/qrcode.js"></script>
+  <script src="/wallet.js"></script>
 </body>
 </html>

@@ -32,6 +32,9 @@ const {
 // ці ж імена оголошує account-deals.js, а два звичайні <script> ділять одну
 // глобальну область — повторний const ламає весь другий файл.
 const CFG = window.ACCOUNT_CONFIG;
+// Мінімальна сума одного продажу; сервер перевіряє те саме й підкаже своє
+// значення в помилці MIN_SALE, якщо його змінили в config.json.
+let MIN_SALE = 10;
 
 const inventoryListEl = document.getElementById("inventoryList");
 const inventoryLoadingEl = document.getElementById("inventoryLoading");
@@ -219,7 +222,7 @@ fetch("/api/account/promo")
 
 // ---- Спосіб виплати і реквізити ----
 // Виплату власник робить руками, тож усе це — дані для нього: куди саме
-// переказати гроші, коли Skinbux зніме холд.
+// переказати гроші, коли закінчиться холд.
 //
 // Способів вісім (картка плюс сім мереж), і розгорнутим списком вони займали
 // б половину кошика. Тому видно лише обраний, решта — за "змінити": один
@@ -556,6 +559,12 @@ sellAutoBtn?.addEventListener("click", async () => {
     sellStatusEl.textContent = CFG.priceChanged;
     return;
   }
+  if (data.error === "MIN_SALE") {
+    if (data.min) MIN_SALE = Number(data.min);
+    renderCart();
+    sellStatusEl.textContent = (CFG.minSaleNote || "").replace("{min}", price(MIN_SALE)).replace("{left}", price(Math.max(0, MIN_SALE - (data.total || 0))));
+    return;
+  }
   if (!data.ok) {
     sellStatusEl.textContent = `${sellFailedPrefix}${data.error}`;
     return;
@@ -572,7 +581,7 @@ sellAutoBtn?.addEventListener("click", async () => {
   renderCart();
 });
 
-// Ціна на Skinbux поїхала вниз: перечитуємо інвентар і ставимо в кошик нові
+// Ціна викупу поїхала вниз: перечитуємо інвентар і ставимо в кошик нові
 // ціни, щоб клієнт побачив суму, яку реально отримає, перш ніж тиснути знову.
 // Те, що зникло з інвентарю або лишилось без ціни, з кошика прибираємо.
 async function repriceCart() {
@@ -807,7 +816,7 @@ function renderInventoryList() {
           </div>`;
       }
 
-      // Skinbux цей предмет не приймає — показуємо, але без кнопки продажу.
+      // Цей предмет не приймається на викуп — показуємо, але без кнопки продажу.
       // Раніше клієнт дізнавався про це лише коли тиснув "Продати".
       if (it.sellAccept === false) {
         return `
@@ -985,7 +994,13 @@ function renderCart() {
   cartPayout.textContent = price(total + topUp);
   cartItemsCount.textContent = String(cart.length);
   cartEmptyLine.textContent = cart.length ? "" : CFG.cartEmpty || "";
-  if (sellBtn) sellBtn.disabled = !cart.length;
+  // Мінімальна сума продажу (config.sales.minTotalUsd на сервері) — кажемо
+  // заздалегідь, скільки ще додати, а не після натискання "Продати".
+  const belowMin = cart.length > 0 && total + 0.001 < MIN_SALE;
+  if (belowMin) {
+    cartEmptyLine.textContent = (CFG.minSaleNote || "").replace("{min}", price(MIN_SALE)).replace("{left}", price(MIN_SALE - total));
+  }
+  if (sellBtn) sellBtn.disabled = !cart.length || belowMin;
 
   // Дата виплати: гроші приходять після холду Steam — 7 днів від обміну.
   const unlock = new Date(Date.now() + 7 * 86400000);

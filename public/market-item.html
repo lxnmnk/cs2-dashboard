@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="uk" data-rate-side="buy">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Купити скін — gaben.market</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/quote.css" />
+</head>
+<body>
+  <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
+
+  <header class="site-header">
+    <a class="site-brand" href="/ua">GABEN<span class="accent">.MARKET</span></a>
+    <nav class="site-nav">
+      <a href="/buy" class="active"><span class="nav-icon">🛒</span> Купити скіни</a>
+      <a href="/account"><span class="nav-icon">💰</span> Продати скіни</a>
+      <a href="/trade"><span class="nav-icon">🔄</span> Обмін</a>
+    </nav>
+    <div class="site-header-right">
+      <div id="currencySwitch"></div>
+      <div class="lang-switch">
+        <a href="/buy/item" class="active">UA</a>
+        <a href="/ru/buy/item">RU</a>
+        <a href="/en/buy/item">EN</a>
+      </div>
+      <div id="navBalance"></div>
+      <div id="navProfile" class="nav-profile"></div>
+    </div>
+  </header>
+
+  <section class="item-page">
+    <a class="item-back" href="/buy">← До каталогу</a>
+    <p id="itemStatus" class="card-hint">Завантажую лоти...</p>
+    <div id="itemBody" style="display:none;">
+      <div class="item-head">
+        <div class="item-head-img"><img id="itemImg" alt="" /></div>
+        <div class="item-head-info">
+          <div id="itemTags" class="item-tags"></div>
+          <h1 id="itemName" class="item-title"></h1>
+          <div id="itemSummary" class="item-summary"></div>
+          <div class="item-legend">
+            <span><span class="delivery-dot instant"></span>Instant — в наявності, трейд за кілька хвилин</span>
+            <span><span class="delivery-dot p2p"></span>P2P — віддає продавець, трейд до 12 годин</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-toolbar">
+        <div class="delivery-switch" role="group">
+          <button class="delivery-btn" type="button" data-delivery="">Усі</button>
+          <button class="delivery-btn" type="button" data-delivery="instant"><span class="delivery-dot instant"></span>Instant</button>
+          <button class="delivery-btn" type="button" data-delivery="p2p"><span class="delivery-dot p2p"></span>P2P</button>
+        </div>
+        <input id="floatMin" class="item-float-input" type="number" step="0.001" min="0" max="1" placeholder="Float від" />
+        <input id="floatMax" class="item-float-input" type="number" step="0.001" min="0" max="1" placeholder="Float до" />
+        <select id="itemSort" class="inventory-sort">
+          <option value="price">Спершу дешеві</option>
+          <option value="-price">Спершу дорогі</option>
+          <option value="float">Float: від меншого</option>
+          <option value="-float">Float: від більшого</option>
+        </select>
+        <span id="itemCount" class="item-count"></span>
+      </div>
+      <div id="itemRows" class="lot-list"></div>
+    </div>
+  </section>
+
+  <div id="buyModal" class="modal-overlay" style="display:none;">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <h3>Купівля</h3>
+        <button class="modal-close" type="button">&#10005;</button>
+      </div>
+      <div id="buyModalBody"></div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="site-footer-col">
+        <h4>Зв'язок</h4>
+        <p>Підтримка в Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Відповідаю особисто.</p>
+        <p>Відгуки про наші угоди — у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Розділи</h4>
+        <p><a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> · <a href="/trade">Обмін</a> · <a href="/sell">Перевірити ціну</a> · <a href="/profile">Профіль</a></p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Оплата</h4>
+        <p>Поповнення й виплати — USDT (ERC-20, TRC-20) і USDC (ERC-20). Виплата за продаж — також на картку в гривні.</p>
+      </div>
+    </div>
+    <p class="site-footer-legal">
+      Сайт не пов'язаний з Valve Corporation, Steam і не є їхнім офіційним партнером.
+      Counter-Strike 2, назви предметів, зображення та торгові марки належать їхнім власникам.
+      Усі операції з предметами відбуваються між користувачами напряму.
+      <br />© 2026 gaben.market. Усі права захищені.
+    </p>
+  </footer>
+
+  <script>
+    window.NAV_CONFIG = { signInLabel: "Увійти", accountUrl: "/account", loginUrl: "/auth/steam", balanceTitle: "Доступно до виплати", holdTitle: "У холді" };
+  </script>
+  <script>
+    window.ITEM_CONFIG = {
+      "loading": "Завантажую лоти...",
+      "notFound": "Такого предмета немає",
+      "loadError": "Не вдалося завантажити лоти — онови сторінку",
+      "busy": "Забагато запитів — спробуй за хвилину",
+      "soldOut": "Зараз немає вільних лотів цього предмета",
+      "nothingFiltered": "Під ці фільтри лотів немає",
+      "all": "Усі",
+      "offers": "{n} лотів",
+      "from": "від",
+      "pattern": "Паттерн",
+      "inspect": "Оглянути в грі",
+      "buy": "Купити",
+      "instantTip": "Instant — в наявності, трейд за кілька хвилин",
+      "p2pTip": "P2P — віддає продавець, трейд до 12 годин",
+      "checking": "Перевіряю баланс...",
+      "needLogin": "Щоб купити, увійди через Steam — оплата з балансу на сайті.",
+      "login": "Увійти через Steam",
+      "loginUrl": "/auth/steam",
+      "needTradeUrl": "Додай trade-посилання в профілі — на нього прийде трейд.",
+      "setTradeUrl": "Відкрити профіль",
+      "profileUrl": "/profile",
+      "notEnough": "На балансі {balance}, а лот коштує {price}. Поповни баланс у USDT або продай свої скіни.",
+      "sellSkins": "Продати скіни",
+      "sellUrl": "/account",
+      "yourBalance": "Твій баланс",
+      "afterBuy": "Після покупки",
+      "noteInstant": "Instant: трейд прийде за кілька хвилин.",
+      "noteP2p": "P2P: трейд від продавця може йти до 12 годин.",
+      "noteFinal": "Після підтвердження покупку не скасувати.",
+      "noteRefund": "Якщо трейд не відбудеться, гроші повернуться на баланс автоматично.",
+      "confirm": "Купити за {price}",
+      "cancel": "Скасувати",
+      "buying": "Купую...",
+      "doneInstant": "Готово! Трейд прийде в Steam за кілька хвилин — прийми його.",
+      "doneP2p": "Готово! Продавець надішле трейд протягом 12 годин — прийми його в Steam.",
+      "openTrades": "Відкрити трейди Steam",
+      "close": "Закрити",
+      "errPriceChanged": "Ціна цього лота змінилась: тепер {price}. Перевір список і спробуй ще раз.",
+      "errPriceChangedNoPrice": "Ціна цього лота змінилась. Онови список і спробуй ще раз.",
+      "errGone": "Цей лот уже купили. Обери інший зі списку.",
+      "errPending": "Майданчик не відповів вчасно. Перевіряємо покупку — якщо вона не пройшла, гроші повернуться на баланс.",
+      "errShop": "Покупка зараз недоступна. Напиши нам у Telegram — оформимо вручну.",
+      "errGeneric": "Не вдалося купити. Спробуй ще раз або напиши нам у Telegram.",
+      "topUp": "Поповнити USDT",
+      "myPurchases": "Мої покупки",
+      "refundNote": "Статус покупки — у профілі, вкладка «Покупки». Якщо трейд скасують, гроші самі повернуться на баланс.",
+      "ourSkin": "Наш",
+      "lockedUntil": "до {date}",
+      "lockedTip": "Скін під трейдлоком Steam — відправимо, щойно він закінчиться",
+      "noteOwn": "Це наш скін: трейд надішлемо самі, до 12 годин.",
+      "noteOwnLocked": "Скін під трейдлоком до {date}: трейд надішлемо одразу після цієї дати.",
+      "doneOwn": "Готово! Ми надішлемо трейд протягом 12 годин — прийми його в Steam.",
+      "doneOwnLocked": "Готово! Скін під трейдлоком до {date} — трейд надішлемо одразу після цієї дати.",
+      "msgIntro": "Привіт! Хочу купити:"
+    };
+  </script>
+  <script src="/currency.js"></script>
+  <script src="/market-item.js"></script>
+  <script src="/nav-profile.js"></script>
+</body>
+</html>

@@ -690,7 +690,7 @@ a { color: var(--gold); }
   align-self: flex-start;
 }
 
-/* ---- Посилання на Steam-обмін (потрібно для автопродажу через Skinbux) ---- */
+/* ---- Посилання на Steam-обмін (потрібно для автопродажу) ---- */
 .trade-url-section {
   margin-bottom: 18px;
   padding-bottom: 18px;
@@ -1082,7 +1082,9 @@ a.btn-small { display: inline-block; text-decoration: none; }
     display: grid;
     /* Чотири пункти в один рядок на телефоні не влазять — дві колонки по
        два. Раніше було три в ряд, поки розділів було три. */
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: var(--s-1);
     overflow: visible;
   }
@@ -1111,7 +1113,7 @@ a.btn-small { display: inline-block; text-decoration: none; }
   justify-content: space-between;
   align-items: flex-start;
 }
-.site-footer-col { max-width: 560px; }
+.site-footer-col { flex: 1 1 240px; max-width: 420px; }
 .site-footer-col h4 {
   margin: 0 0 10px;
   font-size: 13px;
@@ -2733,9 +2735,12 @@ a.sender-line { color: var(--gold); }
   .nav-balance-usd { font-size: 13px; }
   .site-header .account-pill { padding: 2px 4px 2px 2px; gap: 2px; }
   .site-header .account-pill img { width: 26px; height: 26px; }
-  .nav-balance-uah,
+  .nav-balance-uah { display: none; }
+  /* Холд і trade-баланс на телефоні теж потрібні: людина після продажу
+     хоче бачити, що гроші дійшли. Дрібніше, але не ховаємо. */
+  .nav-balance { padding: 2px 7px; line-height: 1.1; }
   .nav-balance-hold,
-  .nav-balance-trade { display: none; }
+  .nav-balance-trade { font-size: 10px; }
 
   .site-nav {
     position: fixed;
@@ -2746,7 +2751,11 @@ a.sender-line { color: var(--gold); }
     order: 0;
     width: auto;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    /* Стільки колонок, скільки пунктів меню: їх ставало то 4, то 3, і з
+       жорсткими repeat(4) іконки з'їжджали вліво. */
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 0;
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     background: rgba(10, 11, 15, 0.94);
@@ -3267,3 +3276,410 @@ a.sender-line { color: var(--gold); }
   .bf-foot .btn-gold { justify-content: center; }
   .bf-code { justify-content: space-between; }
 }
+
+/* ---- Вітрина: Instant / P2P (catalog.js, market-item.js) ----
+   Instant — зелена крапка (в наявності, трейд за хвилини),
+   P2P — синя (віддає продавець, до 12 год). */
+.delivery-switch {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.delivery-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel-2);
+  color: var(--muted);
+  border: none;
+  border-right: 1px solid var(--border);
+  padding: 9px 14px;
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+.delivery-btn:last-child { border-right: none; }
+.delivery-btn:hover { color: var(--text); }
+.delivery-btn.active { background: var(--gold-soft); color: var(--gold); }
+.delivery-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.delivery-dot.instant { background: #3ecf8e; box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.18); }
+.delivery-dot.p2p { background: #5b9cf5; box-shadow: 0 0 0 3px rgba(91, 156, 245, 0.18); }
+.delivery-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--t-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.delivery-tag.instant { color: #3ecf8e; }
+.delivery-tag.p2p { color: #5b9cf5; }
+
+a.market-card { color: inherit; text-decoration: none; }
+.market-card-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+.market-card-float { font-variant-numeric: tabular-nums; }
+
+/* ---- Сторінка предмета ---- */
+.item-page {
+  position: relative;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s-5) var(--s-4) var(--s-7);
+}
+.item-back { display: inline-block; margin-bottom: var(--s-4); font-size: var(--t-sm); text-decoration: none; }
+.item-head {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--s-5);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-5);
+  margin-bottom: var(--s-4);
+}
+.item-head-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 45%, rgba(215, 168, 78, 0.12), transparent 70%);
+  border-radius: var(--r-md);
+  min-height: 180px;
+}
+.item-head-img img { max-width: 100%; max-height: 210px; object-fit: contain; }
+.item-tags { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; font-size: var(--t-sm); }
+.item-title { margin: var(--s-2) 0 var(--s-4); font-size: var(--t-xl); line-height: 1.25; }
+.item-summary { display: flex; flex-wrap: wrap; gap: var(--s-3); margin-bottom: var(--s-4); }
+.item-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 120px;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: var(--t-sm);
+  color: var(--muted);
+}
+.item-sum-label { color: var(--text); font-weight: 600; }
+.item-sum-price { color: var(--gold); font-weight: 600; }
+.item-legend { display: flex; flex-direction: column; gap: 6px; font-size: var(--t-xs); color: var(--muted); }
+.item-legend > span { display: inline-flex; align-items: center; gap: 8px; }
+
+.item-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+.item-float-input {
+  width: 120px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  padding: 9px 10px;
+  font-size: var(--t-sm);
+}
+.item-float-input:focus { border-color: var(--gold-line); outline: none; }
+.item-count { margin-left: auto; color: var(--muted); font-size: var(--t-sm); }
+
+.lot-list {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.lot-row {
+  display: grid;
+  grid-template-columns: 130px minmax(150px, 1.4fr) 110px minmax(80px, 1fr) 110px auto;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
+}
+.lot-row:last-child { border-bottom: none; }
+.lot-row:hover { background: #171a1f; }
+.float-cell { display: flex; flex-direction: column; gap: 5px; }
+.float-value { font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.float-bar {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  max-width: 160px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #3ecf8e 0 7%, #8fd14f 7% 15%, #e3c84b 15% 38%, #e6904a 38% 45%, #e0605a 45% 100%);
+}
+.float-mark {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 10px;
+  background: var(--text);
+  transform: translateX(-1px);
+}
+.lot-pattern { font-size: var(--t-sm); }
+.lot-stickers { display: flex; gap: 2px; }
+.lot-stickers img { width: 26px; height: 20px; object-fit: contain; }
+.lot-price { font-weight: 700; color: var(--gold); text-align: right; font-variant-numeric: tabular-nums; }
+.lot-actions { display: flex; align-items: center; gap: var(--s-2); justify-content: flex-end; }
+.lot-inspect { text-decoration: none; opacity: 0.7; }
+.lot-inspect:hover { opacity: 1; }
+.lot-buy { padding: 8px 16px; font-size: var(--t-sm); }
+.item-empty { padding: var(--s-5); text-align: center; }
+
+.buy-lot {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: var(--s-3);
+  align-items: center;
+  padding: var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: var(--s-3);
+}
+.buy-lot img { width: 64px; height: 48px; object-fit: contain; }
+.buy-lot-name { font-weight: 600; font-size: var(--t-sm); }
+.buy-lot-meta { font-size: var(--t-xs); color: var(--muted); margin-top: 4px; }
+.buy-lot-price { font-weight: 700; color: var(--gold); }
+.buy-balance { display: flex; justify-content: space-between; font-size: var(--t-sm); padding: 4px 0; }
+.buy-notes { margin: var(--s-3) 0; padding-left: 18px; font-size: var(--t-xs); color: var(--muted); }
+.buy-notes li { margin-bottom: 4px; }
+.buy-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
+.buy-ok { color: #3ecf8e; }
+.buy-err { color: var(--red); }
+
+@media (max-width: 760px) {
+  /* Окремим рядком на всю ширину: поруч із сортуванням P2P обрізався. */
+  .catalog-toolbar .delivery-switch { flex: 1 1 100%; width: 100%; }
+  .catalog-toolbar .delivery-btn { flex: 1; justify-content: center; }
+  .item-head { grid-template-columns: 1fr; padding: var(--s-4); }
+  .item-head-img { min-height: 140px; }
+  .item-count { margin-left: 0; width: 100%; }
+  .lot-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "delivery price"
+      "float float"
+      "pattern stickers"
+      "actions actions";
+    gap: var(--s-2);
+  }
+  .lot-delivery { grid-area: delivery; }
+  .lot-float { grid-area: float; }
+  .lot-pattern { grid-area: pattern; }
+  .lot-stickers { grid-area: stickers; justify-content: flex-end; }
+  .lot-price { grid-area: price; }
+  .lot-actions { grid-area: actions; }
+  .lot-buy { flex: 1; justify-content: center; }
+}
+
+/* ---- Вкладки профілю «Покупки» і «Поповнити» (wallet.js) ---- */
+.deal-card.is-cancel { border-left-color: var(--red); opacity: 0.85; }
+.deal-pill.is-cancel { background: rgba(224, 96, 90, 0.14); color: var(--red); }
+.deal-price.is-struck { text-decoration: line-through; color: var(--muted); }
+.deal-hint { margin: 0; font-size: var(--t-xs); }
+.topup-networks { margin: var(--s-3) 0; }
+.topup-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3); margin-bottom: var(--s-2); }
+.topup-label { display: flex; flex-direction: column; gap: 6px; font-size: var(--t-sm); color: var(--muted); }
+.topup-amount { width: 160px; }
+.topup-invoice {
+  background: var(--panel-2);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  margin-bottom: var(--s-3);
+}
+.topup-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-3); }
+.topup-row-label { width: 100%; font-size: var(--t-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.topup-amount-big { font-size: var(--t-xl); font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+.topup-address {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--t-sm);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 8px 10px;
+}
+.topup-waiting { color: var(--gold); }
+.topup-history-title { margin: var(--s-5) 0 0; font-size: var(--t-md); }
+
+/* QR адреси поповнення: білий фон, інакше темна тема з'їдає контраст і
+   камера телефону код не бачить. */
+.topup-invoice { display: grid; grid-template-columns: 1fr; }
+.topup-qr {
+  justify-self: start;
+  width: 168px;
+  height: 168px;
+  padding: 6px;
+  background: #fff;
+  border-radius: var(--r-sm);
+  margin-bottom: var(--s-3);
+}
+.topup-qr svg { display: block; width: 100%; height: 100%; }
+@media (min-width: 720px) {
+  .topup-invoice { grid-template-columns: 180px 1fr; column-gap: var(--s-5); }
+  .topup-qr { grid-column: 1; grid-row: 1 / span 6; }
+  .topup-invoice > :not(.topup-qr) { grid-column: 2; }
+}
+
+.topup-need { margin: 0 0 var(--s-3); padding: var(--s-2) var(--s-3); border-radius: var(--r-sm); background: var(--gold-soft); color: var(--gold); font-size: var(--t-sm); }
+
+/* Друга кнопка поруч із золотою: рамка замість підкресленого посилання,
+   того ж розміру, щоб пара читалась як вибір, а не кнопка і примітка. */
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 1px solid var(--gold-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn-outline:hover { background: var(--gold-soft); border-color: var(--gold); }
+.buy-actions { align-items: center; }
+
+/* Наші власні скіни на вітрині (ownSkins.js): позначка «Наш» і трейдлок. */
+.lot-delivery { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.lot-own { font-size: var(--t-xs); font-weight: 700; color: #14100a; background: var(--gold); border-radius: 999px; padding: 1px 8px; }
+.lot-lock { font-size: var(--t-xs); color: var(--muted); white-space: nowrap; }
+.own-section { margin-bottom: var(--s-5); }
+.own-section-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-3); margin: 0 0 var(--s-3); }
+.own-section-head h3 { margin: 0; font-size: var(--t-lg); }
+.own-section-head .card-hint { margin: 0; font-size: var(--t-sm); }
+.market-card .card-lock { font-size: var(--t-xs); color: var(--muted); }
+
+.own-show-all { grid-column: 1 / -1; justify-self: center; }
+
+/* Вивід у крипті (wallet.js, вкладка «Баланс»). */
+.wd-form { margin-top: var(--s-2); }
+.wd-address { flex: 1 1 320px; }
+.wd-address input { width: 100%; }
+.wd-amount-row { display: flex; gap: var(--s-2); }
+
+/* Вікно підтвердження виводу (wallet.js confirmWithdraw). */
+/* Вище нижнього меню на телефоні (z-index 40), інакше воно закривало б кнопки. */
+.wd-confirm { z-index: 60; }
+.wd-confirm .modal-panel { max-width: 440px; }
+.wd-confirm-sum { font-size: var(--t-2xl); font-weight: 800; color: var(--gold); margin: var(--s-1) 0 var(--s-3); font-variant-numeric: tabular-nums; }
+.wd-confirm-row { display: flex; justify-content: space-between; gap: var(--s-3); font-size: var(--t-sm); padding: 6px 0; border-bottom: 1px solid var(--border); }
+.wd-confirm-row span:first-child { color: var(--muted); }
+.wd-confirm-label { margin-top: var(--s-3); font-size: var(--t-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.wd-confirm-address { display: block; margin-top: 6px; }
+.wd-confirm-warn { margin: var(--s-3) 0 0; padding: var(--s-2) var(--s-3); border-radius: var(--r-sm); background: rgba(224, 96, 90, 0.1); color: #f0a29e; font-size: var(--t-xs); line-height: 1.45; }
+
+/* ---- Профіль: оновлений вигляд ----
+   Компактний заголовок сторінки, баланс із кнопками прямо в картці профілю,
+   однакові іконки у вкладках, головна сума крупно у вкладці «Баланс». */
+.hero-compact { padding: var(--s-5) var(--s-4) var(--s-3); }
+.hero-compact h1 { margin: 0; font-size: var(--t-2xl); }
+
+.profile-head { flex-wrap: wrap; gap: var(--s-4); }
+.profile-avatar { width: 76px; height: 76px; border: 2px solid var(--gold); box-shadow: 0 0 0 4px rgba(215, 168, 78, 0.12); }
+.profile-head h2 { font-size: var(--t-xl); }
+.profile-head-balance {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, rgba(215, 168, 78, 0.14), rgba(215, 168, 78, 0.03));
+}
+.phb-label { font-size: var(--t-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.phb-amount { font-size: 30px; font-weight: 800; line-height: 1.1; color: var(--gold); font-variant-numeric: tabular-nums; }
+.phb-extra { font-size: var(--t-xs); color: var(--muted); min-height: 1.2em; }
+.phb-actions { display: flex; gap: var(--s-2); margin-top: var(--s-2); }
+.phb-btn { padding: 8px 18px; font-size: var(--t-sm); }
+
+.profile-tab { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; flex-shrink: 0; }
+.profile-tabs { overflow-x: auto; scrollbar-width: none; }
+.profile-tabs::-webkit-scrollbar { display: none; }
+.tab-icon { flex-shrink: 0; opacity: 0.75; }
+.profile-tab.active .tab-icon,
+.profile-tab:hover .tab-icon { opacity: 1; }
+
+.balance-hero { display: grid; grid-template-columns: 1.3fr 1fr; gap: var(--s-3); margin-bottom: var(--s-4); }
+.bh-main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--s-5);
+  border: 1px solid var(--gold-line);
+  border-radius: var(--r-md);
+  background: radial-gradient(circle at 15% 0%, rgba(215, 168, 78, 0.2), transparent 60%), var(--panel-2);
+}
+.bh-label { font-size: var(--t-sm); color: var(--muted); }
+.bh-amount { font-size: 46px; font-weight: 900; line-height: 1.05; color: var(--gold); font-variant-numeric: tabular-nums; }
+.bh-rate { font-size: var(--t-xs); color: var(--muted); }
+.bh-side { display: grid; gap: var(--s-3); }
+.bh-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+}
+.bh-tile-label { font-size: var(--t-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.bh-tile-value { font-size: 22px; font-weight: 800; color: var(--text); font-variant-numeric: tabular-nums; }
+.bh-tile-hint { font-size: var(--t-xs); color: var(--muted); }
+
+.profile-panel {
+  padding: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: rgba(19, 21, 25, 0.6);
+}
+.profile-panel:empty { display: none; }
+.panel-title { margin: 0 0 4px; font-size: var(--t-lg); }
+.profile-pane .trade-url-section {
+  padding: var(--s-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+}
+
+@media (max-width: 760px) {
+  /* Аватар і ім'я в рядок, баланс — окремим рядком на всю ширину. */
+  .profile-head { flex-direction: row; align-items: center; }
+  .profile-avatar { width: 60px; height: 60px; }
+  .profile-head > div:not(.profile-head-balance) { min-width: 0; flex: 1; }
+  .profile-head-balance { margin-left: 0; align-items: flex-start; flex-basis: 100%; }
+  .topup-networks { display: flex; width: 100%; }
+  .topup-networks .delivery-btn { flex: 1; justify-content: center; padding: 9px 6px; font-size: var(--t-xs); white-space: nowrap; }
+  .phb-actions { width: 100%; }
+  .phb-btn { flex: 1; justify-content: center; }
+  .balance-hero { grid-template-columns: 1fr; }
+  .bh-side { grid-template-columns: 1fr 1fr; }
+  .bh-amount { font-size: 38px; }
+  .bh-main, .profile-panel, .profile-pane .trade-url-section { padding: var(--s-4); }
+}
+
+.wd-min-note { display: inline-block; margin: 0 0 var(--s-2); padding: 4px 12px; border-radius: 999px; background: var(--gold-soft); color: var(--gold); font-size: var(--t-xs); font-weight: 700; }

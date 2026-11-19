@@ -13,7 +13,6 @@
   <header class="site-header">
     <a class="site-brand" href="/ru">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
-      <a href="/ru/my-skins"><span class="nav-icon">📦</span> Наши скины</a>
       <a href="/ru/buy" class="active"><span class="nav-icon">🛒</span> Купить скины</a>
       <a href="/ru/account"><span class="nav-icon">💰</span> Продать скины</a>
       <a href="/ru/trade"><span class="nav-icon">🔄</span> Обмен</a>
@@ -35,8 +34,8 @@
     <h1>Купить <span class="accent">скины</span></h1>
   </section>
 
-  <!-- Каталог: весь прайс Youpin з нашою націнкою. Складу ми не тримаємо,
-       тому тут один рядок на предмет, а не окремі лоти з float. -->
+  <!-- Каталог: Instant — в наявності, P2P — від продавців.
+       Клік по картці — сторінка предмета з float (market-item.js). -->
   <section class="catalog">
     <div class="catalog-toolbar">
       <input id="catalogSearch" class="inventory-search" type="search" placeholder="Поиск по названию..." />
@@ -44,9 +43,11 @@
         <option value="price_desc">Сначала дорогие</option>
         <option value="price_asc">Сначала дешёвые</option>
       </select>
-      <button id="cartOpenBtn" class="btn-gold catalog-cart-btn" type="button">
-        &#128722; Корзина <span id="cartCount">0</span> &middot; <span id="cartTotalTop">$0.00</span>
-      </button>
+      <div class="delivery-switch" role="group">
+        <button class="delivery-btn" type="button" data-delivery="">Все</button>
+        <button class="delivery-btn" type="button" data-delivery="instant" title="Instant — в наличии, трейд приходит за несколько минут"><span class="delivery-dot instant"></span>Instant</button>
+        <button class="delivery-btn" type="button" data-delivery="p2p" title="P2P — отдаёт продавец, трейд до 12 часов"><span class="delivery-dot p2p"></span>P2P</button>
+      </div>
     </div>
 
     <div class="catalog-tabs">
@@ -99,6 +100,10 @@
       </aside>
 
       <div class="catalog-main">
+        <div id="ownSection" class="own-section" style="display:none;">
+          <div class="own-section-head"><h3>Наши скины</h3><p class="card-hint">Лежат у нас на аккаунте — трейд отправляем сами (P2P). Под трейдлоком — отдадим, как только он закончится.</p></div>
+          <div id="ownGrid" class="inventory-grid"></div>
+        </div>
         <p id="catalogStatus" class="card-hint">Загружаю каталог...</p>
         <div id="catalogGrid" class="inventory-grid"></div>
         <div id="catalogPager" class="catalog-pager" style="display:none;">
@@ -110,37 +115,20 @@
     </div>
   </section>
 
-  <div id="cartModal" class="modal-overlay" style="display:none;">
-    <div class="modal-panel">
-      <div class="modal-header">
-        <h3>Корзина</h3>
-        <button id="cartModalClose" class="modal-close" type="button">&#10005;</button>
-      </div>
-      <p id="cartEmptyLine" class="card-hint">Корзина пуста — выбери скины из списка</p>
-      <div id="cartList" class="cart-list"></div>
-      <div class="cart-total-row">
-        <span>Итого</span>
-        <span id="cartTotal" class="cart-total">$0.00</span>
-      </div>
-      <div class="cart-actions">
-        <a id="cartTelegramLink" class="btn-gold" href="https://t.me/gabenmarket_support" target="_blank">Написать в Telegram для оплаты</a>
-        <button id="cartClearBtn" class="btn-clear" type="button">Очистить</button>
-      </div>
-    </div>
-  </div>
-
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="site-footer-col">
         <h4>Связь</h4>
-        <p>Пиши напрямую в Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Отвечаю лично.</p>
-        <p>Отзывы и гаранты — в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+        <p>Поддержка в Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Отвечаю лично.</p>
+        <p>Отзывы о наших сделках — в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
       </div>
       <div class="site-footer-col">
         <h4>Разделы</h4>
-        <p>
-          <a href="/ru/buy">Купить скины</a> · <a href="/ru/account">Продать скины</a> · <a href="/ru/sell">Проверить цену</a>
-        </p>
+        <p><a href="/ru/buy">Купить скины</a> · <a href="/ru/account">Продать скины</a> · <a href="/ru/trade">Обмен</a> · <a href="/ru/sell">Проверить цену</a> · <a href="/ru/profile">Профиль</a></p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Оплата</h4>
+        <p>Пополнение и выплаты — USDT (ERC-20, TRC-20) и USDC (ERC-20).</p>
       </div>
     </div>
     <p class="site-footer-legal">
@@ -163,7 +151,13 @@
       "cartEmpty": "Корзина пуста — выбери скины из списка",
       "msgIntro": "Привет! Хочу купить:",
       "selectAll": "Выбрать все",
-      "msgTotal": "Итого:"
+      "msgTotal": "Итого:",
+      "offers": "{n} лотов",
+      "from": "от",
+      "busy": "Слишком много запросов — попробуй через минуту",
+      "lockedDays": "{n} дн. трейдлок",
+      "showAll": "Показать все ({n})",
+      "itemUrl": "/ru/buy/item"
 };
   </script>
   <script src="/currency.js"></script>

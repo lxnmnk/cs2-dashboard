@@ -1,47 +1,95 @@
-// Каталог "Купити скіни": весь прайс Youpin з нашою націнкою, вкладками по
-// категоріях, пошуком і фільтрами.
+// Каталог "Купити скіни" (/api/public/market).
 //
-// Складу ми не тримаємо — купуємо під замовлення, тому тут один рядок на
-// предмет, а не окремі лоти з конкретним float: такі дані дає лише платний
-// доступ до сирих листингів, у нас його немає, і вигадувати числа не можна.
+// Один рядок на предмет (стек) з ціною "від" і кількістю лотів. Перемикач
+// Instant / P2P звужує до лотів у наявності (трейд за хвилини) або від
+// продавців (до 12 год). Клік по картці відкриває сторінку предмета, де вже
+// конкретні лоти з float і кнопкою "Купити" (market-item.js).
 //
-// Фільтри й сторінки рахує сервер (/api/public/catalog): предметів сорок
-// тисяч, у браузер їх не віддати.
+// Фільтри й сторінки рахує сервер: предметів десятки тисяч.
 const C = window.CATALOG_CONFIG;
-const TELEGRAM = "https://t.me/gabenmarket_support";
 
 const grid = document.getElementById("catalogGrid");
 const statusEl = document.getElementById("catalogStatus");
 const pager = document.getElementById("catalogPager");
 const pageLabel = document.getElementById("catalogPageLabel");
 
-const state = { q: "", category: "", sort: "price_desc", min: "", max: "", wear: new Set(), special: "", page: 1, weapons: new Set() };
+const state = {
+  q: "",
+  category: "",
+  sort: "price_desc",
+  min: "",
+  max: "",
+  wear: new Set(),
+  special: "",
+  page: 1,
+  weapons: new Set(),
+  delivery: "",
+};
+
+// Обраний тип доставки переживає перехід на сторінку предмета і назад.
+// ?delivery=p2p у посиланні (стара /my-skins веде сюди) важливіший.
+try {
+  const fromUrl = new URLSearchParams(location.search).get("delivery");
+  const saved = fromUrl ?? localStorage.getItem("buyDelivery");
+  if (saved === "instant" || saved === "p2p") state.delivery = saved;
+} catch {
+  // приватний режим — просто не запам'ятаємо
+}
+
+const ownSection = document.getElementById("ownSection");
+const ownGrid = document.getElementById("ownGrid");
+
+// Наші власні скіни: окремим рядом над лотами майданчика. Трейд шлемо самі,
+// тому це P2P; під трейдлоком — з датою, коли віддамо.
+// Без фільтрів наших предметів понад сотню — увесь ряд закрив би ринок.
+// Показуємо перші OWN_PREVIEW, решту — по кнопці.
+const OWN_PREVIEW = 12;
+let ownExpanded = false;
+
+function renderOwn(own) {
+  if (!ownSection) return;
+  const list = own || [];
+  ownSection.style.display = list.length ? "block" : "none";
+  const shown = ownExpanded ? list : list.slice(0, OWN_PREVIEW);
+  ownGrid.innerHTML =
+    shown.map(ownCardHtml).join("") +
+    (list.length > shown.length
+      ? `<button id="ownShowAll" class="btn-outline own-show-all" type="button">${esc(C.showAll.replace("{n}", list.length))}</button>`
+      : "");
+  document.getElementById("ownShowAll")?.addEventListener("click", () => {
+    ownExpanded = true;
+    renderOwn(list);
+  });
+}
+
+function ownCardHtml(it) {
+  const [weapon, skin] = String(it.name).replace(/^★ /, "").split(" | ");
+  const tags = [
+    it.wear ? `<span class="wear-code wear-${esc(it.wear)}">${esc(it.wear)}</span>` : "",
+    it.phase ? `<span class="item-phase">${esc(it.phase)}</span>` : "",
+    it.stattrak ? '<span class="tag-stattrak">ST</span>' : "",
+    it.souvenir ? '<span class="tag-souvenir">SV</span>' : "",
+  ].filter(Boolean);
+  const days = it.locked ? Math.max(1, Math.ceil((new Date(it.unlockAt) - Date.now()) / 86400000)) : 0;
+  return `
+    <a class="inventory-card selectable market-card" href="${esc(`${C.itemUrl}?own=${encodeURIComponent(it.ownId)}`)}">
+      ${tags.length ? `<div class="inventory-card-top">${tags.join('<span class="dot">·</span>')}</div>` : ""}
+      ${it.icon ? `<img class="inventory-card-img" src="${esc(it.icon)}" alt="" loading="lazy" />` : ""}
+      <div class="inventory-card-name">
+        ${skin ? `<span class="item-weapon">${esc(weapon)}</span><span class="item-skin">${esc(skin)}</span>` : `<span class="item-skin">${esc(weapon)}</span>`}
+      </div>
+      <div class="market-card-meta">
+        <span class="delivery-tag p2p"><span class="delivery-dot p2p"></span>P2P</span>
+        ${it.float != null ? `<span class="market-card-float">${Number(it.float).toFixed(4)}</span>` : ""}
+      </div>
+      ${days ? `<span class="card-lock">🔒 ${esc(C.lockedDays.replace("{n}", days))}</span>` : ""}
+      <span class="inventory-card-price">${money(it.price)}</span>
+    </a>`;
+}
 
 // Списки зброї приходять із першою відповіддю каталогу: вкладка "Ножі"
 // розкривається переліком ножів, і там можна обрати конкретні.
 let weaponsByCategory = null;
-
-// Кошик переживає перезавантаження: людина може піти порівняти ціни й
-// повернутись, і втрачати вибране на цьому не повинна.
-const CART_KEY = "buyCart";
-let cart = loadCart();
-
-function loadCart() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
-    return Array.isArray(saved) ? saved : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveCart() {
-  try {
-    localStorage.setItem(CART_KEY, JSON.stringify(cart));
-  } catch {
-    // приватний режим — просто не запам'ятаємо
-  }
-}
 
 // Валюту обирає людина (currency.js): усередині все лишається в доларах,
 // змінюється тільки те, як число показано.
@@ -50,7 +98,7 @@ function money(n) {
 }
 
 function esc(s) {
-  return (s || "").replace(
+  return String(s ?? "").replace(
     /[&<>"']/g,
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
@@ -75,13 +123,11 @@ function toUsd(value) {
   });
 })();
 
-const WEAR_CODES = {
-  "Factory New": "FN",
-  "Minimal Wear": "MW",
-  "Field-Tested": "FT",
-  "Well-Worn": "WW",
-  "Battle-Scarred": "BS",
-};
+function itemUrl(it) {
+  const p = new URLSearchParams({ id: it.stackId });
+  if (state.delivery) p.set("delivery", state.delivery);
+  return `${C.itemUrl}?${p}`;
+}
 
 // ---- Каталог ----
 let loadSeq = 0;
@@ -105,17 +151,17 @@ async function loadCatalog() {
   const params = new URLSearchParams({ page: state.page, sort: state.sort });
   if (state.q) params.set("q", state.q);
   if (state.category) params.set("category", state.category);
-  // Сервер рахує в доларах, а людина вводить у своїй валюті — переводимо тут,
-  // інакше "до 2000" у гривні означало б дві тисячі доларів.
+  // Сервер рахує в доларах, а людина вводить у своїй валюті — переводимо тут.
   if (state.min) params.set("min", toUsd(state.min));
   if (state.max) params.set("max", toUsd(state.max));
   if (state.wear.size) params.set("wear", [...state.wear].join(","));
   if (state.weapons.size) params.set("weapon", [...state.weapons].join(","));
   if (state.special) params.set("special", state.special);
+  if (state.delivery) params.set("delivery", state.delivery);
 
   let data;
   try {
-    data = await (await fetch(`/api/public/catalog?${params}`)).json();
+    data = await (await fetch(`/api/public/market?${params}`)).json();
   } catch {
     data = { ok: false };
   }
@@ -127,114 +173,80 @@ async function loadCatalog() {
     buildCategoryMenus();
   }
 
-  if (!data.ok || !data.items.length) {
+  renderOwn(data.ok && state.page === 1 ? data.own : []);
+
+  if (!data.ok) {
     grid.innerHTML = "";
     pager.style.display = "none";
-    statusEl.textContent = C.nothing;
+    statusEl.textContent = data.error === "BUSY" ? C.busy : C.nothing;
     return;
   }
 
-  statusEl.style.display = "none";
+  // Сервер прибирає лоти з цінником без ринку вже після того, як сторінку
+  // нарізано, тож сторінка може вийти неповною або навіть порожньою, а далі
+  // ще є товар. Тому гортання лишаємо, а загальну кількість не пишемо — вона
+  // рахує й приховані лоти.
+  statusEl.style.display = data.items.length ? "none" : "block";
+  if (!data.items.length) statusEl.textContent = C.nothing;
   grid.innerHTML = data.items.map(cardHtml).join("");
-  grid.querySelectorAll("[data-name]").forEach((card) => {
-    card.addEventListener("click", () => toggleItem(card.dataset.name, data.items));
-  });
 
   pager.style.display = data.pages > 1 ? "flex" : "none";
-  pageLabel.textContent = `${C.page.replace("{n}", data.page).replace("{all}", data.pages)} · ${C.found.replace(
-    "{n}",
-    data.total
-  )}`;
+  pageLabel.textContent = C.page.replace("{n}", data.page).replace("{all}", data.pages);
   document.getElementById("catalogPrev").disabled = data.page <= 1;
   document.getElementById("catalogNext").disabled = data.page >= data.pages;
 }
 
+function floatRange(it) {
+  if (it.minFloat == null) return "";
+  const a = it.minFloat.toFixed(3);
+  const b = (it.maxFloat ?? it.minFloat).toFixed(3);
+  return a === b ? a : `${a}–${b}`;
+}
+
 function cardHtml(it) {
-  const picked = cart.some((c) => c.marketHashName === it.marketHashName);
-  const code = WEAR_CODES[it.wear] || "";
-  const [weapon, skin] = String(it.name).split(" | ");
-  const img = it.icon ? `<img class="inventory-card-img" src="${esc(it.icon)}" alt="" />` : "";
+  const [weapon, skin] = String(it.name).replace(/^★ /, "").split(" | ");
+  const img = it.icon ? `<img class="inventory-card-img" src="${esc(it.icon)}" alt="" loading="lazy" />` : "";
+  const tags = [
+    it.wear ? `<span class="wear-code wear-${esc(it.wear)}">${esc(it.wear)}</span>` : "",
+    it.phase ? `<span class="item-phase">${esc(it.phase)}</span>` : "",
+    it.stattrak ? '<span class="tag-stattrak">ST</span>' : "",
+    it.souvenir ? '<span class="tag-souvenir">SV</span>' : "",
+  ].filter(Boolean);
+  const range = floatRange(it);
 
   return `
-    <div class="inventory-card selectable${picked ? " selected" : ""}" data-name="${esc(it.marketHashName)}" role="button" tabindex="0">
-      ${picked ? '<span class="inventory-card-check">✓</span>' : ""}
-      ${
-        code || it.phase
-          ? `<div class="inventory-card-top">${code ? `<span class="wear-code wear-${code}">${code}</span>` : ""}${
-              code && it.phase ? '<span class="dot">·</span>' : ""
-            }${it.phase ? `<span class="item-phase">${esc(it.phase)}</span>` : ""}</div>`
-          : ""
-      }
+    <a class="inventory-card selectable market-card" href="${esc(itemUrl(it))}">
+      ${tags.length ? `<div class="inventory-card-top">${tags.join('<span class="dot">·</span>')}</div>` : ""}
       ${img}
       <div class="inventory-card-name">
         ${skin ? `<span class="item-weapon">${esc(weapon)}</span><span class="item-skin">${esc(skin)}</span>` : `<span class="item-skin">${esc(weapon)}</span>`}
       </div>
-      <span class="inventory-card-price">${money(it.price)}</span>
-    </div>`;
+      <div class="market-card-meta">
+        <span>${esc(C.offers.replace("{n}", it.count))}</span>
+        ${range ? `<span class="market-card-float">${esc(range)}</span>` : ""}
+      </div>
+      <span class="inventory-card-price">${esc(C.from)} ${money(it.price)}</span>
+    </a>`;
 }
 
-function toggleItem(marketHashName, items) {
-  const at = cart.findIndex((c) => c.marketHashName === marketHashName);
-  if (at >= 0) cart.splice(at, 1);
-  else {
-    const it = items.find((i) => i.marketHashName === marketHashName);
-    if (it) cart.push({ marketHashName: it.marketHashName, name: it.name, wear: it.wear, price: it.price, icon: it.icon });
-  }
-  saveCart();
-  renderCart();
-  loadCatalog();
-}
-
-// ---- Кошик ----
-// Оплати на сайті поки немає: кнопка збирає готове повідомлення в Telegram зі
-// списком і сумою, щоб людині не довелось переписувати назви руками.
-function renderCart() {
-  const list = document.getElementById("cartList");
-  const total = cart.reduce((sum, it) => sum + it.price, 0);
-
-  document.getElementById("cartCount").textContent = String(cart.length);
-  document.getElementById("cartTotalTop").textContent = money(total);
-  document.getElementById("cartTotal").textContent = money(total);
-  document.getElementById("cartEmptyLine").style.display = cart.length ? "none" : "block";
-
-  list.innerHTML = cart
-    .map(
-      (it) => `
-        <div class="cart-item">
-          ${it.icon ? `<img class="cart-item-img" src="${esc(it.icon)}" alt="" />` : ""}
-          <span class="cart-item-name">${esc(it.name)}<br /><span class="na">${esc(it.wear || "")}</span></span>
-          <span class="cart-item-price">${money(it.price)}</span>
-          <button class="cart-item-remove" type="button" data-remove="${esc(it.marketHashName)}">✕</button>
-        </div>`
-    )
-    .join("");
-
-  list.querySelectorAll("[data-remove]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      cart = cart.filter((c) => c.marketHashName !== btn.dataset.remove);
-      saveCart();
-      renderCart();
-      loadCatalog();
-    });
+// ---- Перемикач Instant / P2P ----
+function markDelivery() {
+  document.querySelectorAll("[data-delivery]").forEach((b) => {
+    b.classList.toggle("active", (b.dataset.delivery || "") === state.delivery);
   });
-
-  const lines = [C.msgIntro, "", ...cart.map((it) => `• ${it.marketHashName} — ${money(it.price)}`), "", `${C.msgTotal} ${money(total)}`];
-  const link = document.getElementById("cartTelegramLink");
-  link.href = cart.length ? `${TELEGRAM}?text=${encodeURIComponent(lines.join("\n"))}` : TELEGRAM;
-  link.classList.toggle("disabled", !cart.length);
 }
-
-document.getElementById("cartOpenBtn").addEventListener("click", () => {
-  document.getElementById("cartModal").style.display = "flex";
-});
-document.getElementById("cartModalClose").addEventListener("click", () => {
-  document.getElementById("cartModal").style.display = "none";
-});
-document.getElementById("cartClearBtn").addEventListener("click", () => {
-  cart = [];
-  saveCart();
-  renderCart();
-  loadCatalog();
+document.querySelectorAll("[data-delivery]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    state.delivery = btn.dataset.delivery || "";
+    try {
+      localStorage.setItem("buyDelivery", state.delivery);
+    } catch {
+      // не запам'ятаємо — не страшно
+    }
+    state.page = 1;
+    markDelivery();
+    loadCatalog();
+  });
 });
 
 // ---- Фільтри ----
@@ -245,7 +257,7 @@ document.getElementById("catalogSearch").addEventListener("input", (e) => {
     state.q = e.target.value.trim();
     state.page = 1;
     loadCatalog();
-  }, 250);
+  }, 350);
 });
 
 document.getElementById("catalogSort").addEventListener("change", (e) => {
@@ -255,8 +267,6 @@ document.getElementById("catalogSort").addEventListener("change", (e) => {
 });
 
 // ---- Вкладки категорій і випадайки зі зброєю ----
-// Клік по вкладці перемикає категорію; якщо всередині є конкретна зброя —
-// під вкладкою розкривається список, де можна лишити тільки потрібне.
 function buildCategoryMenus() {
   document.querySelectorAll(".catalog-tab").forEach((tab) => {
     const category = tab.dataset.category;
@@ -275,9 +285,8 @@ function buildCategoryMenus() {
     menu.addEventListener("change", (e) => {
       const box = e.target;
       if (box.dataset.all) {
-        menu.querySelectorAll('input[value]').forEach((b) => (b.checked = box.checked));
+        menu.querySelectorAll("input[value]").forEach((b) => (b.checked = box.checked));
       }
-      // Вибрана зброя має сенс лише разом зі своєю категорією.
       state.category = category;
       state.weapons = new Set([...menu.querySelectorAll("input[value]:checked")].map((b) => b.value));
       state.page = 1;
@@ -304,7 +313,6 @@ document.querySelectorAll(".catalog-tab").forEach((tab) => {
     const switching = state.category !== (tab.dataset.category || "");
     markActiveTab(tab);
     state.category = tab.dataset.category || "";
-    // Переходиш в іншу категорію — вибрана зброя попередньої більше не діє.
     if (switching) {
       state.weapons.clear();
       document.querySelectorAll(".catalog-menu input").forEach((b) => (b.checked = false));
@@ -331,7 +339,7 @@ for (const id of ["catalogMin", "catalogMax"]) {
     state[id === "catalogMin" ? "min" : "max"] = e.target.value;
     state.page = 1;
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(loadCatalog, 350);
+    searchTimer = setTimeout(loadCatalog, 450);
   });
 }
 
@@ -381,5 +389,5 @@ document.getElementById("catalogNext").addEventListener("click", () => {
   window.scrollTo({ top: grid.offsetTop - 80, behavior: "smooth" });
 });
 
-renderCart();
+markDelivery();
 loadCatalog();

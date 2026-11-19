@@ -37,6 +37,11 @@ const { fetchInventory } = require("./steamInventory");
 const skinbuxInventory = require("./skinbuxInventory");
 const skinbuxTx = require("./skinbuxTransactions");
 const skinbuxSales = require("./skinbuxSales");
+const skinbuxMarket = require("./skinbuxMarket");
+const skinbuxPurchases = require("./skinbuxPurchases");
+const cryptoTopups = require("./cryptoTopups");
+const ownSkins = require("./ownSkins");
+const cryptoPayouts = require("./cryptoPayouts");
 const csfloatPurchases = require("./csfloatPurchases");
 const skinbuxSalesImport = require("./skinbuxSalesImport");
 const tradeFloats = require("./tradeFloats");
@@ -190,7 +195,6 @@ const INDEXABLE_PAGES = [
   { uk: "/sell", ru: "/ru/sell", en: "/en/sell" },
   { uk: "/buy", ru: "/ru/buy", en: "/en/buy" },
   { uk: "/trade", ru: "/ru/trade", en: "/en/trade" },
-  { uk: "/my-skins", ru: "/ru/my-skins", en: "/en/my-skins" },
 ];
 const INDEXABLE_BY_PATH = new Map();
 for (const group of INDEXABLE_PAGES) {
@@ -370,6 +374,25 @@ const PUBLIC_PATHS = new Set([
   "/api/public/buy-quote",
   "/api/public/catalog",
   "/catalog.js",
+  // Вітрина лотів Skinbux і сторінка предмета з float (skinbuxMarket.js).
+  "/api/public/market",
+  "/api/public/market/stack",
+  "/api/public/market/own",
+  "/market-item.js",
+  "/market-item.html",
+  "/market-item-ru.html",
+  "/market-item-en.html",
+  "/buy/item",
+  "/ru/buy/item",
+  "/en/buy/item",
+  "/api/account/market/buy",
+  "/api/account/market/purchases",
+  // Вкладки профілю "Покупки" і "Поповнити" (wallet.js, cryptoTopups.js).
+  "/api/account/topup",
+  "/api/account/withdraw",
+  "/wallet.js",
+  // QR-код адреси поповнення (бібліотека qrcode-generator, MIT, локальна копія).
+  "/qrcode.js",
   "/api/public/rate",
   "/api/public/campaign",
   // Банер акції (Black Friday) — на головній і в кабінеті.
@@ -556,14 +579,13 @@ const CLEAN_PUBLIC_ROUTES = {
   "/ru/buy": "buy-quote-ru.html",
   "/en/sell": "sell-quote-en.html",
   "/en/buy": "buy-quote-en.html",
+  // Сторінка предмета з вітрини: усі лоти Skinbux із float і ціною.
+  "/buy/item": "market-item.html",
+  "/ru/buy/item": "market-item-ru.html",
+  "/en/buy/item": "market-item-en.html",
   "/trade": "swap.html",
   "/ru/trade": "swap-ru.html",
   "/en/trade": "swap-en.html",
-  // Вітрина "Наші скіни" повернулась: у каталозі на /buy весь прайс під
-  // замовлення, а тут те, що лежить на руках і їде сьогодні.
-  "/my-skins": "my-skins.html",
-  "/ru/my-skins": "my-skins-ru.html",
-  "/en/my-skins": "my-skins-en.html",
 };
 for (const [route, file] of Object.entries(CLEAN_PUBLIC_ROUTES)) {
   app.get(route, (req, res) => res.sendFile(path.join(__dirname, "public", file)));
@@ -577,13 +599,18 @@ const OLD_PUBLIC_REDIRECTS = {
   "/trade-en.html": "/",
   "/sell-quote.html": "/sell",
   "/buy-quote.html": "/buy",
-  "/my-skins.html": "/my-skins",
   "/sell-quote-ru.html": "/ru/sell",
   "/buy-quote-ru.html": "/ru/buy",
-  "/my-skins-ru.html": "/ru/my-skins",
   "/sell-quote-en.html": "/en/sell",
   "/buy-quote-en.html": "/en/buy",
-  "/my-skins-en.html": "/en/my-skins",
+  // "Наші скіни" переїхали в "Купити скіни" як P2P-лоти (ownSkins.js):
+  // старі посилання ведуть туди, одразу з фільтром P2P.
+  "/my-skins": "/buy?delivery=p2p",
+  "/ru/my-skins": "/ru/buy?delivery=p2p",
+  "/en/my-skins": "/en/buy?delivery=p2p",
+  "/my-skins.html": "/buy?delivery=p2p",
+  "/my-skins-ru.html": "/ru/buy?delivery=p2p",
+  "/my-skins-en.html": "/en/buy?delivery=p2p",
 };
 for (const [oldPath, newPath] of Object.entries(OLD_PUBLIC_REDIRECTS)) {
   app.get(oldPath, (req, res) => res.redirect(newPath));
@@ -615,6 +642,15 @@ app.get("/en/account", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "account-en.html"));
 });
 
+// Баланс клієнта: журнал продажів + ручні поправки + поповнення USDT
+// (cryptoTopups.js, у trade) − покупки скінів із вітрини (skinbuxPurchases.js).
+// Через цю функцію — скрізь, де баланс показуємо або з нього платимо.
+function customerBalanceOf(steamId) {
+  const withAdjustments = customerBalances.apply(skinbuxSales.computeBalance(steamId), steamId);
+  const withTopups = cryptoTopups.applyTo(withAdjustments, steamId);
+  return skinbuxPurchases.applyTo(withTopups, steamId);
+}
+
 // Разом з профілем віддаємо баланс — цей роут смикає кожна сторінка сайту
 // для шапки, тож окремий запит за балансом був би зайвим.
 app.get("/api/account/me", (req, res) => {
@@ -623,7 +659,7 @@ app.get("/api/account/me", (req, res) => {
 
   // Поправки владельца поверх расчёта по журналу: частичные выплаты, бонусы,
   // расчёты мимо сайта — см. customerBalances.js.
-  const balance = customerBalances.apply(skinbuxSales.computeBalance(customer.steamId), customer.steamId);
+  const balance = customerBalanceOf(customer.steamId);
   // Баланс клієнта — це гроші, які ми йому виплатимо: курс виплати.
   const { uahRateSell } = pricingSettings.get();
   res.json({
@@ -968,6 +1004,15 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       });
     }
 
+    // Мінімальна сума одного продажу (config.sales.minTotalUsd): дрібні угоди
+    // коштують нам стільки ж клопоту, скільки великі. Перевіряємо тут, а не
+    // лише в браузері — кошик можна обійти.
+    const minSale = Number(config.sales?.minTotalUsd ?? 10);
+    const saleTotal = items.reduce((sum, it) => sum + Number(it.price), 0);
+    if (saleTotal + 0.001 < minSale) {
+      return res.status(400).json({ ok: false, error: "MIN_SALE", min: minSale, total: Math.round(saleTotal * 100) / 100 });
+    }
+
     // Skinbux хоче price цілим числом центів рядком (приклад в докладі: "7",
     // "109"), а не доларами з крапкою — інакше повертає INVALID_PRICE.
     const skinbuxItems = items.map((it) => ({
@@ -1234,13 +1279,21 @@ function payoutBotCredentials() {
 
 async function notifyPayableSales() {
   // TARHUN і наші акаунти — не клієнти: "можно платить" по них не шлемо.
+  // Автовиплата в крипті (cryptoPayouts.js) у процесі — "можно платить" не
+  // шлемо, інакше власник заплатить удруге. Не вдалась — статус failed, і
+  // тоді повідомлення приходить як завжди.
+  const autoInFlight = (sale) => ["requesting", "unknown", "pending", "processing"].includes(sale.autoPayout?.status);
   const pending = skinbuxSales
     .payableNow()
-    .filter((sale) => !sale.notifiedPayableAt && !skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId)));
+    .filter((sale) => !sale.notifiedPayableAt && !skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId)) && !autoInFlight(sale));
   if (!pending.length) return;
 
   for (const sale of pending) {
-    const owed = skinbuxSales.amountOwed(sale);
+    // Скільки реально платити: борг за угоду, але не більше за "доступно"
+    // клієнта — частину він міг уже вивести чи витратити на скіни на сайті.
+    // Нічого не лишилось — і повідомляти нема про що.
+    const owed = Math.min(skinbuxSales.amountOwed(sale), Math.max(0, customerBalanceOf(sale.steamId).available));
+    if (owed <= 0.009) continue;
     // Курс — той, що клієнт бачив у кошику в момент продажу; старі записи без
     // нього — за сьогоднішнім курсом виплати.
     const uah = Math.round(owed * (sale.uahRate || pricingSettings.get().uahRateSell));
@@ -1278,12 +1331,33 @@ async function notifyPayableSales() {
 // "гроші вийшли з холду" приходило в Telegram без участі людини.
 const SALES_WATCH_MINUTES = 15;
 
+let payoutRunning = false;
 function scheduleSalesWatch() {
   const tick = async () => {
     try {
       await refreshOpenSaleStatuses(skinbuxSales.loadAll().filter((s) => !s.paidAt));
       // За 6 і за 2 години до виплати — нагадування в gaben.market_info.
       await gabenInfo.remindUpcomingPayouts({ uahRateSell: pricingSettings.get().uahRateSell });
+      // Спершу автовиплата в крипті (cryptoPayouts.js), потім "можно платить"
+      // для решти. Лише звідси і під замком: два одночасні проходи додали б
+      // поправку балансу двічі.
+      if (!payoutRunning) {
+        payoutRunning = true;
+        try {
+          // Під замком покупок/виводу: інакше клієнт міг би в цю ж мить
+          // витратити ті самі гроші.
+          await skinbuxPurchases.exclusive(() =>
+            cryptoPayouts.run(config, {
+              getAvailable: (steamId) => customerBalanceOf(steamId).available,
+              notify: (text) => sendOwnerMessage(text, payoutBotCredentials()),
+            })
+          );
+        } catch (err) {
+          console.error("[payout] Автовиплата:", err.message);
+        } finally {
+          payoutRunning = false;
+        }
+      }
       await notifyPayableSales();
     } catch (err) {
       console.error("[payout] Перевірка угод не вдалася:", err.message);
@@ -1924,6 +1998,265 @@ app.get("/api/public/buy-quote", async (req, res) => {
   res.json(quote);
 });
 
+// ---- Вітрина Skinbux на /buy (skinbuxMarket.js) ----
+// Картки: один рядок на предмет, ціна "від". delivery = instant | p2p | ''.
+function marketErrorStatus(err) {
+  return err.code === "BUSY" ? 503 : err.code === "BAD_STACK" ? 400 : 502;
+}
+
+// Рядок прайсу за назвою — Map замість cache.rows.find: на сторінку вітрини
+// це 60 пошуків по сорока тисячах рядків. Перебудовуємо, коли прайс оновився.
+let rowIndex = { rows: null, map: new Map() };
+function priceRow(key) {
+  if (rowIndex.rows !== cache.rows) rowIndex = { rows: cache.rows, map: new Map(cache.rows.map((r) => [r.marketHashName, r])) };
+  return rowIndex.map.get(key) || null;
+}
+
+// Продавці на Skinbux бувають з цінниками без ринку (наліпка за $148 000 при
+// реальних кількох доларах), а їхня "справедлива ціна" fmv рахується по тих
+// самих лотах і теж завищена. Тому та сама перевірка, що була в каталозі
+// Youpin (isLiquid): на предмет має бути автобай на інших площадках, і наша
+// ціна не далі від нього, ніж config.catalog.maxSpread. Немає предмета в
+// прайсі — не показуємо. Поки прайс не завантажився — PRICES_NOT_READY, як і
+// в старому каталозі: показати неперевірене гірше, ніж хвилину почекати.
+function marketPriceOk(priceKey, price) {
+  if (!cache.rows.length) return false;
+  const row = priceRow(priceKey);
+  return !!row && isLiquid(row, price);
+}
+
+// Наші власні скіни на вітрині (ownSkins.js): без заброньованих замовленнями.
+const ownSkinsCtx = () => ({ owner: MY_SKINS_OWNER, config, rows: cache.rows });
+async function ownAvailable() {
+  return ownSkins.available(ownSkinsCtx(), skinbuxPurchases.reservedOwnIds());
+}
+
+app.get("/api/public/market", async (req, res) => {
+  if (!cache.rows.length) return res.json({ ok: false, error: "PRICES_NOT_READY" });
+  // Наші скіни — окремим рядом над лотами Skinbux, лише на першій сторінці.
+  let own = [];
+  if ((parseInt(req.query.page, 10) || 1) === 1) {
+    try {
+      own = ownSkins.filter(await ownAvailable(), req.query).map(ownSkins.publicItem);
+    } catch (err) {
+      console.error("[market] Наші скіни:", err.message);
+    }
+  }
+  try {
+    const data = await skinbuxMarket.searchStacks(req.query, pricingSettings.get().buyMarkup);
+    data.items = data.items.filter((it) => marketPriceOk(it.priceKey, it.price)).map(({ priceKey, ...rest }) => rest);
+    res.json({ ok: true, ...data, own, weapons: WEAPONS });
+  } catch (err) {
+    if (err.code !== "BUSY") console.error("[market] Список:", err.message);
+    res.status(marketErrorStatus(err)).json({ ok: false, error: err.code || "FAILED" });
+  }
+});
+
+// Сторінка предмета: усі вільні лоти стека з float, паттерном і наліпками.
+app.get("/api/public/market/stack", async (req, res) => {
+  try {
+    if (!cache.rows.length) return res.json({ ok: false, error: "PRICES_NOT_READY" });
+    const data = await skinbuxMarket.stackListings(String(req.query.id || ""), pricingSettings.get().buyMarkup);
+    const key = data.item?.priceKey;
+    // Закупочну ціну клієнту не віддаємо: по ній видно і майданчик, і нашу
+    // націнку. Лоти з цінником без ринку — ховаємо (marketPriceOk).
+    const listings = data.listings.filter((l) => key && marketPriceOk(key, l.price)).map(({ skinbuxCents, ...rest }) => rest);
+    // Наші скіни того ж предмета — першими: їх шлемо самі (P2P).
+    const own = key ? (await ownAvailable().catch(() => [])).filter((it) => it.priceKey === key).map(ownSkins.asLot) : [];
+    const item = data.item ? (({ priceKey, ...rest }) => rest)(data.item) : null;
+    res.json({ ok: true, item, listings: [...own, ...listings] });
+  } catch (err) {
+    if (err.code !== "BUSY") console.error("[market] Лоти:", err.message);
+    res.status(marketErrorStatus(err)).json({ ok: false, error: err.code || "FAILED" });
+  }
+});
+
+// Сторінка нашого скіна (/buy/item?own=<id>): він сам і такі самі наші.
+app.get("/api/public/market/own", async (req, res) => {
+  try {
+    if (!cache.rows.length) return res.json({ ok: false, error: "PRICES_NOT_READY" });
+    const items = await ownAvailable();
+    const it = items.find((x) => x.ownId === String(req.query.id || ""));
+    if (!it) return res.json({ ok: true, item: null, listings: [] });
+    const p = ownSkins.publicItem(it);
+    res.json({
+      ok: true,
+      item: { marketHashName: p.marketHashName, name: p.name, wear: p.wear, phase: p.phase, stattrak: p.stattrak, souvenir: p.souvenir, icon: p.icon, nameColor: null },
+      listings: items.filter((x) => x.priceKey === it.priceKey).map(ownSkins.asLot),
+    });
+  } catch (err) {
+    console.error("[market] Наш скін:", err.message);
+    res.status(500).json({ ok: false, error: "FAILED" });
+  }
+});
+
+// Покупка лота за баланс на сайті: Skinbux сам шле клієнту трейд.
+app.post("/api/account/market/buy", async (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const tradeUrl = customers.findBySteamId(customer.steamId)?.tradeUrl || customer.tradeUrl;
+  if (!tradeUrl) return res.status(400).json({ ok: false, error: "NO_TRADE_URL" });
+  const { stackId, listingId, price } = req.body || {};
+  const notify = (text) => sendOwnerMessage(text, payoutBotCredentials());
+  try {
+    const id = String(listingId || "");
+    // "own:<id>" — наш власний скін (ownSkins.js): трейд шлемо самі.
+    const purchase = id.startsWith("own:")
+      ? await skinbuxPurchases.buyOwn({
+          steamId: customer.steamId,
+          tradeUrl,
+          ownId: id.slice(4),
+          expectedPrice: Number(price),
+          getBalance: customerBalanceOf,
+          getOwnItem: async (ownId) => (await ownAvailable()).find((x) => x.ownId === ownId) || null,
+          notify,
+        })
+      : await skinbuxPurchases.buy({
+          steamId: customer.steamId,
+          tradeUrl,
+          stackId: String(stackId || ""),
+          listingId: id,
+          expectedPrice: Number(price),
+          markup: pricingSettings.get().buyMarkup,
+          getBalance: customerBalanceOf,
+          isAllowed: (live, price) => marketPriceOk(skinbuxMarket.priceKeyOf(live), price),
+          notify,
+        });
+    res.json({ ok: true, purchase: publicPurchase(purchase), balance: customerBalanceOf(customer.steamId) });
+  } catch (err) {
+    if (!(err instanceof skinbuxPurchases.BuyError)) {
+      console.error("[market] Покупка:", err.message);
+      return res.status(502).json({ ok: false, error: "FAILED" });
+    }
+    if (["FAILED", "PENDING_CHECK", "SHOP_UNAVAILABLE"].includes(err.code)) console.error(`[market] Покупка (${err.code}):`, err.message);
+    res.status(err.code === "PENDING_CHECK" ? 202 : 400).json({
+      ok: false,
+      error: err.code,
+      price: err.price ?? null,
+      balance: err.balance ?? null,
+    });
+  }
+});
+
+function publicPurchase(p) {
+  return {
+    id: p.id,
+    name: p.name,
+    float: p.float,
+    delivery: p.delivery,
+    price: p.price,
+    status: p.status,
+    steamTradeId: p.steamTradeId || null,
+    // Наш скін: трейд шле власник; під локом — після unlockAt.
+    own: p.kind === "own",
+    locked: p.kind === "own" ? !!p.locked && new Date(p.unlockAt) > new Date() : false,
+    unlockAt: p.kind === "own" ? p.unlockAt || null : null,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt || p.createdAt,
+  };
+}
+
+// ---- Поповнення балансу в USDT (cryptoTopups.js) ----
+function publicTopup(i) {
+  return {
+    id: i.id,
+    network: i.network,
+    address: i.address,
+    amount: i.amount,
+    status: i.status,
+    credited: i.credited ?? null,
+    tx: i.tx || null,
+    createdAt: i.createdAt,
+    expiresAt: i.expiresAt,
+    creditedAt: i.creditedAt || null,
+  };
+}
+
+// ---- Вивід у крипті за кнопкою клієнта (cryptoPayouts.clientWithdraw) ----
+function publicWithdrawal(w) {
+  return { id: w.id, network: w.network, address: w.address, amount: w.amount, fee: w.fee, send: w.send, status: w.status, createdAt: w.createdAt };
+}
+
+app.get("/api/account/withdraw", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const cfg = cryptoPayouts.settings(config);
+  const last = skinbuxSales.lastPayout(customer.steamId);
+  res.json({
+    ok: true,
+    enabled: !!cfg.clientWithdraw,
+    networks: Object.entries(cryptoPayouts.PAIRS).map(([id, p]) => ({ id, label: p.label, fee: cfg.feeUsd[id] ?? 1 })),
+    minUsd: cfg.minUsd,
+    available: Math.max(0, customerBalanceOf(customer.steamId).available),
+    // Остання адреса з продажу — щоб не вписувати заново.
+    last: last?.details?.method === "crypto" && cryptoPayouts.PAIRS[last.details.network] ? last.details : null,
+    withdrawals: cryptoPayouts.listWithdrawals(customer.steamId).slice(0, 20).map(publicWithdrawal),
+  });
+});
+
+app.post("/api/account/withdraw", async (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const { network, address, amount } = req.body || {};
+  try {
+    const w = await cryptoPayouts.clientWithdraw(config, {
+      steamId: customer.steamId,
+      network: String(network || ""),
+      address: String(address || ""),
+      amount: Number(amount),
+      exclusive: skinbuxPurchases.exclusive,
+      getAvailable: (steamId) => customerBalanceOf(steamId).available,
+      notify: (text) => sendOwnerMessage(text, payoutBotCredentials()),
+    });
+    res.json({ ok: true, withdrawal: publicWithdrawal(w), balance: customerBalanceOf(customer.steamId) });
+  } catch (err) {
+    if (!(err instanceof cryptoPayouts.WithdrawError)) {
+      console.error("[withdraw]", err.message);
+      return res.status(500).json({ ok: false, error: "FAILED" });
+    }
+    if (["FAILED", "SHOP_UNAVAILABLE"].includes(err.code)) console.error(`[withdraw] ${err.code}: ${err.message}`);
+    res.status(400).json({ ok: false, error: err.code, min: err.min ?? null, available: err.available ?? null, message: err.code === "BAD_ADDRESS" ? err.message : null });
+  }
+});
+
+app.get("/api/account/topup", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const cfg = cryptoTopups.settings(config);
+  res.json({
+    ok: true,
+    networks: cryptoTopups.enabledNetworks(cfg),
+    minUsd: cfg.minUsd,
+    maxUsd: cfg.maxUsd,
+    invoices: cryptoTopups.listFor(customer.steamId).filter((i) => i.status !== "replaced").slice(0, 30).map(publicTopup),
+  });
+});
+
+app.post("/api/account/topup", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  try {
+    const inv = cryptoTopups.createInvoice(config, {
+      steamId: customer.steamId,
+      network: String((req.body || {}).network || ""),
+      amountUsd: (req.body || {}).amount,
+    });
+    res.json({ ok: true, invoice: publicTopup(inv) });
+  } catch (err) {
+    if (!(err instanceof cryptoTopups.TopupError)) {
+      console.error("[topup] Рахунок:", err.message);
+      return res.status(500).json({ ok: false, error: "FAILED" });
+    }
+    res.status(400).json({ ok: false, error: err.code, min: err.min ?? null, max: err.max ?? null });
+  }
+});
+
+app.get("/api/account/market/purchases", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  res.json({ ok: true, purchases: skinbuxPurchases.listByUser(customer.steamId).map(publicPurchase) });
+});
+
 // Вітрина розділу Trade — те, що клієнт може взяти в обмін. Список фіксований
 // (tradeCatalog.js), ціна рахується з актуального прайсу, позиції без ціни на
 // Youpin просто не показуємо, щоб не було карток без суми.
@@ -2036,7 +2369,23 @@ const MY_SKINS_OWNER = SITE_OWNER;
 
 app.get("/api/public/my-skins", async (req, res) => {
   const holdings = await trades.listPublicHoldings(MY_SKINS_OWNER, config, cache.rows);
-  res.json(holdings.map((h) => ({ ...h, searchAlt: localizedAlt(h.marketHashName) })));
+  // Лише те, що бачить покупець. Раніше сюди йшов увесь об'єкт — разом з
+  // priceBasis/youpinPrice/skinbuxPrice, тобто з назвою майданчика й
+  // закупочними цінами, а тепер ще й з id угоди в трекері.
+  res.json(
+    holdings.map((h) => ({
+      marketHashName: h.marketHashName,
+      wear: h.wear,
+      floatValue: h.floatValue,
+      price: h.price,
+      bucket: h.bucket,
+      isLocked: h.isLocked,
+      unlockAt: h.unlockAt,
+      image: h.image,
+      imageFull: h.imageFull,
+      searchAlt: localizedAlt(h.marketHashName),
+    }))
+  );
 });
 
 // Продажи клиентов через сайт — кто, что, когда и почём. Живут отдельно от
@@ -2051,6 +2400,42 @@ app.get("/api/public/my-skins", async (req, res) => {
 // должны, и пока в панели не было строки "вернул", долг копился без конца и
 // в банке выходил втрое больше настоящего.
 const CLIENT_SALES_HIDDEN_STEAM_IDS = new Set([skinbuxSales.OWNER_STEAM_ID]);
+
+// ---- Замовлення наших скінів із вітрини (My Trades → Site orders) ----
+// Клієнт заплатив балансом, предмет заброньований; трейд шле власник руками.
+// Кнопки: "Sent" — відправив, "Done" — клієнт прийняв (угода в трекері стає
+// проданою за ціною замовлення), "Cancel" — гроші клієнту назад.
+app.get("/api/own-orders", requireSiteOwner, (req, res) => {
+  res.json({
+    ok: true,
+    orders: skinbuxPurchases.listOwnOrders().map((p) => ({
+      id: p.id,
+      name: p.name,
+      float: p.float,
+      price: p.price,
+      status: p.status,
+      steamId: p.steamId,
+      customerName: customers.findBySteamId(p.steamId)?.displayName || null,
+      tradeUrl: p.tradeUrl,
+      unlockAt: p.unlockAt || null,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+    })),
+  });
+});
+
+app.post("/api/own-orders/:id/:action", requireSiteOwner, (req, res) => {
+  try {
+    const order = skinbuxPurchases.ownOrderAction(req.params.id, req.params.action, {
+      onDone: (p) =>
+        trades.sellTrade(p.tradeId, MY_SKINS_OWNER, { sellSource: "gaben.market", sellPrice: p.price, sellHoldDays: 0 }, config.sources),
+    });
+    ownSkins.invalidate();
+    res.json({ ok: true, status: order.status });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.code || err.message });
+  }
+});
 
 app.get("/api/client-sales", requireSiteOwner, async (req, res) => {
   const clientSales = () => skinbuxSales.loadAll().filter((s) => !CLIENT_SALES_HIDDEN_STEAM_IDS.has(String(s.steamId)));
@@ -2826,17 +3211,26 @@ function customerBalanceRows() {
   for (const id of customerBalances.steamIds()) {
     if (!names.has(id)) names.set(id, null);
   }
+  const purchaseTotals = skinbuxPurchases.totalsBySteamId();
+  const topupTotals = cryptoTopups.totalsBySteamId();
+  for (const id of [...Object.keys(purchaseTotals), ...Object.keys(topupTotals)]) {
+    if (!names.has(id)) names.set(id, null);
+  }
 
   return [...names.entries()]
     .map(([steamId, name]) => {
       const computed = skinbuxSales.computeBalance(steamId);
       const adjustment = customerBalances.totalsFor(steamId);
-      const balance = customerBalances.apply(computed, steamId);
+      const balance = customerBalanceOf(steamId);
       return {
         steamId,
         name,
         computed,
         adjustment,
+        // Потрачено на скины с витрины: уже вычтено из balance.
+        purchases: purchaseTotals[steamId] || 0,
+        // Поповнено USDT: уже додано в balance.trade.
+        topups: topupTotals[steamId] || 0,
         balance,
         total: round2(balance.available + balance.hold + balance.trade),
         entries: customerBalances.listFor(steamId),
@@ -2995,6 +3389,60 @@ app.listen(PORT, async () => {
   }
 
   scheduleSalesWatch();
+
+  // Покупки з вітрини: статус трейду Skinbux раз на хвилину (повернення
+  // грошей клієнту, якщо трейд не відбувся — skinbuxPurchases.js).
+  let purchaseSyncRunning = false;
+  setInterval(async () => {
+    if (purchaseSyncRunning) return;
+    purchaseSyncRunning = true;
+    try {
+      await skinbuxPurchases.sync({ notify: (text) => sendOwnerMessage(text, payoutBotCredentials()) });
+      // Виводи клієнтів за кнопкою: статус і повернення, якщо Skinbux відмовив.
+      await cryptoPayouts.syncClientWithdrawals({ notify: (text) => sendOwnerMessage(text, payoutBotCredentials()) });
+    } catch (err) {
+      console.error("[skinbux-buy] sync:", err.message);
+    } finally {
+      purchaseSyncRunning = false;
+    }
+  }, 60 * 1000);
+
+  // Поповнення USDT: нові перекази на депозитну адресу раз на хвилину.
+  // Помилки мережі (RPC/TronGrid лежить) — у лог; власнику пишемо, лише
+  // якщо не виходить годину поспіль: короткі збої публічних API — норма.
+  if (cryptoTopups.enabledNetworks(cryptoTopups.settings(config), { withPaused: true }).length) {
+    let topupRunning = false;
+    let topupFailingSince = null;
+    let topupAlerted = false;
+    setInterval(async () => {
+      if (topupRunning) return;
+      topupRunning = true;
+      try {
+        const r = await cryptoTopups.scan(config, {
+          notify: (text) => sendOwnerMessage(text, payoutBotCredentials()),
+          // Звірка: доступний баланс Skinbux і що за цей час пішло на покупки.
+          getAvailableCents: async () => Math.round((await skinbuxAccount.fetchBalance(process.env.SKINBUX_API_KEY)).available * 100),
+          spentCentsBetween: (from, to) => skinbuxPurchases.spentCentsBetween(from, to),
+        });
+        if (r.errors.length) {
+          console.error("[topup] scan:", r.errors.join(" | "));
+          topupFailingSince = topupFailingSince || Date.now();
+          if (!topupAlerted && Date.now() - topupFailingSince > 60 * 60 * 1000) {
+            topupAlerted = true;
+            sendOwnerMessage(`⚠️ Пополнения USDT: не могу прочитать сеть уже час — ${r.errors.join(" | ")}`, payoutBotCredentials()).catch(() => {});
+          }
+        } else {
+          topupFailingSince = null;
+          topupAlerted = false;
+        }
+      } catch (err) {
+        console.error("[topup] scan:", err.message);
+      } finally {
+        topupRunning = false;
+      }
+    }, 60 * 1000);
+    console.log("[topup] Включено.");
+  }
 
   // on — только новые лоты; all — и выставленные руками тоже.
   if (["on", "all"].includes(process.env.CSFLOAT_AUTOLIST)) {

@@ -22,7 +22,6 @@
   <header class="site-header">
     <a class="site-brand" href="/ua">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
-      <a href="/my-skins"><span class="nav-icon">📦</span> Наші скіни</a>
       <a href="/buy"><span class="nav-icon">🛒</span> Купити скіни</a>
       <a href="/account"><span class="nav-icon">💰</span> Продати скіни</a>
       <a href="/trade"><span class="nav-icon">🔄</span> Обмін</a>
@@ -45,8 +44,7 @@
     </div>
   </header>
 
-  <section class="hero">
-    <span class="eyebrow">CS2 SKINS TRADE</span>
+  <section class="hero hero-compact">
     <h1>Твій <span class="accent">профіль</span></h1>
   </section>
 
@@ -67,13 +65,24 @@
           <a id="profileSteamLink" href="#" target="_blank">Профіль у Steam</a>
         </p>
       </div>
+      <div class="profile-head-balance">
+        <span class="phb-label">Доступно до виплати</span>
+        <span class="phb-amount" id="headAvailable">$0.00</span>
+        <span class="phb-extra" id="headExtra" data-hold="у холді" data-trade="trade"></span>
+        <div class="phb-actions">
+          <button class="btn-gold phb-btn" type="button" data-goto="topup">Поповнити</button>
+          <button class="btn-outline phb-btn" type="button" data-goto="balance">Вивести</button>
+        </div>
+      </div>
     </div>
 
     <div class="profile-tabs">
-      <button class="profile-tab active" type="button" data-tab="info">Профіль</button>
-      <button class="profile-tab" type="button" data-tab="deals">Мої угоди</button>
-      <button class="profile-tab" type="button" data-tab="balance">Баланс</button>
-      <button class="profile-tab" type="button" data-tab="referral">🎁 Реферали</button>
+      <button class="profile-tab active" type="button" data-tab="info"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg><span>Профіль</span></button>
+      <button class="profile-tab" type="button" data-tab="deals"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h12l-3-3"/><path d="M17 17H5l3 3"/></svg><span>Мої угоди</span></button>
+      <button class="profile-tab" type="button" data-tab="balance"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18"/><path d="M16 15h2"/></svg><span>Баланс</span></button>
+      <button class="profile-tab" type="button" data-tab="purchases"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1.2 12H6.2L5 8z"/><path d="M9 8a3 3 0 0 1 6 0"/></svg><span>Покупки</span></button>
+      <button class="profile-tab" type="button" data-tab="topup"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>Поповнити</span></button>
+      <button class="profile-tab" type="button" data-tab="referral"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M3 7h18v3H3zM12 7v13"/><path d="M12 7c-1.5-3.5-5.5-3-4.5-.2M12 7c1.5-3.5 5.5-3 4.5-.2"/></svg><span>Реферали</span></button>
     </div>
 
     <div class="profile-pane" data-pane="info">
@@ -104,13 +113,28 @@
     </div>
 
     <div class="profile-pane" data-pane="balance" style="display:none;">
-      <div class="profile-stats">
-        <div class="profile-stat"><span class="profile-stat-value" id="balAvailable">$0.00</span><span class="profile-stat-label">Доступно до виплати</span></div>
-        <div class="profile-stat"><span class="profile-stat-value" id="balHold">$0.00</span><span class="profile-stat-label">У холді</span></div>
-        <div class="profile-stat"><span class="profile-stat-value" id="balTrade">$0.00</span><span class="profile-stat-label">Trade-баланс</span></div>
+      <div class="balance-hero">
+        <div class="bh-main">
+          <span class="bh-label">Доступно до виплати</span>
+          <span class="bh-amount" id="balAvailable">$0.00</span>
+          <span class="bh-rate" id="balRate"></span>
+        </div>
+        <div class="bh-side">
+          <div class="bh-tile"><span class="bh-tile-label">У холді</span><span class="bh-tile-value" id="balHold">$0.00</span><span class="bh-tile-hint">надійдуть після холду Steam</span></div>
+          <div class="bh-tile"><span class="bh-tile-label">Trade-баланс</span><span class="bh-tile-value" id="balTrade">$0.00</span><span class="bh-tile-hint">можна витратити на скіни</span></div>
+        </div>
       </div>
-      <p class="card-hint" id="balRate"></p>
-      <p class="card-hint">Виплата — у Telegram, кнопка з'явиться в угоді, коли мине холд Steam.</p>
+      <div class="profile-panel" id="withdrawRoot"></div>
+    </div>
+
+    <div class="profile-pane" data-pane="purchases" style="display:none;">
+      <p id="purchasesLoading" class="card-hint">Завантажую...</p>
+      <p id="purchasesEmpty" class="card-hint" style="display:none;">Покупок поки немає — обери скін на сторінці «<a href="/buy">Купити скіни</a>».</p>
+      <div id="purchasesList" class="deals-list"></div>
+    </div>
+
+    <div class="profile-pane" data-pane="topup" style="display:none;">
+      <div id="topupRoot"><p class="card-hint">Завантажую...</p></div>
     </div>
 
     <div class="profile-pane" data-pane="referral" style="display:none;">
@@ -122,14 +146,16 @@
     <div class="site-footer-inner">
       <div class="site-footer-col">
         <h4>Зв'язок</h4>
-        <p>Пиши напряму в Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Відповідаю особисто.</p>
-        <p>Відгуки та гаранти — у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+        <p>Підтримка в Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Відповідаю особисто.</p>
+        <p>Відгуки про наші угоди — у групі <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
       </div>
       <div class="site-footer-col">
         <h4>Розділи</h4>
-        <p>
-          <a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> · <a href="/sell">Перевірити ціну</a>
-        </p>
+        <p><a href="/buy">Купити скіни</a> · <a href="/account">Продати скіни</a> · <a href="/trade">Обмін</a> · <a href="/sell">Перевірити ціну</a> · <a href="/profile">Профіль</a></p>
+      </div>
+      <div class="site-footer-col">
+        <h4>Оплата</h4>
+        <p>Поповнення й виплати — USDT (ERC-20, TRC-20) і USDC (ERC-20). Виплата за продаж — також на картку в гривні.</p>
       </div>
     </div>
     <p class="site-footer-legal">
@@ -254,5 +280,83 @@
   <script src="/deal-card.js"></script>
   <script src="/profile.js"></script>
   <script src="/referral.js"></script>
+  <script>
+    window.WALLET_CONFIG = {
+      "stOwnPending": "Готуємо відправку",
+      "stOwnLocked": "Під трейдлоком",
+      "stOwnSent": "Трейд надіслано",
+      "hintOwnPending": "Це наш скін — надішлемо трейд протягом 12 годин.",
+      "hintOwnLocked": "Скін під трейдлоком Steam до {date} — надішлемо трейд одразу після.",
+      "hintOwnSent": "Ми надіслали трейд — прийми його в Steam.",
+      "wdConfirmTitle": "Підтверди вивід",
+      "wdConfirmNet": "Мережа",
+      "wdConfirmFee": "Комісія мережі",
+      "wdConfirmAddr": "На адресу",
+      "wdConfirmWarn": "Переказ у блокчейні не скасувати. Перевір, що адреса твоя і мережа та сама, що в гаманці.",
+      "wdConfirmOk": "Вивести {sum}",
+      "wdCancel": "Скасувати",
+      "wdMinNote": "Вивід — від {min}.",
+      "wdTitle": "Вивести в крипті",
+      "wdIntro": "Гроші надійдуть на твій гаманець автоматично — обери мережу, встав адресу й суму.",
+      "wdAddress": "Адреса гаманця",
+      "wdAmount": "Сума, $",
+      "wdAll": "Усе",
+      "wdSubmit": "Вивести",
+      "wdSending": "Надсилаю...",
+      "wdReceive": "Надійде {sum} (комісія мережі {fee}).",
+      "wdFeeNote": "Комісія мережі {fee} — віднімається із суми.",
+      "wdNeedAddress": "Вкажи адресу гаманця.",
+      "wdNoMoney": "Можна вивести до {available}.",
+      "wdMin": "Мінімум для виводу — {min}.",
+      "wdBadAddress": "Адреса не підходить для цієї мережі — перевір.",
+      "wdUnavailable": "Вивід зараз недоступний. Напиши нам у Telegram.",
+      "wdError": "Не вдалося вивести. Спробуй ще раз або напиши нам у Telegram.",
+      "wdConfirm": "Вивести {sum} у {net} на адресу\n{address}?\nПереказ у блокчейні не скасувати — перевір адресу.",
+      "wdDone": "Вивід створено — гроші надійдуть на гаманець протягом кількох хвилин.",
+      "wdPending": "В обробці",
+      "wdPaid": "Виплачено",
+      "wdFailed": "Скасовано — гроші на балансі",
+      "stWaiting": "Чекаємо трейд",
+      "stDone": "Отримано",
+      "stRefunded": "Скасовано",
+      "stFailed": "Не пройшла",
+      "stChecking": "Перевіряємо",
+      "hintWaitInstant": "Трейд прийде в Steam за кілька хвилин — прийми його.",
+      "hintWaitP2p": "Продавець надішле трейд протягом 12 годин — прийми його в Steam.",
+      "hintDone": "Скін у тебе в інвентарі.",
+      "hintRefunded": "Трейд не відбувся — {price} повернулись на твій баланс.",
+      "hintFailed": "Покупка не пройшла, гроші не списані.",
+      "hintChecking": "Перевіряємо статус трейду — якщо він не відбувся, гроші повернуться на баланс.",
+      "hintUnknown": "Майданчик відповів із затримкою — перевіряємо. Якщо покупка не пройшла, гроші повернуться на баланс.",
+      "openTrades": "Трейди Steam",
+      "loadError": "Не вдалося завантажити — онови сторінку.",
+      "unavailable": "Поповнення зараз недоступне. Напиши нам у Telegram.",
+      "intro": "Поповни баланс у USDT і купуй скіни на сайті. Гроші зараховуються на trade-баланс: їх можна витратити на скіни, але не вивести.",
+      "needTooBig": "Для покупки не вистачає {need} — це більше, ніж можна поповнити одним рахунком ({max}). Поповни частинами: кілька рахунків по черзі.",
+      "needNote": "Для покупки не вистачає {need} — суму вже підставили з урахуванням комісії мережі.",
+      "amountLabel": "Сума, $",
+      "createBtn": "Отримати адресу",
+      "minNote": "Мінімум {min}. Із суми віднімається комісія мережі при зарахуванні (~{fee}).",
+      "sendExactly": "Надішли рівно",
+      "toAddress": "На адресу {net}",
+      "copy": "Копіювати",
+      "copied": "Скопійовано",
+      "warnExact": "Сума має бути точно {amount} USDT — по ній ми впізнаємо твій переказ. Якщо біржа знімає комісію з суми, додай її зверху.",
+      "warnNetwork": "Тільки USDT і тільки в мережі {net}. Інша монета або мережа — гроші буде втрачено.",
+      "warnFee": "Із переказу віднімається комісія мережі при зарахуванні — решта прийде на trade-баланс.",
+      "warnTime": "Рахунок дійсний ще {min} хв. Зарахування — після підтверджень у мережі, зазвичай 3–10 хв.",
+      "waiting": "Чекаємо на переказ — сторінка оновиться сама.",
+      "newInvoice": "Інша сума",
+      "historyTitle": "Історія поповнень",
+      "historyEmpty": "Поповнень ще не було.",
+      "tCredited": "Зараховано {sum}",
+      "tWaiting": "Чекаємо переказ",
+      "tExpired": "Рахунок закрито",
+      "errAmount": "Сума від {min} до {max}.",
+      "errGeneric": "Не вдалося створити рахунок. Спробуй ще раз або напиши нам у Telegram."
+    };
+  </script>
+  <script src="/qrcode.js"></script>
+  <script src="/wallet.js"></script>
 </body>
 </html>

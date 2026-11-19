@@ -10,7 +10,7 @@
 //
 // Деньги одного CSFloat-аккаунта: команды принимаем только из чата владельца.
 const { applyDisplayFilters } = require("./pricingEngine");
-const { createBargainer } = require("./csfloatAutoBargain");
+const { createBargainer, ruleLabel } = require("./csfloatAutoBargain");
 const { sendMessage, escapeHtml, ownerChatId, startPolling, parseCommand } = require("./telegramBot");
 const arbBot = require("./telegramArbBot");
 
@@ -41,6 +41,10 @@ function helpText() {
     "/reserve 1000 — сколько $ всегда оставлять на балансе",
     "/ttl 30 — через сколько минут отменять барг без ответа (не меньше 30)",
     "/discount 10 — скидка, если лот её не сообщает",
+    "/rules — правила покупки (номера, проценты)",
+    "/rule 2 off | /rule 2 on — выключить / включить правило",
+    "/rule 2 8 10 — поменять проценты правила (подробно в /rules)",
+    "/rule reset — правила снова из config.json",
     "/filters — фильтры лотов",
     "/minprice 100 | off, /maxprice 1000 | off",
     "/toggle stattrak|souvenir|stickers",
@@ -56,6 +60,60 @@ function filtersText(f) {
     `Спред CSFloat/Youpin/Buff: ${f.maxCsfloatSpreadPercent ?? "—"} / ${f.maxYoupinSpreadPercent ?? "—"} / ${f.maxBuffSpreadPercent ?? "—"}`,
     `Фаза: ${escapeHtml(f.phase ?? "любая")}`,
   ].join("\n");
+}
+
+function rulesText(rules, fromBot) {
+  const lines = [`📐 <b>Правила покупки</b>${fromBot ? " (изменены в боте)" : " (из config.json)"}`, ""];
+  rules.forEach((r, i) => {
+    lines.push(`${i + 1}. ${r.disabled ? "⛔ выкл" : "✅"} ${escapeHtml(ruleLabel(r))}`);
+  });
+  lines.push(
+    "",
+    "Барг шлётся по правилу, которое даёт самую высокую цену; выключенные не участвуют. Те же правила решают, покупать ли сразу по полной цене (/buy).",
+    "",
+    "Изменить проценты: /rule N МИН [СТАРТ]",
+    "• правило «% под площадку»: МИН — ниже какого профита не торгуемся, СТАРТ — с какого профита первый барг (не меньше МИН).",
+    "  /rule 2 8 10 → начинаем с 10%, на контр-оффер торгуемся до 8%",
+    "• правило «ask −%»: МИН — самая большая скидка от ask, до которой покупаем (потолок цены), СТАРТ — с какой скидки первый барг (не меньше МИН).",
+    "  /rule 3 7 9 → первый барг ask −9%, потолок ask −7%",
+    "Без СТАРТ — первый барг сразу по потолку.",
+    "/rule N off | on, /rule reset — вернуть config.json"
+  );
+  return lines.join("\n");
+}
+
+/**
+ * Команда /rule над копией правил. Возвращает { rules } (новые правила) или
+ * { reset: true }, или { error } — текст для ответа.
+ */
+function applyRuleCommand(rules, args) {
+  const [a, b, c] = args;
+  if (a === "reset") return { reset: true };
+  const idx = parseInt(a, 10) - 1;
+  if (!(idx >= 0 && idx < rules.length)) return { error: `Нет правила ${a ?? ""}. Номера: 1–${rules.length}, см. /rules` };
+  const next = rules.map((r) => ({ ...r }));
+  const rule = next[idx];
+  if (b === "off" || b === "on") {
+    if (b === "off") rule.disabled = true;
+    else delete rule.disabled;
+    return { rules: next };
+  }
+  const min = parseFloat(b);
+  const open = c == null ? null : parseFloat(c);
+  if (!Number.isFinite(min) || min < 0 || min >= 100) return { error: "Формат: /rule N МИН [СТАРТ], проценты от 0 до 100. Подробно — /rules" };
+  if (open != null && !(Number.isFinite(open) && open >= min && open < 100)) {
+    return { error: `СТАРТ должен быть не меньше МИН (${min}) и меньше 100` };
+  }
+  if (rule.fromAsk) {
+    rule.discountPercent = min;
+    if (open != null && open !== min) rule.openDiscountPercent = open;
+    else delete rule.openDiscountPercent;
+  } else {
+    rule.minProfitPercent = min;
+    if (open != null && open !== min) rule.openProfitPercent = open;
+    else delete rule.openProfitPercent;
+  }
+  return { rules: next };
 }
 
 /**
@@ -159,6 +217,15 @@ function startTelegramBargainBot(getRows, config) {
         if (!(n > 0 && n < 100)) return reply("Формат: /discount 10");
         bargainer.setSetting("assumedMaxDiscountPercent", n);
         return reply(bargainer.statusText());
+      case "/rules":
+        return reply(rulesText(bargainer.settings().rules, bargainer.isOverridden("rules")));
+      case "/rule": {
+        const res = applyRuleCommand(bargainer.settings().rules, args);
+        if (res.error) return reply(res.error);
+        if (res.reset) bargainer.resetSetting("rules");
+        else bargainer.setSetting("rules", res.rules);
+        return reply(rulesText(bargainer.settings().rules, bargainer.isOverridden("rules")));
+      }
       case "/filters":
         return reply(filtersText(filters()));
       case "/minprice":
@@ -193,4 +260,4 @@ function startTelegramBargainBot(getRows, config) {
   };
 }
 
-module.exports = { startTelegramBargainBot };
+module.exports = { startTelegramBargainBot, applyRuleCommand, rulesText };

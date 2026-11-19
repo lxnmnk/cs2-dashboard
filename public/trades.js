@@ -204,7 +204,7 @@ function buyoutRowHtml(trade, source) {
 
   const profitClass = r.profitUsd >= 0 ? "profit-positive" : "profit-negative";
   const details = [
-    r.matchedBy === "float" ? `same float as a CSFloat listing (${r.float.toFixed(4)})` : "same item name on CSFloat",
+    r.matchedBy === "float" ? `same float as a CSFloat listing (${r.float.toFixed(4)})` : "similar item on CSFloat",
     r.floatRange === "any" ? "nobody sells one with a close float — any float of this wear" : null,
     r.csfloatPrice != null ? `CSFloat ask ${fmtMoney(r.csfloatPrice)}` : null,
     `checked ${new Date(r.checkedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
@@ -2169,6 +2169,72 @@ const SALE_STATUS_LABELS = {
   reverted: "reverted",
 };
 
+// ---- Site orders: наші скіни, куплені клієнтами з вітрини /buy ----
+// Клієнт заплатив балансом на сайті, предмет заброньований. Трейд шлю сам:
+// Sent — відправив; Done — клієнт прийняв (угода в трекері стає проданою за
+// ціною замовлення); Cancel — гроші клієнту назад, предмет знову на вітрині.
+async function loadOwnOrders() {
+  const body = document.getElementById("ownOrdersBody");
+  if (!body) return;
+  let data;
+  try {
+    data = await (await fetch("/api/own-orders")).json();
+  } catch {
+    data = { ok: false };
+  }
+  if (!data.ok) {
+    body.innerHTML = '<tr><td colspan="7" class="empty-row">Could not load orders.</td></tr>';
+    return;
+  }
+  const open = data.orders.filter((o) => ["pending", "sent"].includes(o.status));
+  const recent = data.orders.filter((o) => !["pending", "sent"].includes(o.status)).slice(0, 10);
+  const rows = [...open, ...recent];
+  document.getElementById("ownOrdersCount").textContent = open.length ? `(${open.length} open)` : "";
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="7" class="empty-row">No orders yet.</td></tr>';
+    return;
+  }
+  const label = { pending: "to send", sent: "sent", completed: "done", refunded: "cancelled" };
+  body.innerHTML = rows
+    .map((o) => {
+      const locked = o.unlockAt && new Date(o.unlockAt) > new Date();
+      const buttons = [];
+      if (o.status === "pending") buttons.push(`<button class="btn-small" data-own-action="sent" data-id="${o.id}">Sent</button>`);
+      if (["pending", "sent"].includes(o.status)) {
+        buttons.push(`<button class="btn-small" data-own-action="done" data-id="${o.id}">Done</button>`);
+        buttons.push(`<button class="btn-small btn-danger" data-own-action="cancel" data-id="${o.id}">Cancel</button>`);
+      }
+      return `<tr>
+        <td>${fmtDate(o.createdAt)}</td>
+        <td>${escapeHtml(o.name)}${o.float != null ? `<br><span class="section-hint">float ${Number(o.float).toFixed(6)}</span>` : ""}${
+        locked && ["pending"].includes(o.status) ? `<br><span class="section-hint">🔒 until ${fmtDate(o.unlockAt)}</span>` : ""
+      }</td>
+        <td>${escapeHtml(o.customerName || "")}<br><span class="section-hint">${escapeHtml(o.steamId)}</span></td>
+        <td>${fmtMoney(o.price)}</td>
+        <td>${["pending", "sent"].includes(o.status) ? `<a href="${escapeHtml(o.tradeUrl)}" target="_blank">trade link</a>` : ""}</td>
+        <td>${label[o.status] || o.status}</td>
+        <td>${buttons.join(" ")}</td>
+      </tr>`;
+    })
+    .join("");
+  body.querySelectorAll("[data-own-action]").forEach((btn) =>
+    btn.addEventListener("click", () => ownOrderAction(btn.dataset.id, btn.dataset.ownAction))
+  );
+}
+
+async function ownOrderAction(id, action) {
+  const ask = {
+    done: "Client accepted the trade? The item will be marked sold in your tracker at the order price.",
+    cancel: "Cancel the order? The money goes back to the client's balance and the skin returns to the shop.",
+  }[action];
+  if (ask && !confirm(ask)) return;
+  const res = await fetch(`/api/own-orders/${encodeURIComponent(id)}/${action}`, { method: "POST" });
+  const data = await res.json().catch(() => ({ ok: false }));
+  if (!data.ok) alert(data.error || "Failed");
+  loadOwnOrders();
+  if (action === "done") loadTrades();
+}
+
 async function loadClientSales() {
   const res = await fetch("/api/client-sales");
   const data = await res.json();
@@ -2444,6 +2510,7 @@ fetch("/api/me")
     isSiteOwner = true;
     document.getElementById("siteOwnerSections").style.display = "block";
     loadOverrides();
+    loadOwnOrders();
     loadClientSales();
     loadPricingSettings();
     loadPromoCodes();

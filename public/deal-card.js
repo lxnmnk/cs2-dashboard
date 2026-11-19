@@ -100,7 +100,7 @@
   window.renderDealCard = function renderDealCard(sale, T) {
     const date = new Date(sale.createdAt).toLocaleDateString(T.dateLocale);
 
-    // Статуси беремо як є від Skinbux: "hold" — обмін прийнято, гроші
+    // Статуси беремо як є від сервера: "hold" — обмін прийнято, гроші
     // заморожені на 7 днів; "completed" — вже розморожені й доступні до
     // виплати. Сторона клієнта в обміні (kind "trade") живе за іншими
     // правилами: гроші не виводяться, а лежать trade-балансом і витрачаються

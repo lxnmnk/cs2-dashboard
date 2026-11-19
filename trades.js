@@ -669,6 +669,9 @@ async function listPublicHoldings(owner, config, rows = []) {
       }
 
       return {
+        // id угоди в трекері — для покупки з вітрини (ownSkins.js). Назовні
+        // його не віддаємо: публічні маршрути беруть лише потрібні поля.
+        id: t.id,
         marketHashName: t.marketHashName,
         wear: t.wear,
         // Float покупателю важен не меньше цены: два одинаковых ножа с

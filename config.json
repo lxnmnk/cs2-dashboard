@@ -181,5 +181,38 @@
     "excludeStatTrak": false,
     "excludeSouvenir": true,
     "excludeStickers": true
+  },
+  "cryptoTopup": {
+    "_comment": "Пополнение баланса клиентом в USDT (cryptoTopups.js). address — депозитные адреса мерчанта Skinbux (панель → Top Up); сеть без адреса клиенту не показывается. feeUsd — сколько вычесть из перевода (газ, который Skinbux снимает при зачислении; сверяй с колонкой Gas fee в панели). Деньги идут в trade-баланс клиента. minUsd — не ниже минимума Skinbux ($25), иначе перевод может не зачислиться.",
+    "minUsd": 25,
+    "maxUsd": 5000,
+    "invoiceMinutes": 60,
+    "ercConfirmations": 12,
+    "networks": {
+      "erc20": {
+        "address": "0x7f203b06f396772258cD5e4940Cbcf847543c0EF",
+        "feeUsd": 0.05
+      },
+      "trc20": {
+        "address": "TWvBwQVdJEUG7hyJKoUvNUvjMT6v9se85c",
+        "feeUsd": 1.5
+      }
+    }
+  },
+  "cryptoPayout": {
+    "_comment": "Автовыплата клиентам в крипте через вывод с мерчант-баланса Skinbux (cryptoPayouts.js). Работает для USDT ERC-20, USDT TRC-20, USDC ERC-20 — для остального (карта, BEP-20, Solana) как раньше «можно платить» вручную. dryRun: true — ничего не выводит, только пишет в Telegram, что вывел бы; переключить в false, когда проверишь суммы. feeUsd — комиссия сети за вывод, её платит клиент (вычитается из суммы).",
+    "enabled": true,
+    "dryRun": true,
+    "clientWithdraw": true,
+    "minUsd": 15,
+    "feeUsd": {
+      "usdt-erc20": 1,
+      "usdt-trc20": 1,
+      "usdc-erc20": 1
+    }
+  },
+  "sales": {
+    "_comment": "Продажа скинов клиентом через сайт (кабинет и Обмен): меньше этой суммы за одну продажу не принимаем.",
+    "minTotalUsd": 10
   }
 }
