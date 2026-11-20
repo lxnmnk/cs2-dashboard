@@ -627,6 +627,8 @@ nav.subnav a.active { color: var(--accent); background: var(--accent-soft); bord
 /* Float — число на шесть знаков: моноширинным оно читается глазами, а кнопка
    правки не должна отрываться от него на новую строку. */
 .float-cell { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.best-sale-cell { white-space: nowrap; font-size: 12px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.best-sale-line .profit-positive, .best-sale-line .profit-negative { font-size: 11px; }
 
 /* Возвращённый долг: строку оставляем для истории, но приглушаем — долгом
    она больше не считается и в карточку не идёт. */

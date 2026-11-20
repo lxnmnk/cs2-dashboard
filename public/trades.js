@@ -247,6 +247,7 @@ document.querySelectorAll(".modal-filters input[data-market]").forEach((cb) => {
     marketFilter[cb.dataset.market] = cb.checked;
     saveMarketFilter();
     renderModalOptions();
+    renderHolding(lastTrades.filter((t) => t.status === "holding")); // колонка Best Sale Now
   });
 });
 document.querySelectorAll(".modal-filters input[data-side]").forEach((cb) => {
@@ -1510,10 +1511,31 @@ function askPriceCell(r) {
   return `${value} <button class="btn-small btn-secondary" data-action="edit-ask" data-id="${r.id}" title="Set the price for the Our Skins page">✎</button>`;
 }
 
+// Куди вигідніше продати зараз: найкращий автобай (instant, bid) і
+// найкращий маркет (лістинг, ask) — ціни вже після комісії площадки.
+// Площадки — ті, що відмічені у вікні "де продати" (marketFilter).
+function bestSaleCell(r) {
+  const opts = (r.sellOptions || []).filter((o) => marketFilter[o.source]);
+  const best = (side) =>
+    opts.filter((o) => o.side === side).reduce((a, o) => (!a || o.price > a.price ? o : a), null);
+  const line = (label, title, o) => {
+    if (!o) return `<div class="best-sale-line"><span class="na">${label}: —</span></div>`;
+    const cls = o.profitUsd >= 0 ? "profit-positive" : "profit-negative";
+    const pct = o.profitPercent != null ? ` ${o.profitPercent >= 0 ? "+" : ""}${o.profitPercent.toFixed(1)}%` : "";
+    return `<div class="best-sale-line" title="${title}">${label}: <b>${sourceLabel(o.source)}</b> ${fmtMoney(o.price)} <span class="${cls}">(${o.profitUsd >= 0 ? "+" : "−"}${fmtMoney(Math.abs(o.profitUsd))}${pct})</span></div>`;
+  };
+  const bid = best("bid");
+  const ask = best("ask");
+  return (
+    line("⚡ Autobuy", "Instant sell, guaranteed, fee deducted", bid) +
+    line("🏷 Market", "Lowest current listing, fee deducted — not guaranteed to sell", ask)
+  );
+}
+
 function renderHolding(rows) {
   const tbody = document.getElementById("holdingBody");
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="10" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
     document.getElementById("holdingSelectAll").checked = false;
     return;
   }
@@ -1540,6 +1562,7 @@ function renderHolding(rows) {
           <td>${sourceLabel(r.buySource)}</td>
           <td>${fmtMoney(r.buyPrice)}</td>
           <td>${askPriceCell(r)}</td>
+          <td class="best-sale-cell">${bestSaleCell(r)}</td>
           <td>${fmtDate(r.buyDate)} <button class="btn-small btn-secondary" data-action="edit-buy-date" data-id="${r.id}" title="Edit buy date">✎</button></td>
           <td>${lockCell} <button class="btn-small btn-secondary" data-action="edit-unlock" data-id="${r.id}" title="Set exact time from Steam">✎</button></td>
           <td><button class="btn-small btn-danger" data-action="delete" data-id="${r.id}">Delete</button></td>
