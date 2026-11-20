@@ -39,7 +39,29 @@ const DEFAULTS = {
   // Цена лота не ниже лучшего бай-ордера CSFloat под этот предмет плюс
   // столько %. 0 — ровно по бай-ордеру.
   buyOrderMarkupPercent: 0,
+  // Низкий флоат внутри своего износа (первые N% диапазона, напр. FT 0.150–0.173)
+  // стоит дороже средней цены Youpin — такие не выставляем и чужие (ручные)
+  // лоты с ними не трогаем: цену ставит человек. 0 — выключено.
+  lowFloatSkipPercent: 10,
 };
+
+// Диапазоны флоата по износу.
+const WEAR_RANGES = {
+  "Factory New": [0, 0.07],
+  "Minimal Wear": [0.07, 0.15],
+  "Field-Tested": [0.15, 0.38],
+  "Well-Worn": [0.38, 0.45],
+  "Battle-Scarred": [0.45, 1],
+};
+
+/** Флоат в первых pct% своего износа — премиальный, цену ставит человек. */
+function premiumFloat(item, pct) {
+  if (!pct || !Number.isFinite(Number(item.float))) return false;
+  const wear = /\((Factory New|Minimal Wear|Field-Tested|Well-Worn|Battle-Scarred)\)/.exec(item.name || item.rowKey || "");
+  if (!wear) return false;
+  const [lo, hi] = WEAR_RANGES[wear[1]];
+  return Number(item.float) < lo + ((hi - lo) * pct) / 100;
+}
 const CALL_GAP_MS = 1500;
 
 function settings(config) {
@@ -236,6 +258,13 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
       state.skipAssets[assetId] = { name: tracked.name, at: new Date().toISOString(), why };
       note("forget", tracked, { reason: `${why} — больше не выставляю` });
     } else {
+      // Продан — но покупку ещё могут отменить (продавец отменил продажу,
+      // покупатель не принял трейд). Тогда тот же asset_id вернётся в
+      // инвентарь, а лота мы уже не отслеживаем и увидеть "refunded" не
+      // сможем — без этой отметки бот выставлял бы его снова (так дважды
+      // продались перчатки, и отмена стоила штраф 4%). После завершённого
+      // трейда asset_id в инвентаре больше не встречается, отметка безвредна.
+      state.skipAssets[assetId] = { name: tracked.name, at: new Date().toISOString(), why: "продан — если продажу отменили, заново не выставляю" };
       note("forget", tracked, { reason: "продан" });
     }
     if (apply) delete state.listings[assetId];
@@ -253,6 +282,12 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
     let live = tracked && !tracked.gone;
     if (state.skipAssets[item.assetId]) {
       note("skip", item, { reason: state.skipAssets[item.assetId].why });
+      continue;
+    }
+    // Премиальный флоат: не выставляем, не берём под себя ручной лот и не
+    // переоцениваем свой (средняя цена Youpin его недооценивает).
+    if (premiumFloat(item, cfg.lowFloatSkipPercent)) {
+      note("skip", item, { reason: `низкий флоат ${Number(item.float).toFixed(4)} — цену ставлю не я` });
       continue;
     }
     const hand = !live && listedByHand.get(item.assetId);
@@ -325,6 +360,11 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
             };
           } catch (err) {
             actions[actions.length - 1].error = err.message;
+            // Предмет уже в трейде — значит, его купили (в т.ч. по лоту, который
+            // мы перестали отслеживать). Если продажу отменят, не выставляем.
+            if (/is being traded/i.test(err.message)) {
+              state.skipAssets[item.assetId] = { name: item.rowKey, at: new Date().toISOString(), why: "был в трейде (продан) — заново не выставляю" };
+            }
           }
           await sleep(CALL_GAP_MS);
         }
