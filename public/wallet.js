@@ -543,7 +543,8 @@ async function submitWithdraw() {
   $w("wdAmount").value = "";
   await loadWithdraw();
   $w("wdError").className = "buy-ok";
-  $w("wdError").textContent = `✅ ${W.wdDone}`;
+  // У черзі — на нашому Binance бракувало, піде після автопоповнення.
+  $w("wdError").textContent = `✅ ${data.withdrawal?.status === "waiting-funds" && W.wdQueued ? W.wdQueued : W.wdDone}`;
 }
 
 // ---- Вкладки ----

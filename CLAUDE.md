@@ -25,7 +25,7 @@ Arbitrage, Capital) + Telegram-боты. Node/Express (CommonJS), данные �
 На сервере живые данные; локальные копии старые. Не `scp`-шить и не перезаписывать:
 `trades.json`, `capital.json`, `skinbuxSales.json`, `customers.json`, `customerBalances.json`,
 `debts.json`, `promoCodes.json`, `pricingSettings.json`, `csfloatAutoListings.json`,
-`csfloatAutoBargains.json`, `skinbuxPurchases.json`, `cryptoTopups.json`, `cryptoWithdrawals.json`, `sellAdvisorState.json`, `telegramArbSubscribers.json` и прочие
+`csfloatAutoBargains.json`, `skinbuxPurchases.json`, `cryptoTopups.json`, `cryptoWithdrawals.json`, `binanceRefills.json`, `sellAdvisorState.json`, `telegramArbSubscribers.json` и прочие
 файлы состояния. `config.json` — код (настройки), его деплоить можно.
 
 ## Секреты

@@ -193,4 +193,20 @@ async function findWithdrawal(orderId, since) {
   };
 }
 
-module.exports = { NETWORKS, configured, coins, quote, cachedQuote, invalidate, withdraw, findWithdrawal, mapStatus, BinanceError };
+// ---- Адреса депозиту — куди Skinbux поповнює наш Binance ----
+// Беремо з API самого Binance, а не з конфігу: так поповнення гарантовано
+// йде на наш гаманець, а не на адресу, яку хтось вписав руками.
+const depositCache = new Map();
+
+/** Адреса депозиту монети coin ("USDT"/"USDC") у мережі network ("ETH"/"TRX"). */
+async function depositAddress(coin, network) {
+  const key = `${coin}-${network}`;
+  if (depositCache.has(key)) return depositCache.get(key);
+  const d = await signed("GET", "/sapi/v1/capital/deposit/address", { coin, network });
+  if (!d?.address) throw new BinanceError(`Binance не дал адрес депозита ${coin} ${network}`);
+  if (d.tag) throw new BinanceError(`Адрес депозита ${coin} ${network} требует memo — Skinbux его не передаёт`);
+  depositCache.set(key, d.address);
+  return d.address;
+}
+
+module.exports = { NETWORKS, configured, coins, quote, cachedQuote, invalidate, withdraw, findWithdrawal, depositAddress, mapStatus, BinanceError };

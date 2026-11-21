@@ -33,8 +33,41 @@ const skinbuxSales = require("./skinbuxSales");
 const customerBalances = require("./customerBalances");
 const payoutDetails = require("./payoutDetails");
 const binance = require("./binanceWallet");
+const refill = require("./binanceRefill");
 
 const PAIRS = binance.NETWORKS;
+
+// Нестача на Binance: увімкнене автопоповнення (binanceRefill.js) — саме
+// виводить її зі Skinbux; ні — одне повідомлення "поповни Binance".
+// Про порожній Skinbux пишемо раз на суму, а не кожен прохід.
+const lastShortNotice = new Map();
+async function coverShortfall(config, demand, notify) {
+  for (const [coin, need] of Object.entries(demand)) {
+    if (need <= 0) continue;
+    let res;
+    try {
+      res = await refill.ensure(config, coin, need, { notify });
+    } catch (err) {
+      res = { started: false, reason: "error", error: err.message };
+    }
+    if (res.started || res.inFlight || res.reason === "enough") {
+      lastShortNotice.delete(coin);
+      continue;
+    }
+    const key = `${res.reason}-${round2(need)}`;
+    if (lastShortNotice.get(coin) === key) continue;
+    lastShortNotice.set(coin, key);
+    const why =
+      res.reason === "skinbux-empty"
+        ? `автопополнение не может: на Skinbux доступно ${money(res.skinbuxAvailable)}, нужно вывести ${money(res.amount)}`
+        : res.reason === "error"
+        ? `автопополнение не сработало: ${res.error}`
+        : res.reason === "off"
+        ? "автопополнение со Skinbux выключено"
+        : "пополнение не прошло";
+    notify(`💰 Для выплат нужно ${money(need)} ${coin} на Binance — ${why}. Пополни Binance вручную, выплаты уйдут сами.`).catch(() => {});
+  }
+}
 const UNKNOWN_GIVE_UP_MS = 30 * 60 * 1000;
 
 const DEFAULTS = {
@@ -158,6 +191,8 @@ async function run(config, { getAvailable, notify = async () => {} }) {
   const ctx = { notify };
   // Залишок на Binance — свіжий на кожен прохід: власник міг щойно поповнити.
   binance.invalidate();
+  // Скільки якої монети бракує на Binance (угоди + холди + черга кнопки).
+  const demand = queuedClientDemand();
 
   // 1. Угоди, що вийшли з холду.
   for (const sale of skinbuxSales.payableNow()) {
@@ -206,14 +241,12 @@ async function run(config, { getAvailable, notify = async () => {} }) {
       continue;
     }
     if (q.free + 0.001 < pay) {
+      // Чекає грошей на Binance; нестачу по всіх угодах покриваємо разом
+      // після циклу (coverShortfall). Хоче заплатити сам — відмічає угоду
+      // виплаченою в My Trades.
       handled.add(String(sale.id));
-      waitSale(
-        sale,
-        `funds-${pair.coin}`,
-        `💰 Пополни Binance: для автовыплаты по сделке #${sale.id} нужно ${money(pay)} ${pair.coin}, свободно ${money(q.free)}.\n` +
-          `Выплачу сам, как только деньги придут. Хочешь заплатить сам — отметь сделку выплаченной в My Trades.`,
-        notify
-      );
+      skinbuxSales.setAutoPayout(sale.id, { status: "waiting", reason: `funds-${pair.coin}` });
+      demand[pair.coin] = round2((demand[pair.coin] || 0) + pay);
       continue;
     }
 
@@ -278,7 +311,10 @@ async function run(config, { getAvailable, notify = async () => {} }) {
   }
 
   // 3. Ручні холди власника з датою виходу й автовиплатою.
-  await runHoldReleases(cfg, { getAvailable, notify });
+  await runHoldReleases(cfg, { getAvailable, notify, demand });
+
+  // 4. Нестача на Binance — поповнюємо зі Skinbux (або просимо власника).
+  await coverShortfall(config, demand, notify);
   return handled;
 }
 
@@ -384,7 +420,7 @@ async function sendRecorded(record) {
  * як звичайний вивід клієнта: syncClientWithdrawals стежить за статусом і
  * при відмові повертає гроші на баланс; клієнт бачить вивід у профілі.
  */
-async function runHoldReleases(cfg, { getAvailable, notify }) {
+async function runHoldReleases(cfg, { getAvailable, notify, demand = {} }) {
   for (const { steamId, entry } of customerBalances.releasedAutoPayouts()) {
     if (!["waiting", "waiting-funds"].includes(entry.autoPayout?.status)) continue;
     const set = (patch) => customerBalances.update(steamId, entry.id, { autoPayout: { ...entry.autoPayout, ...patch, updatedAt: new Date().toISOString() } });
@@ -413,10 +449,16 @@ async function runHoldReleases(cfg, { getAvailable, notify }) {
       notify(`ℹ️ Вышел ${label}: автоматически не плачу (${q ? `к выплате ${money(pay)}, минимум ${money(min)}` : `Binance не выводит ${pair.label}`}). Деньги у клиента в «доступно».`).catch(() => {});
       continue;
     }
-    if (!q.enabled || q.free + 0.001 < pay) {
+    if (!q.enabled) {
       if (entry.autoPayout.status !== "waiting-funds") {
-        notify(`💰 Вышел ${label}: для автовыплаты нужно ${money(pay)} ${pair.coin} на Binance${q.enabled ? `, свободно ${money(q.free)} — пополни` : `, но Binance закрыл вывод ${pair.label}`}. Выплачу сам, когда смогу.`).catch(() => {});
+        notify(`⏸ Вышел ${label}, но Binance закрыл вывод ${pair.label}. Выплачу сам, когда откроет.`).catch(() => {});
       }
+      set({ status: "waiting-funds" });
+      continue;
+    }
+    if (q.free + 0.001 < pay) {
+      // Нестачу покриває coverShortfall після проходу.
+      demand[pair.coin] = round2((demand[pair.coin] || 0) + pay);
       set({ status: "waiting-funds" });
       continue;
     }
@@ -490,7 +532,11 @@ function clientWithdraw(config, { steamId, network, address, amount, exclusive, 
     if (!Number.isFinite(sum) || sum < min || send <= 0) throw new WithdrawError("BAD_AMOUNT", { min });
     const available = round2(getAvailable(steamId));
     if (sum > available + 0.001) throw new WithdrawError("INSUFFICIENT_BALANCE", { available });
-    if (q.free + 0.001 < sum) {
+    // На Binance бракує: з автопоповненням — ставимо вивід у чергу (гроші
+    // клієнта списуємо одразу, піде, щойно Skinbux поповнить Binance);
+    // без нього — "вивід зараз недоступний".
+    const queued = q.free + 0.001 < sum;
+    if (queued && !refill.settings(config).enabled) {
       notify(`💰 Клиент ${steamId} хотел вывести ${money(sum)} (${pair.label}), но на Binance свободно ${money(q.free)} ${pair.coin} — пополни.`).catch(() => {});
       throw new WithdrawError("SHOP_UNAVAILABLE");
     }
@@ -498,6 +544,19 @@ function clientWithdraw(config, { steamId, network, address, amount, exclusive, 
     const id = crypto.randomUUID();
     const { closed, adjustmentId } = debit(steamId, sum, `Вывод ${pair.label} ${money(sum)} (#${id.slice(0, 8)})`);
     const now = new Date().toISOString();
+    if (queued) {
+      const record = {
+        id, steamId: String(steamId), network, address: details.address, amount: sum, fee, send,
+        key: `wd-${id}`, provider: "binance", requestedAt: now, closedSales: closed, adjustmentId,
+        status: "waiting-funds", createdAt: now, updatedAt: now,
+      };
+      const all = loadWd();
+      all.push(record);
+      saveWd(all);
+      notify(`⏳ Клиент ${steamId} выводит ${money(sum)} (${pair.label}), на Binance свободно ${money(q.free)} — вывод в очереди до пополнения.`).catch(() => {});
+      await coverShortfall(config, queuedClientDemand(), notify);
+      return record;
+    }
     const { w, error } = await sendRecorded({
       id, steamId: String(steamId), network, address: details.address, amount: sum, fee, send,
       key: `wd-${id}`, provider: "binance", requestedAt: now, closedSales: closed, adjustmentId,
@@ -516,9 +575,63 @@ function clientWithdraw(config, { steamId, network, address, amount, exclusive, 
   });
 }
 
-/** Стежимо за виводами з cryptoWithdrawals: статус з історії Binance. */
-async function syncClientWithdrawals({ notify = async () => {} } = {}) {
+/** Скільки якої монети чекають виводи в черзі (кнопка клієнта, "waiting-funds"). */
+function queuedClientDemand() {
+  const demand = {};
+  for (const w of loadWd()) {
+    if (w.provider !== "binance" || w.status !== "waiting-funds") continue;
+    const coin = PAIRS[w.network]?.coin;
+    if (coin) demand[coin] = round2((demand[coin] || 0) + w.amount);
+  }
+  return demand;
+}
+
+/**
+ * Раз на хвилину: поповнення Binance в дорозі, черга виводів, що чекала
+ * грошей, і статуси вже створених виводів (з історії Binance).
+ */
+async function syncClientWithdrawals({ notify = async () => {}, config = null } = {}) {
   if (!binance.configured()) return;
+  try {
+    await refill.sync({ notify });
+  } catch (err) {
+    console.error("[binance-refill] sync:", err.message);
+  }
+
+  // Черга: гроші на Binance з'явились — відправляємо.
+  let stillShort = false;
+  binance.invalidate();
+  for (const w of loadWd()) {
+    if (w.provider !== "binance" || w.status !== "waiting-funds") continue;
+    let q;
+    try {
+      q = await binance.quote(w.network);
+    } catch {
+      stillShort = true;
+      continue;
+    }
+    if (!q || !q.enabled || q.free + 0.001 < w.amount) {
+      stillShort = true;
+      continue;
+    }
+    const now = new Date().toISOString();
+    updateWd(w.id, { status: "requesting", requestedAt: now });
+    try {
+      const r = await binance.withdraw({ networkId: w.network, address: w.address, amount: w.amount, orderId: w.key });
+      updateWd(w.id, { status: "pending", withdrawalId: r.id });
+      notify(`💸 Вывод клиента ${w.steamId} из очереди ушёл с Binance: дойдёт ${money(w.send)} ${PAIRS[w.network].label}\n${w.address}`).catch(() => {});
+    } catch (err) {
+      if (err.ambiguous) {
+        updateWd(w.id, { status: "unknown", error: err.message });
+      } else {
+        const f = updateWd(w.id, { status: "failed", error: err.message, code: err.code ?? null });
+        undoDebit(f);
+        notify(`❌ Вывод клиента ${w.steamId} ${money(w.amount)} из очереди не прошёл: Binance ответил «${err.message}». Деньги вернулись ему на баланс.`).catch(() => {});
+      }
+    }
+  }
+  if (stillShort && config) await coverShortfall(config, queuedClientDemand(), notify);
+
   for (const w of loadWd()) {
     if (w.provider !== "binance" || !["pending", "processing", "unknown", "requesting"].includes(w.status)) continue;
     let found;

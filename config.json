@@ -210,6 +210,12 @@
     "clientWithdraw": true,
     "minUsd": 5
   },
+  "binanceRefill": {
+    "_comment": "Автопополнение Binance со Skinbux (binanceRefill.js): не хватает монеты для выплаты — сервер выводит нехватку + extraUsd (комиссия сети) со Skinbux на адрес депозита нашего Binance (берётся из API Binance). USDT -> USDT ERC-20, USDC -> USDC ERC-20. Не меньше minUsd за раз, одно пополнение на монету в дороге.",
+    "enabled": true,
+    "extraUsd": 5,
+    "minUsd": 20
+  },
   "sales": {
     "_comment": "Продажа скинов клиентом через сайт (кабинет и Обмен): меньше этой суммы за одну продажу не принимаем.",
     "minTotalUsd": 10

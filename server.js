@@ -3424,7 +3424,7 @@ app.listen(PORT, async () => {
     try {
       await skinbuxPurchases.sync({ notify: (text) => sendOwnerMessage(text, payoutBotCredentials()) });
       // Виводи клієнтів за кнопкою: статус і повернення, якщо Skinbux відмовив.
-      await cryptoPayouts.syncClientWithdrawals({ notify: (text) => sendOwnerMessage(text, payoutBotCredentials()) });
+      await cryptoPayouts.syncClientWithdrawals({ config, notify: (text) => sendOwnerMessage(text, payoutBotCredentials()) });
     } catch (err) {
       console.error("[skinbux-buy] sync:", err.message);
     } finally {
