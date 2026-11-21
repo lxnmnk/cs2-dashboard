@@ -290,6 +290,14 @@ async function run(rows, config, { apply = false, adopt = false } = {}) {
       note("skip", item, { reason: `низкий флоат ${Number(item.float).toFixed(4)} — цену ставлю не я` });
       continue;
     }
+    // Исключения владельца (config csfloatAutoList.exclude): не выставляем и
+    // не берём под себя даже в режиме all — иначе ручной лот такого предмета
+    // режим adopt снял бы как «исключённый». Наш собственный лот снимется
+    // ниже, через precheck.
+    if (!live && cfg.exclude.some((s) => item.rowKey.includes(s))) {
+      note("skip", item, { reason: "в списке исключений — не трогаю" });
+      continue;
+    }
     const hand = !live && listedByHand.get(item.assetId);
     if (hand && !adopt) {
       const v = decide(item, index.get(item.rowKey), cfg);

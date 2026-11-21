@@ -144,6 +144,10 @@
     "_comment": "Интерактивный Telegram-бот мониторинга арбитража (telegramArbBot.js) — свои фильтры на каждый чат, свой токен TELEGRAM_ARB_BOT_TOKEN в .env (отдельный от TELEGRAM_BOT_TOKEN, чтобы не конфликтовать по getUpdates с csfloat-bot).",
     "intervalMinutes": 5
   },
+  "csfloatAutoList": {
+    "_comment": "Автолистинг CSFloat (csfloatAutoList.js). exclude — подстроки названий, которые бот не выставляет и не берёт под себя никогда (ручные лоты не трогает). Остальные настройки — по умолчанию из DEFAULTS в коде.",
+    "exclude": ["Wave Chaser"]
+  },
   "csfloatAutoBargain": {
     "_comment": "Автобарги CSFloat по live-лотам CSFloat (csfloatAutoBargain.js). Управляются в отдельном боте csf_bargains (TELEGRAM_BARGAIN_BOT_TOKEN): /on, /test, /off, /reserve, /ttl, /discount, /counters — перекрывают значения ниже и хранятся в csfloatAutoBargains.json. Управлять может только чат ownerChatId (пусто — TELEGRAM_CHAT_ID из .env). У правила openProfitPercent — с чего начинаем барг, minProfitPercent — до чего торгуемся на контр-оффер.",
     "ownerChatId": "",
