@@ -1,45 +1,46 @@
-// Автовиплата клієнтам у крипті через вивід із мерчант-балансу Skinbux.
+// Автовиплата клієнтам у крипті — з гаманця Binance власника (binanceWallet.js).
+//
+// Раніше гроші виводились клієнтам прямо з мерчант-балансу Skinbux. Skinbux
+// так робити не дозволяє (лише на власний гаманець, 21.11.2026), тому:
+// Skinbux -> наш Binance — руками власника, Binance -> клієнт — тут.
 //
 // Клієнт при продажі сам вказує, куди платити (payoutDetails: мережа й
 // адреса). Коли угода виходить із холду (skinbuxSales.payableNow), сервер
-// сам виводить гроші через POST /v1/account/withdrawals на його адресу і
-// позначає угоду виплаченою. Власнику — повідомлення "виплачено".
-// Мережі, яких Skinbux не вміє (BEP-20, Solana, USDC TRC-20), і картки
-// лишаються ручними, як і були: "можно платить" у Telegram.
+// виводить гроші з Binance на його адресу і позначає угоду виплаченою.
+// Власнику — повідомлення "виплачено". Картки лишаються ручними: "можно
+// платить" у Telegram. Лімітів суми немає (так вирішив власник): платимо
+// стільки, скільки винні.
 //
 // Скільки платимо: борг за угоду, але не більше за "доступно" клієнта на
 // сайті — частину він міг уже витратити на скіни з вітрини. Тоді угоду все
 // одно закриваємо (markPaid), а різницю повертаємо поправкою в available,
 // щоб баланс зійшовся: було A, стало A − виплачено.
-// Комісію мережі за вивід платить клієнт: feeUsd віднімається з суми.
+// Комісію мережі платить клієнт: Binance бере її з суми виводу, і ми
+// показуємо реальну комісію Binance для цієї мережі.
 //
-// Ідемпотентність: Idempotency-Key = "sale-<id>". Повтор того самого запиту
-// не спише вдруге, а поверне вже створений вивід із поточним статусом —
-// так і стежимо за pending -> paid (окремого "статусу виводу" в API немає).
-// Неоднозначна відповідь (таймаут, 5xx, код 53) — повторюємо тим самим
-// ключем на наступному проході.
-// Skinbux відхилив вивід (failed / rejected) — гроші повернулись на наш
-// баланс Skinbux, тож знімаємо позначку "виплачено" і віддаємо власнику
-// вручну, як раніше.
+// На Binance не вистачає грошей чи мережа на паузі — угода чекає (статус
+// "waiting"), власнику одне повідомлення "поповни Binance". "Можно платить"
+// у цей час не шлемо: інакше власник заплатив би руками, а потім заплатив би
+// й автомат. Хоче заплатити сам — відмічає угоду виплаченою в My Trades.
+//
+// Ідемпотентність: withdrawOrderId = "sale-<id>". Таймаут чи 5xx — вивід
+// міг створитись, тому НЕ повторюємо, а шукаємо його в історії Binance за
+// цим id. Не з'явився за 30 хвилин — віддаємо власнику перевірити руками.
+const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 const skinbuxSales = require("./skinbuxSales");
 const customerBalances = require("./customerBalances");
+const payoutDetails = require("./payoutDetails");
+const binance = require("./binanceWallet");
 
-const URL = "https://api.skinbux.com/v1/account/withdrawals";
-const TIMEOUT_MS = 45000; // API Skinbux буває повільним (баланс — до 12 с)
-
-// Мережа з payoutDetails.js -> пара Skinbux.
-const PAIRS = {
-  "usdt-erc20": { coin: "usdt", chain: "ethereum", label: "USDT ERC-20" },
-  "usdt-trc20": { coin: "usdt", chain: "tron", label: "USDT TRC-20" },
-  "usdc-erc20": { coin: "usdc", chain: "ethereum", label: "USDC ERC-20" },
-};
+const PAIRS = binance.NETWORKS;
+const UNKNOWN_GIVE_UP_MS = 30 * 60 * 1000;
 
 const DEFAULTS = {
   enabled: false,
   // Тестовий режим: нічого не виводимо, лише пишемо власнику, що вивели б.
   dryRun: true,
-  // Комісія мережі за вивід, яку платить клієнт ($), — по мережі.
-  feeUsd: { "usdt-erc20": 1, "usdt-trc20": 1, "usdc-erc20": 1 },
   // Вивід за кнопкою клієнта (профіль → Баланс). Тестовий режим dryRun на
   // нього не діє: клієнт сам натиснув і чекає гроші.
   clientWithdraw: false,
@@ -48,37 +49,101 @@ const DEFAULTS = {
 };
 
 const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+const money = (n) => `$${round2(n).toFixed(2)}`;
 
 function settings(config) {
-  const c = config.cryptoPayout || {};
-  return { ...DEFAULTS, ...c, feeUsd: { ...DEFAULTS.feeUsd, ...(c.feeUsd || {}) } };
+  return { ...DEFAULTS, ...(config.cryptoPayout || {}) };
 }
 
-/** Чи можна цю угоду виплатити автоматично (мережа, яку вміє Skinbux). */
+/** Мережа угоди, якщо її можна виплатити з Binance. */
 function pairFor(sale) {
   const d = sale.payoutDetails;
   if (!d || d.method !== "crypto") return null;
   return PAIRS[d.network] || null;
 }
 
-async function withdraw(apiKey, key, body) {
-  let res;
-  try {
-    res = await fetch(URL, {
-      method: "POST",
-      headers: { "x-api-key": apiKey, "Content-Type": "application/json", "Idempotency-Key": key },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-  } catch (err) {
-    return { ambiguous: true, error: err.message };
+/** Мережі для форми виводу в профілі: лише відкриті в Binance, з її комісією. */
+async function networksForClient() {
+  const out = [];
+  for (const [id, p] of Object.entries(PAIRS)) {
+    let q = null;
+    try {
+      q = await binance.quote(id);
+    } catch {
+      q = binance.cachedQuote(id);
+    }
+    if (!q || !q.enabled) continue;
+    out.push({ id, label: p.label, fee: round2(q.fee), min: q.min });
   }
-  const data = await res.json().catch(() => null);
-  if (res.ok && data?.success) return { withdrawal: data.data };
-  const code = data?.error?.code;
-  // 53 — "можливо, створено": повторюємо тим самим ключем.
-  if (res.status >= 500 || code === 53) return { ambiguous: true, error: data?.error?.message || `HTTP ${res.status}` };
-  return { failed: true, code, error: data?.error?.message || `HTTP ${res.status}` };
+  return out;
+}
+
+// ---- Автовиплата угод ----
+
+/** Вивід прийнято Binance: закриваємо угоду, різницю повертаємо поправкою. */
+function closeSale(sale, { owed, pay, fee, send, label, address, withdrawal, notify }) {
+  skinbuxSales.markPaid(sale.id);
+  let adjustmentId = null;
+  if (owed - pay > 0.009) {
+    adjustmentId = customerBalances.add({
+      steamId: sale.steamId,
+      amount: round2(owed - pay),
+      bucket: "available",
+      note: `Сделка #${sale.id}: ${money(owed - pay)} клиент уже потратил на сайте — выплачено ${money(pay)} автоматически`,
+      by: "auto-payout",
+    }).id;
+  }
+  skinbuxSales.setAutoPayout(sale.id, {
+    status: withdrawal.status || "pending",
+    withdrawalId: withdrawal.id ?? null,
+    txId: withdrawal.txId || null,
+    adjustmentId,
+    paidAt: new Date().toISOString(),
+  });
+  notify(
+    `💸 Выплачено автоматически с Binance — сделка #${sale.id}, клиент ${sale.customerName || sale.steamId}\n` +
+      `${money(send)} дойдёт (${label}, комиссия сети ${money(fee)} с клиента)${pay < owed ? `, ${money(owed - pay)} клиент потратил на скины` : ""}\n` +
+      `${address}\nBinance вывод #${withdrawal.id ?? "?"}`
+  ).catch(() => {});
+}
+
+/** Угода чекає (немає грошей на Binance / мережа на паузі): одне повідомлення на причину. */
+function waitSale(sale, reason, text, notify) {
+  const ap = sale.autoPayout || {};
+  skinbuxSales.setAutoPayout(sale.id, { status: "waiting", reason });
+  if (ap.status === "waiting" && ap.reason === reason) return;
+  notify(text).catch(() => {});
+}
+
+/**
+ * Вивід по угоді в невідомому стані (таймаут / впали посеред запиту):
+ * шукаємо в історії Binance. Знайшли — як звичайний успіх чи відмова.
+ */
+async function resolveUnknownSale(sale, ctx) {
+  const ap = sale.autoPayout;
+  let found;
+  try {
+    found = await binance.findWithdrawal(ap.key, ap.requestedAt);
+  } catch {
+    return; // Binance недоступний — наступного проходу
+  }
+  const label = PAIRS[ap.networkId]?.label || ap.networkId;
+  if (found && ["failed", "rejected"].includes(found.status)) {
+    skinbuxSales.setAutoPayout(sale.id, { status: "failed", error: `Binance: ${found.status}${found.info ? ` (${found.info})` : ""}` });
+    ctx.notify(`❌ Автовыплата по сделке #${sale.id} не прошла в Binance (${found.status}). Деньги на Binance, придёт «можно платить» — заплати вручную.`).catch(() => {});
+    return;
+  }
+  if (found) {
+    closeSale(sale, { owed: skinbuxSales.amountOwed(sale), pay: ap.pay, fee: ap.fee, send: ap.send, label, address: ap.address, withdrawal: found, notify: ctx.notify });
+    return;
+  }
+  if (Date.now() - new Date(ap.requestedAt).getTime() > UNKNOWN_GIVE_UP_MS) {
+    skinbuxSales.setAutoPayout(sale.id, { status: "failed", error: "вывод не найден в истории Binance" });
+    ctx.notify(
+      `⚠️ Автовыплата по сделке #${sale.id}: Binance не ответил, и за 30 минут вывода ${ap.key} нет в его истории.\n` +
+        `Проверь в Binance → История выводов. Нет вывода — заплати вручную (${label}, ${ap.address}, ${money(ap.pay)}). Есть — отметь сделку выплаченной в My Trades.`
+    ).catch(() => {});
+  }
 }
 
 /**
@@ -89,103 +154,113 @@ async function withdraw(apiKey, key, body) {
 async function run(config, { getAvailable, notify = async () => {} }) {
   const cfg = settings(config);
   const handled = new Set();
-  if (!cfg.enabled) return handled;
-  const apiKey = process.env.SKINBUX_API_KEY;
-  if (!apiKey) return handled;
+  if (!cfg.enabled || !binance.configured()) return handled;
+  const ctx = { notify };
+  // Залишок на Binance — свіжий на кожен прохід: власник міг щойно поповнити.
+  binance.invalidate();
 
-  // 1. Нові угоди, що вийшли з холду.
+  // 1. Угоди, що вийшли з холду.
   for (const sale of skinbuxSales.payableNow()) {
     if (skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId))) continue;
     const pair = pairFor(sale);
     if (!pair) continue;
     const ap = sale.autoPayout;
-    // Уже пробували й віддали власнику — не чіпаємо.
+    // Записи старої автовиплати через Skinbux — не наші, не чіпаємо.
+    if (ap && ap.key && ap.provider !== "binance") continue;
     if (ap && ["failed", "manual"].includes(ap.status)) continue;
-    // Тест уже показали; платить власнику вручну — "можно платить" прийде.
     if (ap && cfg.dryRun && ap.status === "dry-run") continue;
-
-    const owed = skinbuxSales.amountOwed(sale);
-    // Повтор після таймауту — суми з першої спроби, не перераховуємо.
-    const retry = ap?.body && ap.status === "unknown";
-    const pay = retry ? ap.pay : round2(Math.min(owed, Math.max(0, getAvailable(sale.steamId))));
-    const fee = retry ? ap.fee : round2(cfg.feeUsd[sale.payoutDetails.network] ?? 1);
-    const send = retry ? ap.send : round2(pay - fee);
-    const address = sale.payoutDetails.address;
-    const where = `${pair.label} · ${address}`;
-
-    // Мінімум рахуємо від суми до комісії — так само, як у виводі за кнопкою.
-    if (!retry && pay < cfg.minUsd) {
-      skinbuxSales.setAutoPayout(sale.id, { status: "manual", reason: `к выплате $${pay.toFixed(2)} — меньше минимума $${cfg.minUsd}` });
-      continue; // власник отримає звичайне "можно платить"
+    if (ap && ["requesting", "unknown"].includes(ap.status)) {
+      handled.add(String(sale.id));
+      await resolveUnknownSale(sale, ctx);
+      continue;
     }
 
-    if (cfg.dryRun && !retry) {
+    const networkId = sale.payoutDetails.network;
+    const address = sale.payoutDetails.address;
+    const owed = skinbuxSales.amountOwed(sale);
+    const pay = round2(Math.min(owed, Math.max(0, getAvailable(sale.steamId))));
+    const where = `${pair.label} · ${address}`;
+
+    let q;
+    try {
+      q = await binance.quote(networkId);
+    } catch (err) {
+      handled.add(String(sale.id));
+      waitSale(sale, "binance-down", `⚠️ Автовыплата по сделке #${sale.id} ждёт: Binance не ответил (${err.message}). Повторю сам, вручную не плати.`, notify);
+      continue;
+    }
+    if (!q) {
+      skinbuxSales.setAutoPayout(sale.id, { status: "manual", reason: `Binance не выводит ${pair.label}` });
+      continue; // прийде звичайне "можно платить"
+    }
+    const fee = round2(q.fee);
+    const send = round2(pay - fee);
+    const min = Math.max(cfg.minUsd, q.min);
+    if (pay < min || send <= 0) {
+      skinbuxSales.setAutoPayout(sale.id, { status: "manual", reason: `к выплате ${money(pay)} — меньше минимума ${money(min)}` });
+      continue;
+    }
+    if (!q.enabled) {
+      handled.add(String(sale.id));
+      waitSale(sale, "network-off", `⏸ Автовыплата по сделке #${sale.id} ждёт: Binance сейчас закрыл вывод ${pair.label}. Выплачу, когда откроет.`, notify);
+      continue;
+    }
+    if (q.free + 0.001 < pay) {
+      handled.add(String(sale.id));
+      waitSale(
+        sale,
+        `funds-${pair.coin}`,
+        `💰 Пополни Binance: для автовыплаты по сделке #${sale.id} нужно ${money(pay)} ${pair.coin}, свободно ${money(q.free)}.\n` +
+          `Выплачу сам, как только деньги придут. Хочешь заплатить сам — отметь сделку выплаченной в My Trades.`,
+        notify
+      );
+      continue;
+    }
+
+    if (cfg.dryRun) {
       skinbuxSales.setAutoPayout(sale.id, { status: "dry-run", pay, fee, send });
       notify(
-        `🧪 ТЕСТ автовыплаты (ничего не отправлено): сделка #${sale.id}, клиент ${sale.customerName || sale.steamId}\n` +
-          `Долг $${owed.toFixed(2)}, доступно $${pay.toFixed(2)}, комиссия $${fee.toFixed(2)} → отправили бы $${send.toFixed(2)}\n${where}\n` +
+        `🧪 ТЕСТ автовыплаты с Binance (ничего не отправлено): сделка #${sale.id}, клиент ${sale.customerName || sale.steamId}\n` +
+          `Долг ${money(owed)}, к выплате ${money(pay)}, комиссия сети ${money(fee)} → дойдёт ${money(send)}\n${where}\n` +
           `Плати как обычно вручную. Включить по-настоящему: config.json → cryptoPayout.dryRun: false`
       ).catch(() => {});
       continue;
     }
 
-    const key = ap?.key || `sale-${sale.id}`;
-    // Повтор після таймауту — РІВНО той самий запит: інший amount з тим самим
-    // ключем Skinbux відхилить (код 48), а новий ключ міг би вивести вдруге.
-    const body = ap?.body || { amount: Math.round(send * 100), coin: pair.coin, chain: pair.chain, withdrawal_address: address };
-    skinbuxSales.setAutoPayout(sale.id, { key, body, pay, fee, send, status: ap?.status === "unknown" ? "unknown" : "requesting" });
-    const r = await withdraw(apiKey, key, body);
-
-    if (r.ambiguous) {
-      skinbuxSales.setAutoPayout(sale.id, { status: "unknown", error: r.error });
-      handled.add(String(sale.id)); // повторимо тим самим ключем, вручну не платимо
-      if (!ap) notify(`⚠️ Автовыплата по сделке #${sale.id}: Skinbux не ответил (${r.error}). Повторю сам тем же запросом — двойной выплаты не будет. Вручную НЕ плати.`).catch(() => {});
+    const key = `sale-${sale.id}`;
+    skinbuxSales.setAutoPayout(sale.id, { provider: "binance", key, networkId, address, pay, fee, send, status: "requesting", requestedAt: new Date().toISOString() });
+    handled.add(String(sale.id));
+    let w;
+    try {
+      w = await binance.withdraw({ networkId, address, amount: pay, orderId: key });
+    } catch (err) {
+      if (err.ambiguous) {
+        skinbuxSales.setAutoPayout(sale.id, { status: "unknown", error: err.message });
+        notify(`⚠️ Автовыплата по сделке #${sale.id}: ${err.message}. Проверю по истории Binance — двойной выплаты не будет. Вручную НЕ плати.`).catch(() => {});
+      } else {
+        handled.delete(String(sale.id));
+        skinbuxSales.setAutoPayout(sale.id, { status: "failed", error: err.message, code: err.code });
+        notify(`❌ Автовыплата по сделке #${sale.id} не прошла: Binance ответил «${err.message}».\nЗаплати вручную как обычно: ${where}, ${money(pay)}`).catch(() => {});
+      }
       continue;
     }
-    if (r.failed) {
-      skinbuxSales.setAutoPayout(sale.id, { status: "failed", error: r.error, code: r.code ?? null });
-      notify(
-        `❌ Автовыплата по сделке #${sale.id} не прошла: ${r.error}${r.code === 8 ? " (на балансе Skinbux не хватает денег)" : ""}${r.code === 49 ? " (Skinbux не принял адрес)" : ""}.\n` +
-          `Заплати вручную как обычно: ${where}, $${send.toFixed(2)}`
-      ).catch(() => {});
-      continue; // угода лишається невиплаченою -> прийде звичайне "можно платить"
-    }
-
-    // Вивід прийнято, баланс Skinbux списано: закриваємо угоду.
-    const w = r.withdrawal || {};
-    skinbuxSales.markPaid(sale.id);
-    let adjustmentId = null;
-    if (owed - pay > 0.009) {
-      adjustmentId = customerBalances.add({
-        steamId: sale.steamId,
-        amount: round2(owed - pay),
-        bucket: "available",
-        note: `Сделка #${sale.id}: $${round2(owed - pay).toFixed(2)} клиент уже потратил на сайте — выплачено $${pay.toFixed(2)} автоматически`,
-        by: "auto-payout",
-      }).id;
-    }
-    skinbuxSales.setAutoPayout(sale.id, { status: w.status || "pending", withdrawalId: w.id ?? null, adjustmentId, paidAt: new Date().toISOString() });
-    handled.add(String(sale.id));
-    notify(
-      `💸 Выплачено автоматически — сделка #${sale.id}, клиент ${sale.customerName || sale.steamId}\n` +
-        `$${send.toFixed(2)} (${pair.label}, комиссия $${fee.toFixed(2)} с клиента)${pay < owed ? `, $${round2(owed - pay).toFixed(2)} клиент потратил на скины` : ""}\n` +
-        `${address}\nSkinbux вывод #${w.id ?? "?"}, статус ${w.status || "pending"}`
-    ).catch(() => {});
+    closeSale(sale, { owed, pay, fee, send, label: pair.label, address, withdrawal: { id: w.id, status: "pending" }, notify });
   }
 
-  // 2. Уже створені виводи: стежимо за статусом повтором того самого запиту.
+  // 2. Уже створені виводи по угодах: статус з історії Binance.
   for (const sale of skinbuxSales.loadAll()) {
     const ap = sale.autoPayout;
-    if (!ap || !["pending", "processing", "unknown"].includes(ap.status) || !ap.body) continue;
-    // "unknown" для невиплаченої угоди обробив крок 1.
-    if (ap.status === "unknown" && !sale.paidAt) continue;
-    const r = await withdraw(apiKey, ap.key, ap.body);
-    if (!r.withdrawal) continue; // спробуємо наступного разу
-    const st = r.withdrawal.status;
-    if (st === ap.status) continue;
-    skinbuxSales.setAutoPayout(sale.id, { status: st, txId: r.withdrawal.transaction_id || null, failureReason: r.withdrawal.failure_reason || null });
-    if (st === "failed" || st === "rejected") {
-      // Гроші повернулись на баланс Skinbux — угода знову невиплачена.
+    if (!ap || ap.provider !== "binance" || !sale.paidAt || !["pending", "processing"].includes(ap.status)) continue;
+    let found;
+    try {
+      found = await binance.findWithdrawal(ap.key, ap.requestedAt);
+    } catch {
+      continue;
+    }
+    if (!found || found.status === ap.status) continue;
+    skinbuxSales.setAutoPayout(sale.id, { status: found.status, txId: found.txId, withdrawalId: found.id ?? ap.withdrawalId });
+    if (found.status === "failed" || found.status === "rejected") {
+      // Гроші лишились на Binance — угода знову невиплачена.
       skinbuxSales.unmarkPaid(sale.id);
       if (ap.adjustmentId) {
         try {
@@ -196,116 +271,18 @@ async function run(config, { getAvailable, notify = async () => {} }) {
       }
       skinbuxSales.setAutoPayout(sale.id, { status: "failed" });
       notify(
-        `❌ Skinbux ${st === "rejected" ? "отклонил" : "не смог выполнить"} автовыплату по сделке #${sale.id}${r.withdrawal.failure_reason ? `: ${r.withdrawal.failure_reason}` : ""}. ` +
-          `Деньги вернулись на баланс Skinbux, сделка снова «не выплачена» — заплати вручную.`
+        `❌ Binance ${found.status === "rejected" ? "отклонил" : "не смог выполнить"} автовыплату по сделке #${sale.id}${found.info ? `: ${found.info}` : ""}. ` +
+          `Деньги остались на Binance, сделка снова «не выплачена» — заплати вручную.`
       ).catch(() => {});
     }
   }
 
   // 3. Ручні холди власника з датою виходу й автовиплатою.
-  await runHoldReleases(cfg, apiKey, { getAvailable, notify });
+  await runHoldReleases(cfg, { getAvailable, notify });
   return handled;
 }
 
-/** Куди платити клієнту: реквізити з останньої продажі, інакше останній вивід. */
-function cryptoDetailsFor(steamId) {
-  const last = skinbuxSales.lastPayout(String(steamId));
-  if (last?.details?.method === "crypto" && PAIRS[last.details.network] && last.details.address) {
-    return { network: last.details.network, address: last.details.address };
-  }
-  const w = loadWd().filter((x) => x.steamId === String(steamId) && PAIRS[x.network] && x.address && !["failed", "rejected"].includes(x.status))
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
-  return w ? { network: w.network, address: w.address } : null;
-}
-
-/**
- * Власник поставив клієнту +$X у hold на N днів з автовиплатою (продав його
- * скін сам). Коли холд вийшов — виводимо рівно цю суму (не більше за
- * "доступно") на криптореквізити клієнта. Вивід пишемо в cryptoWithdrawals
- * як звичайний вивід клієнта: syncClientWithdrawals стежить за статусом і
- * при відмові повертає гроші на баланс; клієнт бачить вивід у профілі.
- */
-async function runHoldReleases(cfg, apiKey, { getAvailable, notify }) {
-  for (const { steamId, entry } of customerBalances.releasedAutoPayouts()) {
-    if (entry.autoPayout?.status !== "waiting") continue;
-    const set = (patch) => customerBalances.update(steamId, entry.id, { autoPayout: { ...entry.autoPayout, ...patch, updatedAt: new Date().toISOString() } });
-    const label = `холд $${entry.amount.toFixed(2)} клиента ${steamId}${entry.note ? ` («${entry.note}»)` : ""}`;
-
-    const details = cryptoDetailsFor(steamId);
-    if (!details) {
-      set({ status: "no-details" });
-      notify(`ℹ️ Вышел ${label}, но у клиента нет крипто-реквизитов. Деньги у него в «доступно» — выведет сам или заплати вручную.`).catch(() => {});
-      continue;
-    }
-    const pair = PAIRS[details.network];
-    const pay = round2(Math.min(entry.amount, Math.max(0, getAvailable(steamId))));
-    const fee = round2(cfg.feeUsd[details.network] ?? 1);
-    const send = round2(pay - fee);
-    const where = `${pair.label} · ${details.address}`;
-    if (pay < cfg.minUsd || send <= 0) {
-      set({ status: "manual", reason: `доступно $${pay.toFixed(2)} — меньше минимума $${cfg.minUsd}` });
-      notify(`ℹ️ Вышел ${label}: к выплате $${pay.toFixed(2)} — меньше минимума $${cfg.minUsd}, автоматически не плачу. Деньги у клиента в «доступно».`).catch(() => {});
-      continue;
-    }
-    if (cfg.dryRun) {
-      set({ status: "dry-run", pay, fee, send });
-      notify(`🧪 ТЕСТ (ничего не отправлено): вышел ${label} → отправили бы $${send.toFixed(2)} (комиссия $${fee.toFixed(2)})\n${where}`).catch(() => {});
-      continue;
-    }
-
-    const id = crypto.randomUUID();
-    const key = `hold-${entry.id}`;
-    const body = { amount: Math.round(send * 100), coin: pair.coin, chain: pair.chain, withdrawal_address: details.address };
-    const adjustmentId = customerBalances.add({
-      steamId,
-      amount: -pay,
-      bucket: "available",
-      note: `Автовыплата холда $${pay.toFixed(2)} ${pair.label} (#${id.slice(0, 8)})`,
-      by: "hold-payout",
-    }).id;
-    const now = new Date().toISOString();
-    const all = loadWd();
-    all.push({ id, steamId: String(steamId), network: details.network, address: details.address, amount: pay, fee, send, key, body, closedSales: [], adjustmentId, source: "hold", entryId: entry.id, status: "requesting", createdAt: now, updatedAt: now });
-    saveWd(all);
-    set({ status: "sent", withdrawId: id, pay, fee, send });
-
-    const r = await withdraw(apiKey, key, body);
-    if (r.failed) {
-      const w = updateWd(id, { status: "failed", error: r.error, code: r.code ?? null });
-      undoDebit(w);
-      set({ status: "failed", error: r.error });
-      notify(
-        `❌ Автовыплата холда не прошла: ${r.error}${r.code === 8 ? " (на балансе Skinbux не хватает денег)" : ""}${r.code === 49 ? " (Skinbux не принял адрес)" : ""}.\n` +
-          `${label}: деньги у клиента в «доступно», заплати вручную: ${where}, $${send.toFixed(2)}`
-      ).catch(() => {});
-      continue;
-    }
-    if (r.ambiguous) {
-      updateWd(id, { status: "unknown", error: r.error });
-      notify(`⚠️ Автовыплата холда клиенту ${steamId} $${send.toFixed(2)}: Skinbux не ответил — повторю тем же запросом, двойной выплаты не будет. Вручную НЕ плати.`).catch(() => {});
-      continue;
-    }
-    updateWd(id, { status: r.withdrawal?.status || "pending", withdrawalId: r.withdrawal?.id ?? null });
-    notify(`💸 Выплачен холд автоматически: ${label}\n$${send.toFixed(2)} (${pair.label}, комиссия $${fee.toFixed(2)} с клиента)\n${details.address}\nSkinbux вывод #${r.withdrawal?.id ?? "?"}`).catch(() => {});
-  }
-}
-
-// ---- Вивід за кнопкою клієнта ("Вивести" у профілі → Баланс) ----
-// Клієнт сам обирає суму, мережу й адресу; гроші йдуть із нашого балансу
-// Skinbux одразу на його гаманець. Тільки "доступно до виплати".
-//
-// Щоб власник потім не заплатив за ті самі угоди вдруге ("можно платить" чи
-// автовиплата), вивід спершу закриває готові до виплати угоди клієнта
-// (найстаріші першими, поки сума покриває борг угоди повністю), а решту
-// списує поправкою балансу. Підсумок завжди: було A, стало A − вивід.
-// Не вдалось у Skinbux — усе відкочуємо: угоди знову невиплачені, поправку
-// прибираємо.
-//
-// Під тим самим замком, що й покупки (skinbuxPurchases.exclusive).
-const fs = require("fs");
-const path = require("path");
-const crypto = require("crypto");
-const payoutDetails = require("./payoutDetails");
+// ---- Виводи, записані в cryptoWithdrawals.json (кнопка клієнта й холди) ----
 const WD_FILE = path.join(__dirname, "cryptoWithdrawals.json");
 
 function loadWd() {
@@ -334,6 +311,18 @@ class WithdrawError extends Error {
     this.code = code;
     Object.assign(this, extra);
   }
+}
+
+/** Куди платити клієнту: реквізити з останньої продажі, інакше останній вивід. */
+function cryptoDetailsFor(steamId) {
+  const last = skinbuxSales.lastPayout(String(steamId));
+  if (last?.details?.method === "crypto" && PAIRS[last.details.network] && last.details.address) {
+    return { network: last.details.network, address: last.details.address };
+  }
+  const w = loadWd()
+    .filter((x) => x.steamId === String(steamId) && PAIRS[x.network] && x.address && !["failed", "rejected"].includes(x.status))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  return w ? { network: w.network, address: w.address } : null;
 }
 
 /** Списати W з балансу клієнта: закрити угоди + поправка на решту. */
@@ -370,15 +359,114 @@ function undoDebit(w) {
 }
 
 /**
- * Вивід за кнопкою. exclusive — замок покупок; getAvailable(steamId) —
- * "доступно" клієнта. Повертає запис виводу або кидає WithdrawError.
+ * Створити запис і вивід у Binance. Повертає { w, error }:
+ * error.ambiguous — невідомо, чи створено (статус "unknown", доведе sync).
  */
+async function sendRecorded(record) {
+  const all = loadWd();
+  all.push(record);
+  saveWd(all);
+  try {
+    const r = await binance.withdraw({ networkId: record.network, address: record.address, amount: record.amount, orderId: record.key });
+    return { w: updateWd(record.id, { status: "pending", withdrawalId: r.id }) };
+  } catch (err) {
+    if (err.ambiguous) return { w: updateWd(record.id, { status: "unknown", error: err.message }), error: err };
+    const w = updateWd(record.id, { status: "failed", error: err.message, code: err.code ?? null });
+    undoDebit(w);
+    return { w, error: err };
+  }
+}
+
+/**
+ * Власник поставив клієнту +$X у hold на N днів з автовиплатою (продав його
+ * скін сам). Коли холд вийшов — виводимо рівно цю суму (не більше за
+ * "доступно") на криптореквізити клієнта. Вивід пишемо в cryptoWithdrawals
+ * як звичайний вивід клієнта: syncClientWithdrawals стежить за статусом і
+ * при відмові повертає гроші на баланс; клієнт бачить вивід у профілі.
+ */
+async function runHoldReleases(cfg, { getAvailable, notify }) {
+  for (const { steamId, entry } of customerBalances.releasedAutoPayouts()) {
+    if (!["waiting", "waiting-funds"].includes(entry.autoPayout?.status)) continue;
+    const set = (patch) => customerBalances.update(steamId, entry.id, { autoPayout: { ...entry.autoPayout, ...patch, updatedAt: new Date().toISOString() } });
+    const label = `холд ${money(entry.amount)} клиента ${steamId}${entry.note ? ` («${entry.note}»)` : ""}`;
+
+    const details = cryptoDetailsFor(steamId);
+    if (!details) {
+      set({ status: "no-details" });
+      notify(`ℹ️ Вышел ${label}, но у клиента нет крипто-реквизитов. Деньги у него в «доступно» — заплати вручную.`).catch(() => {});
+      continue;
+    }
+    const pair = PAIRS[details.network];
+    let q;
+    try {
+      q = await binance.quote(details.network);
+    } catch {
+      continue; // Binance недоступний — наступного проходу
+    }
+    const pay = round2(Math.min(entry.amount, Math.max(0, getAvailable(steamId))));
+    const fee = round2(q?.fee ?? 0);
+    const send = round2(pay - fee);
+    const where = `${pair.label} · ${details.address}`;
+    const min = Math.max(cfg.minUsd, q?.min || 0);
+    if (!q || pay < min || send <= 0) {
+      set({ status: "manual", reason: q ? `доступно ${money(pay)} — меньше минимума ${money(min)}` : `Binance не выводит ${pair.label}` });
+      notify(`ℹ️ Вышел ${label}: автоматически не плачу (${q ? `к выплате ${money(pay)}, минимум ${money(min)}` : `Binance не выводит ${pair.label}`}). Деньги у клиента в «доступно».`).catch(() => {});
+      continue;
+    }
+    if (!q.enabled || q.free + 0.001 < pay) {
+      if (entry.autoPayout.status !== "waiting-funds") {
+        notify(`💰 Вышел ${label}: для автовыплаты нужно ${money(pay)} ${pair.coin} на Binance${q.enabled ? `, свободно ${money(q.free)} — пополни` : `, но Binance закрыл вывод ${pair.label}`}. Выплачу сам, когда смогу.`).catch(() => {});
+      }
+      set({ status: "waiting-funds" });
+      continue;
+    }
+    if (cfg.dryRun) {
+      set({ status: "dry-run", pay, fee, send });
+      notify(`🧪 ТЕСТ (ничего не отправлено): вышел ${label} → дошло бы ${money(send)} (комиссия сети ${money(fee)})\n${where}`).catch(() => {});
+      continue;
+    }
+
+    const id = crypto.randomUUID();
+    const adjustmentId = customerBalances.add({
+      steamId,
+      amount: -pay,
+      bucket: "available",
+      note: `Автовыплата холда ${money(pay)} ${pair.label} (#${id.slice(0, 8)})`,
+      by: "hold-payout",
+    }).id;
+    const now = new Date().toISOString();
+    set({ status: "sent", withdrawId: id, pay, fee, send });
+    const { error } = await sendRecorded({
+      id, steamId: String(steamId), network: details.network, address: details.address, amount: pay, fee, send,
+      key: `hold-${entry.id}`, provider: "binance", requestedAt: now, closedSales: [], adjustmentId,
+      source: "hold", entryId: entry.id, status: "requesting", createdAt: now, updatedAt: now,
+    });
+    if (error && !error.ambiguous) {
+      set({ status: "failed", error: error.message });
+      notify(`❌ Автовыплата холда не прошла: Binance ответил «${error.message}».\n${label}: деньги у клиента в «доступно», заплати вручную: ${where}, ${money(pay)}`).catch(() => {});
+    } else if (error) {
+      notify(`⚠️ Автовыплата холда клиенту ${steamId} ${money(pay)}: ${error.message}. Проверю по истории Binance — двойной выплаты не будет. Вручную НЕ плати.`).catch(() => {});
+    } else {
+      notify(`💸 Выплачен холд автоматически с Binance: ${label}\nдойдёт ${money(send)} (${pair.label}, комиссия сети ${money(fee)} с клиента)\n${details.address}`).catch(() => {});
+    }
+  }
+}
+
+// ---- Вивід за кнопкою клієнта ("Вивести" у профілі → Баланс) ----
+// Клієнт сам обирає суму, мережу й адресу; гроші йдуть з нашого Binance на
+// його гаманець. Тільки "доступно до виплати".
+//
+// Щоб власник потім не заплатив за ті самі угоди вдруге ("можно платить" чи
+// автовиплата), вивід спершу закриває готові до виплати угоди клієнта
+// (найстаріші першими, поки сума покриває борг угоди повністю), а решту
+// списує поправкою балансу. Підсумок завжди: було A, стало A − вивід.
+// Binance відмовив — усе відкочуємо.
+//
+// Під тим самим замком, що й покупки (skinbuxPurchases.exclusive).
 function clientWithdraw(config, { steamId, network, address, amount, exclusive, getAvailable, notify = async () => {} }) {
   return exclusive(async () => {
     const cfg = settings(config);
-    if (!cfg.clientWithdraw) throw new WithdrawError("DISABLED");
-    const apiKey = process.env.SKINBUX_API_KEY;
-    if (!apiKey) throw new WithdrawError("DISABLED");
+    if (!cfg.clientWithdraw || !binance.configured()) throw new WithdrawError("DISABLED");
     const pair = PAIRS[network];
     if (!pair) throw new WithdrawError("BAD_NETWORK");
     let details;
@@ -387,64 +475,75 @@ function clientWithdraw(config, { steamId, network, address, amount, exclusive, 
     } catch (err) {
       throw new WithdrawError("BAD_ADDRESS", { message: err.message });
     }
+    let q;
+    try {
+      q = await binance.quote(network, { force: true });
+    } catch {
+      throw new WithdrawError("SHOP_UNAVAILABLE");
+    }
+    if (!q || !q.enabled) throw new WithdrawError("SHOP_UNAVAILABLE");
     const sum = round2(Number(amount));
-    const fee = round2(cfg.feeUsd[network] ?? 1);
+    const fee = round2(q.fee);
     const send = round2(sum - fee);
-    // Вивід від minUsd — сума, яку людина вводить, до вирахування комісії.
-    if (!Number.isFinite(sum) || sum < cfg.minUsd || send <= 0) throw new WithdrawError("BAD_AMOUNT", { min: round2(cfg.minUsd) });
+    const min = round2(Math.max(cfg.minUsd, q.min));
+    // Вивід від мінімуму — сума, яку людина вводить, до вирахування комісії.
+    if (!Number.isFinite(sum) || sum < min || send <= 0) throw new WithdrawError("BAD_AMOUNT", { min });
     const available = round2(getAvailable(steamId));
     if (sum > available + 0.001) throw new WithdrawError("INSUFFICIENT_BALANCE", { available });
+    if (q.free + 0.001 < sum) {
+      notify(`💰 Клиент ${steamId} хотел вывести ${money(sum)} (${pair.label}), но на Binance свободно ${money(q.free)} ${pair.coin} — пополни.`).catch(() => {});
+      throw new WithdrawError("SHOP_UNAVAILABLE");
+    }
 
     const id = crypto.randomUUID();
-    const body = { amount: Math.round(send * 100), coin: pair.coin, chain: pair.chain, withdrawal_address: details.address };
-    const { closed, adjustmentId } = debit(steamId, sum, `Вывод ${pair.label} $${sum.toFixed(2)} (#${id.slice(0, 8)})`);
+    const { closed, adjustmentId } = debit(steamId, sum, `Вывод ${pair.label} ${money(sum)} (#${id.slice(0, 8)})`);
     const now = new Date().toISOString();
-    const all = loadWd();
-    all.push({ id, steamId: String(steamId), network, address: details.address, amount: sum, fee, send, key: `wd-${id}`, body, closedSales: closed, adjustmentId, status: "requesting", createdAt: now, updatedAt: now });
-    saveWd(all);
-
-    const r = await withdraw(apiKey, `wd-${id}`, body);
-    if (r.failed) {
-      const w = updateWd(id, { status: "failed", error: r.error, code: r.code ?? null });
-      undoDebit(w);
-      if (r.code === 8) notify(`⚠️ Клиент ${steamId} хотел вывести $${send.toFixed(2)} (${pair.label}), но на балансе Skinbux не хватает денег.`).catch(() => {});
-      throw new WithdrawError(r.code === 49 ? "BAD_ADDRESS" : r.code === 8 ? "SHOP_UNAVAILABLE" : "FAILED", { message: r.error });
+    const { w, error } = await sendRecorded({
+      id, steamId: String(steamId), network, address: details.address, amount: sum, fee, send,
+      key: `wd-${id}`, provider: "binance", requestedAt: now, closedSales: closed, adjustmentId,
+      status: "requesting", createdAt: now, updatedAt: now,
+    });
+    if (error && !error.ambiguous) {
+      notify(`⚠️ Вывод клиента ${steamId} ${money(sum)} (${pair.label}) не прошёл: Binance ответил «${error.message}». Деньги вернулись ему на баланс.`).catch(() => {});
+      throw new WithdrawError("FAILED", { message: error.message });
     }
-    if (r.ambiguous) {
-      updateWd(id, { status: "unknown", error: r.error });
-      notify(`⚠️ Вывод клиента ${steamId} $${send.toFixed(2)} (${pair.label}): Skinbux не ответил — повторю тем же запросом, двойного вывода не будет.`).catch(() => {});
-      return loadWd().find((x) => x.id === id);
+    if (error) {
+      notify(`⚠️ Вывод клиента ${steamId} ${money(sum)} (${pair.label}): ${error.message}. Проверю по истории Binance — двойного вывода не будет.`).catch(() => {});
+      return w;
     }
-    const w = updateWd(id, { status: r.withdrawal?.status || "pending", withdrawalId: r.withdrawal?.id ?? null });
-    notify(
-      `💸 Клиент ${steamId} вывел $${send.toFixed(2)} ${pair.label} (комиссия $${fee.toFixed(2)})\n${details.address}\nSkinbux вывод #${r.withdrawal?.id ?? "?"}`
-    ).catch(() => {});
+    notify(`💸 Клиент ${steamId} вывел с Binance: дойдёт ${money(send)} ${pair.label} (комиссия сети ${money(fee)})\n${details.address}`).catch(() => {});
     return w;
   });
 }
 
-/** Стежимо за виводами клієнтів: повтор того самого запиту = поточний статус. */
+/** Стежимо за виводами з cryptoWithdrawals: статус з історії Binance. */
 async function syncClientWithdrawals({ notify = async () => {} } = {}) {
-  const apiKey = process.env.SKINBUX_API_KEY;
-  if (!apiKey) return;
+  if (!binance.configured()) return;
   for (const w of loadWd()) {
-    if (!["pending", "processing", "unknown", "requesting"].includes(w.status)) continue;
-    const r = await withdraw(apiKey, w.key, w.body);
-    if (r.failed) {
-      // Відповідь є і це відмова — вивід не створено: повертаємо гроші.
-      if (["unknown", "requesting"].includes(w.status)) {
-        undoDebit(w);
-        updateWd(w.id, { status: "failed", error: r.error });
+    if (w.provider !== "binance" || !["pending", "processing", "unknown", "requesting"].includes(w.status)) continue;
+    let found;
+    try {
+      found = await binance.findWithdrawal(w.key, w.requestedAt || w.createdAt);
+    } catch {
+      continue;
+    }
+    if (!found) {
+      // Невідомо, чи створено, і за 30 хвилин в історії нема. Гроші клієнту
+      // самі не повертаємо: якщо вивід усе ж пішов, заплатили б двічі.
+      if (["unknown", "requesting"].includes(w.status) && Date.now() - new Date(w.requestedAt || w.createdAt).getTime() > UNKNOWN_GIVE_UP_MS) {
+        updateWd(w.id, { status: "check" });
+        notify(
+          `⚠️ Вывод клиента ${w.steamId} ${money(w.amount)} (${PAIRS[w.network]?.label || w.network}) не найден в истории Binance за 30 минут (${w.key}).\n` +
+            `Проверь в Binance. Вывода нет — верни клиенту ${money(w.amount)} поправкой баланса в My Trades.`
+        ).catch(() => {});
       }
       continue;
     }
-    if (!r.withdrawal) continue;
-    const st = r.withdrawal.status;
-    if (st === w.status) continue;
-    updateWd(w.id, { status: st, withdrawalId: r.withdrawal.id ?? w.withdrawalId, txId: r.withdrawal.transaction_id || null });
-    if (st === "failed" || st === "rejected") {
+    if (found.status === w.status) continue;
+    updateWd(w.id, { status: found.status, withdrawalId: found.id ?? w.withdrawalId, txId: found.txId });
+    if (found.status === "failed" || found.status === "rejected") {
       undoDebit(w);
-      notify(`❌ Skinbux ${st === "rejected" ? "отклонил" : "не смог выполнить"} вывод клиента ${w.steamId} $${w.send.toFixed(2)} — деньги вернулись ему на баланс.`).catch(() => {});
+      notify(`❌ Binance ${found.status === "rejected" ? "отклонил" : "не смог выполнить"} вывод клиента ${w.steamId} ${money(w.amount)} — деньги вернулись ему на баланс.`).catch(() => {});
     }
   }
 }
@@ -455,4 +554,4 @@ function listWithdrawals(steamId) {
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
-module.exports = { run, settings, pairFor, PAIRS, clientWithdraw, syncClientWithdrawals, listWithdrawals, WithdrawError };
+module.exports = { run, settings, pairFor, PAIRS, networksForClient, clientWithdraw, syncClientWithdrawals, listWithdrawals, WithdrawError };

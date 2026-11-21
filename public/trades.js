@@ -2693,6 +2693,7 @@ syncCustBalHoldFields();
 // Стан холду з датою: коли виходить і що з автовиплатою.
 const HOLD_PAYOUT_LABELS = {
   waiting: "auto-pay after release",
+  "waiting-funds": "waiting for money on Binance",
   sent: "paid out automatically",
   "dry-run": "test mode — pay manually",
   "no-details": "no crypto address — client withdraws",

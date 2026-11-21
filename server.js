@@ -1282,7 +1282,11 @@ async function notifyPayableSales() {
   // Автовиплата в крипті (cryptoPayouts.js) у процесі — "можно платить" не
   // шлемо, інакше власник заплатить удруге. Не вдалась — статус failed, і
   // тоді повідомлення приходить як завжди.
-  const autoInFlight = (sale) => ["requesting", "unknown", "pending", "processing"].includes(sale.autoPayout?.status);
+  // "waiting" — автовиплата чекає грошей на Binance; рахується, лише поки
+  // автовиплата увімкнена, інакше угода зависла б без "можно платить".
+  const autoOn = cryptoPayouts.settings(config).enabled;
+  const autoInFlight = (sale) =>
+    ["requesting", "unknown", "pending", "processing"].includes(sale.autoPayout?.status) || (autoOn && sale.autoPayout?.status === "waiting");
   const pending = skinbuxSales
     .payableNow()
     .filter((sale) => !sale.notifiedPayableAt && !skinbuxSales.OWN_STEAM_IDS.has(String(sale.steamId)) && !autoInFlight(sale));
@@ -2177,15 +2181,17 @@ function publicWithdrawal(w) {
   return { id: w.id, network: w.network, address: w.address, amount: w.amount, fee: w.fee, send: w.send, status: w.status, createdAt: w.createdAt };
 }
 
-app.get("/api/account/withdraw", (req, res) => {
+app.get("/api/account/withdraw", async (req, res) => {
   const customer = req.session.customer;
   if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
   const cfg = cryptoPayouts.settings(config);
   const last = skinbuxSales.lastPayout(customer.steamId);
+  // Мережі й комісії — з Binance (звідти платимо); вивід вимкнено — не питаємо.
+  const networks = cfg.clientWithdraw ? await cryptoPayouts.networksForClient() : [];
   res.json({
     ok: true,
-    enabled: !!cfg.clientWithdraw,
-    networks: Object.entries(cryptoPayouts.PAIRS).map(([id, p]) => ({ id, label: p.label, fee: cfg.feeUsd[id] ?? 1 })),
+    enabled: !!cfg.clientWithdraw && networks.length > 0,
+    networks,
     minUsd: cfg.minUsd,
     available: Math.max(0, customerBalanceOf(customer.steamId).available),
     // Остання адреса з продажу — щоб не вписувати заново.
