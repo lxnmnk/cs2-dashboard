@@ -97,12 +97,21 @@ async function signed(method, path, params = {}) {
 const COINS_TTL_MS = 10 * 60 * 1000;
 let coinsCache = null;
 
+// Депозити Binance за замовчуванням падають у Funding, а не в Spot. Вивести
+// можна з будь-якого (walletType 0 — Spot, 1 — Funding), тож читаємо обидва:
+// getall дає вільне на Spot, get-funding-asset — на Funding.
 async function coins({ force = false } = {}) {
   if (!force && coinsCache && Date.now() - coinsCache.at < COINS_TTL_MS) return coinsCache.list;
-  const list = await signed("GET", "/sapi/v1/capital/config/getall");
-  coinsCache = { at: Date.now(), list: Array.isArray(list) ? list : [] };
+  const [list, funding] = await Promise.all([signed("GET", "/sapi/v1/capital/config/getall"), signed("POST", "/sapi/v1/asset/get-funding-asset")]);
+  const fundingFree = {};
+  for (const f of Array.isArray(funding) ? funding : []) fundingFree[f.asset] = Number(f.free) || 0;
+  const merged = (Array.isArray(list) ? list : []).map((c) => ({ ...c, spotFree: Number(c.free) || 0, fundingFree: fundingFree[c.coin] || 0 }));
+  coinsCache = { at: Date.now(), list: merged };
   return coinsCache.list;
 }
+
+// Один вивід бере гроші з одного гаманця: "вільно" — більший із двох.
+const freeOf = (coin) => Math.max(coin?.spotFree || 0, coin?.fundingFree || 0);
 
 /**
  * Умови виводу в мережу (id з NETWORKS): чи відкритий вивід, комісія,
@@ -118,7 +127,7 @@ async function quote(networkId, opts) {
     enabled: !!net.withdrawEnable,
     fee: Number(net.withdrawFee) || 0,
     min: Number(net.withdrawMin) || 0,
-    free: Number(coin.free) || 0,
+    free: freeOf(coin),
     // Крок суми: більшість мереж — 0.01 чи дрібніше.
     step: Number(net.withdrawIntegerMultiple) || 0,
   };
@@ -131,7 +140,7 @@ function cachedQuote(networkId) {
   const coin = coinsCache.list.find((c) => c.coin === n?.coin);
   const net = coin?.networkList?.find((x) => x.network === n.network);
   if (!net) return null;
-  return { enabled: !!net.withdrawEnable, fee: Number(net.withdrawFee) || 0, min: Number(net.withdrawMin) || 0, free: Number(coin.free) || 0 };
+  return { enabled: !!net.withdrawEnable, fee: Number(net.withdrawFee) || 0, min: Number(net.withdrawMin) || 0, free: freeOf(coin) };
 }
 
 /** Після виводу залишок змінився — наступний quote читаємо наново. */
@@ -148,12 +157,16 @@ function invalidate() {
 async function withdraw({ networkId, address, amount, orderId }) {
   const n = NETWORKS[networkId];
   if (!n) throw new BinanceError(`Мережа ${networkId} не підтримується`);
+  // З якого гаманця: Funding, якщо там вистачає (туди падають депозити), інакше Spot.
+  const coin = (await coins({ force: true })).find((c) => c.coin === n.coin);
+  const walletType = (coin?.fundingFree || 0) + 0.000001 >= Number(amount) ? 1 : 0;
   const data = await signed("POST", "/sapi/v1/capital/withdraw/apply", {
     coin: n.coin,
     network: n.network,
     address,
     amount: Number(amount).toFixed(2),
     withdrawOrderId: orderId,
+    walletType,
   });
   invalidate();
   return { id: data?.id ?? null };

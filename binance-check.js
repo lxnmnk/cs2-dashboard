@@ -21,6 +21,9 @@ const binance = require("./binanceWallet");
   const [flag, networkId, address, amountRaw] = process.argv.slice(2);
 
   if (flag !== "--withdraw") {
+    for (const c of (await binance.coins()).filter((x) => ["USDT", "USDC"].includes(x.coin))) {
+      console.log(`${c.coin}: Spot ${c.spotFree} · Funding ${c.fundingFree}`);
+    }
     for (const [id, n] of Object.entries(binance.NETWORKS)) {
       const q = await binance.quote(id);
       console.log(
