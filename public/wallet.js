@@ -406,7 +406,7 @@ function renderWithdraw() {
     </div>
     <div class="topup-form wd-form">
       <label class="topup-label wd-address">${wEsc(W.wdAddress)}
-        <input id="wdAddress" class="item-float-input" type="text" autocomplete="off" spellcheck="false" value="${wEsc(address)}" placeholder="${wdNetwork.endsWith("trc20") ? "T…" : "0x…"}" />
+        <input id="wdAddress" class="item-float-input" type="text" autocomplete="off" spellcheck="false" value="${wEsc(address)}" placeholder="${wdNetwork.endsWith("trc20") ? "T…" : wdNetwork.endsWith("-sol") ? "" : "0x…"}" />
       </label>
       <label class="topup-label">${wEsc(W.wdAmount)}
         <span class="wd-amount-row">
@@ -448,7 +448,8 @@ function renderWithdraw() {
       // Адреса іншої мережі не підходить — очищаємо, якщо формат інший.
       const keep = $w("wdAddress").value;
       renderWithdraw();
-      const ok = wdNetwork.endsWith("trc20") ? /^T/.test(keep) : /^0x/i.test(keep);
+      // Формат адреси — за ланцюгом: Tron "T…", EVM (ERC-20/BEP-20) "0x…", Solana — base58 без префікса.
+      const ok = wdNetwork.endsWith("trc20") ? /^T/.test(keep) : wdNetwork.endsWith("-sol") ? /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(keep) : /^0x/i.test(keep);
       $w("wdAddress").value = ok ? keep : wd.last && wd.last.network === wdNetwork ? wd.last.address : "";
     })
   );
