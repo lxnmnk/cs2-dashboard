@@ -131,6 +131,7 @@
             <label class="payout-label" id="payoutAddressLabelEl"></label>
             <input id="payoutAddress" class="payout-input" type="text" autocomplete="off" maxlength="80" spellcheck="false" />
             <p class="payout-note" id="payoutAddressHintEl"></p>
+            <p class="payout-note payout-speed" id="payoutSpeedEl"></p>
           </div>
           <p id="payoutError" class="payout-error"></p>
 
@@ -242,6 +243,8 @@
       payoutHolderHint: "Рівно як на картці. Банк відхилить розбіжність.",
       payoutAddressLabel: "Адреса гаманця",
       payoutAddressHint: "Перевір мережу: монета, надіслана не в ту мережу, не повертається.",
+      payoutSpeedAuto: "⚡ ERC-20 — виплата миттєва й автоматична: щойно закінчиться холд, гроші самі прийдуть на гаманець.",
+      payoutSpeedManual: "У цій мережі виплата вручну — це може зайняти більше часу. Миттєво й автоматично — лише ERC-20.",
       payoutBankLabel: "Банк",
       payoutBanks: { mono: "monobank", privat24: "privat24", abank: "a-bank", other: "інший банк" },
       payoutBankNamePlaceholder: "Назва банку",

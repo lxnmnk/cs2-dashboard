@@ -128,6 +128,7 @@
             <label class="payout-label" id="payoutAddressLabelEl"></label>
             <input id="payoutAddress" class="payout-input" type="text" autocomplete="off" maxlength="80" spellcheck="false" />
             <p class="payout-note" id="payoutAddressHintEl"></p>
+            <p class="payout-note payout-speed" id="payoutSpeedEl"></p>
           </div>
           <p id="payoutError" class="payout-error"></p>
 
@@ -240,6 +241,8 @@
       payoutHolderHint: "Ровно как на карте. Банк отклонит несовпадение.",
       payoutAddressLabel: "Адрес кошелька",
       payoutAddressHint: "Проверь сеть: монета, отправленная не в ту сеть, не возвращается.",
+      payoutSpeedAuto: "⚡ ERC-20 — выплата мгновенная и автоматическая: как только закончится холд, деньги сами придут на кошелёк.",
+      payoutSpeedManual: "В этой сети выплата вручную — это может занять больше времени. Мгновенно и автоматически — только ERC-20.",
       payoutBankLabel: "Банк",
       payoutBanks: { mono: "monobank", privat24: "privat24", abank: "a-bank", other: "другой банк" },
       payoutBankNamePlaceholder: "Название банка",

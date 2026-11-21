@@ -399,6 +399,7 @@ function renderWithdraw() {
     <div class="delivery-switch topup-networks" role="group">
       ${wd.networks.map((n) => `<button class="delivery-btn${n.id === wdNetwork ? " active" : ""}" type="button" data-wdnet="${n.id}">${wEsc(n.label)}</button>`).join("")}
     </div>
+    <p class="card-hint wd-speed">${wEsc(wdNetwork.endsWith("erc20") ? W.wdSpeedAuto || "" : W.wdSpeedManual || "")}</p>
     <div class="topup-form wd-form">
       <label class="topup-label wd-address">${wEsc(W.wdAddress)}
         <input id="wdAddress" class="item-float-input" type="text" autocomplete="off" spellcheck="false" value="${wEsc(address)}" placeholder="${wdNetwork.endsWith("trc20") ? "T…" : "0x…"}" />
@@ -537,7 +538,7 @@ async function submitWithdraw() {
   $w("wdAmount").value = "";
   await loadWithdraw();
   $w("wdError").className = "buy-ok";
-  $w("wdError").textContent = `✅ ${W.wdDone}`;
+  $w("wdError").textContent = `✅ ${wdNetwork.endsWith("erc20") ? W.wdDone : W.wdDoneManual || W.wdDone}`;
 }
 
 // ---- Вкладки ----

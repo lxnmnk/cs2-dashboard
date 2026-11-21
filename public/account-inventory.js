@@ -238,12 +238,14 @@ let payoutNetwork = null; // для crypto: мережу треба знати �
 const PAYOUT_CARD_ENABLED = CFG.payoutCardEnabled !== false;
 const PAYOUT_OPTIONS = [
   { id: "card", kind: "card", coin: "\u20b4", coinClass: "coin-uah" },
-  { id: "usdt-trc20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "TRC-20", chain: "tron" },
+  // ERC-20 \u043f\u0435\u0440\u0448\u0438\u043c\u0438: \u043b\u0438\u0448\u0435 \u0442\u0430\u043c \u0432\u0438\u043f\u043b\u0430\u0442\u0430 \u043c\u0438\u0442\u0442\u0454\u0432\u0430 \u0439 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u043d\u0430 (TRC-20 Skinbux
+  // \u043e\u0431\u0440\u043e\u0431\u043b\u044f\u0454 \u0432\u0440\u0443\u0447\u043d\u0443, \u0440\u0435\u0448\u0442\u0443 \u043c\u0435\u0440\u0435\u0436 \u043f\u043b\u0430\u0442\u0438\u043c\u043e \u0440\u0443\u043a\u0430\u043c\u0438).
   { id: "usdt-erc20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "ERC-20", chain: "evm" },
+  { id: "usdc-erc20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "ERC-20", chain: "evm" },
+  { id: "usdt-trc20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "TRC-20", chain: "tron" },
   { id: "usdt-bep20", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "BEP-20", chain: "evm" },
   { id: "usdt-sol", kind: "crypto", coin: "\u20ae", coinClass: "coin-usdt", title: "USDT", badge: "Solana", chain: "solana" },
   { id: "usdc-trc20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "TRC-20", chain: "tron" },
-  { id: "usdc-erc20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "ERC-20", chain: "evm" },
   { id: "usdc-bep20", kind: "crypto", coin: "$", coinClass: "coin-usdc", title: "USDC", badge: "BEP-20", chain: "evm" },
 ].filter((o) => o.kind !== "card" || PAYOUT_CARD_ENABLED);
 
@@ -305,6 +307,8 @@ function renderPayoutChoice() {
 
   payoutCardFields.style.display = payoutChoice.kind === "card" ? "" : "none";
   payoutCryptoFields.style.display = payoutChoice.kind === "crypto" ? "" : "none";
+  const speed = document.getElementById("payoutSpeedEl");
+  if (speed) speed.textContent = payoutChoice.kind !== "crypto" ? "" : payoutChoice.badge === "ERC-20" ? CFG.payoutSpeedAuto || "" : CFG.payoutSpeedManual || "";
   payoutError.textContent = "";
 }
 
