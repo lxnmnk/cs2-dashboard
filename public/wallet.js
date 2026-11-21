@@ -384,7 +384,12 @@ function wdStatus(st) {
 function renderWithdraw() {
   const root = $w("withdrawRoot");
   if (!wd?.ok || !wd.enabled) {
-    root.innerHTML = "";
+    // Вивід кнопкою вимкнено (Skinbux не дозволяє виводити клієнтам напряму):
+    // платимо вручну, але людина з грошима на балансі має знати, як їх отримати.
+    root.innerHTML =
+      wd?.ok && wd.available > 0 && W.wdManual
+        ? `<h3 class="panel-title">${wEsc(W.wdTitle)}</h3><p class="card-hint">${wEsc(W.wdManual)}</p>`
+        : "";
     return;
   }
   if (!wdNetwork) wdNetwork = wd.last?.network && wd.networks.some((n) => n.id === wd.last.network) ? wd.last.network : wd.networks[0].id;
