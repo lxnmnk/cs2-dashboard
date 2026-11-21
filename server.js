@@ -2984,11 +2984,7 @@ async function handleSalesImport(req, res, { source, tag, loadSales }) {
     let inventory = null;
     let inventoryError = null;
     try {
-      inventory = await skinbuxInventory.fetchUserInventory(
-        process.env.SKINBUX_API_KEY,
-        skinbuxSales.OWNER_STEAM_ID,
-        { force: true }
-      );
+      ({ inventory } = await ownerInventoryForFloats());
     } catch (err) {
       inventoryError = err.message;
     }
@@ -3263,16 +3259,33 @@ app.delete("/api/customer-balances/:steamId/:entryId", requireSiteOwner, (req, r
   }
 });
 
+/**
+ * Инвентарь владельца для сверки по float: Skinbux плюс то, что видит CSFloat
+ * (инвентарь и выставленные лоты) — Skinbux выставленные на CSFloat предметы
+ * не показывает. CSFloat не ответил — работаем по одному Skinbux и пишем в лог.
+ */
+async function ownerInventoryForFloats() {
+  const skinbux = await skinbuxInventory.fetchUserInventory(process.env.SKINBUX_API_KEY, skinbuxSales.OWNER_STEAM_ID, {
+    force: true,
+  });
+  let extra = [];
+  let csfloatError = null;
+  try {
+    extra = await csfloatAutoList.ownedItems(process.env.CSFLOAT_API_KEY);
+  } catch (err) {
+    csfloatError = err.message;
+    console.warn("[inventory] CSFloat не прочитался, сверка только по Skinbux:", err.message);
+  }
+  const { items, added } = tradeFloats.mergeInventories(skinbux, extra);
+  return { inventory: items, skinbuxCount: skinbux.length, csfloatAdded: added, csfloatError };
+}
+
 // Сверка открытых позиций с инвентарём: чего уже нет на аккаунте (продано
 // мимо Skinbux — на Youpin, прямым трейдом). Ничего не закрывает: цену и дату
 // продажи владелец вписывает сам, мы только показываем, что искать.
 app.post("/api/trades/inventory-check", requireSiteOwner, async (req, res) => {
   try {
-    const inventory = await skinbuxInventory.fetchUserInventory(
-      process.env.SKINBUX_API_KEY,
-      skinbuxSales.OWNER_STEAM_ID,
-      { force: true }
-    );
+    const { inventory, skinbuxCount, csfloatAdded, csfloatError } = await ownerInventoryForFloats();
     // Сделки берём с расчётными полями: нужен isLocked. Предметы в трейд-бане
     // Skinbux в инвентаре не показывает вовсе, и без этой пометки все свежие
     // покупки с CSFloat выглядели бы проданными.
@@ -3284,9 +3297,11 @@ app.post("/api/trades/inventory-check", requireSiteOwner, async (req, res) => {
     // Skinbux показує не всі предмети — перш ніж назвати позицію проданою,
     // звіряємось ще й з інвентарем самого Steam (tradeFloats.confirmWithSteam).
     let steamItems = null;
+    let steamError = null;
     try {
       steamItems = await fetchInventory(skinbuxSales.OWNER_STEAM_ID, { force: true });
     } catch (err) {
+      steamError = err.message;
       console.warn("[inventory-check] Steam-инвентарь не прочитался, сверка только по Skinbux:", err.message);
     }
     const report = tradeFloats.confirmWithSteam(checked, steamItems, rawTrades);
@@ -3294,6 +3309,10 @@ app.post("/api/trades/inventory-check", requireSiteOwner, async (req, res) => {
       ok: true,
       ...report,
       floatsFilled: filled,
+      skinbuxCount,
+      csfloatAdded,
+      csfloatError,
+      steamError,
       inventoryCount: inventory.length,
       inventoryWithFloat: inventory.filter((i) => i.float != null).length,
       checkedAt: new Date().toISOString(),

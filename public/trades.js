@@ -1300,6 +1300,9 @@ function renderInventoryCheck(data) {
     );
   }
   if (data.floatsFilled) notes.push(`Float filled in from the inventory for ${data.floatsFilled} position(s).`);
+  if (data.csfloatAdded) notes.push(`${data.csfloatAdded} item(s) Skinbux does not show were found on CSFloat (inventory or listed on your stall).`);
+  if (data.csfloatError) notes.push(`CSFloat did not answer (${data.csfloatError}) — items listed on CSFloat may show up as gone.`);
+  if (data.steamError) notes.push(`Steam did not answer (${data.steamError}) — the "gone" list was not double-checked against Steam, run it again later.`);
   if (unclear.length) {
     notes.push(
       `${unclear.length} position(s) can't be judged: the float is unknown and identical skins are still in the inventory. Type the float in the Holdings table and run this again.`

@@ -144,6 +144,31 @@ async function stallListings(apiKey) {
 }
 
 /**
+ * Всё, что CSFloat видит на аккаунте: инвентарь и выставленные лоты стола —
+ * [{ marketHashName (с фазой доплера, как в трекере), float }]. Для сверки
+ * трекера с инвентарём (tradeFloats.mergeInventories): Skinbux выставленные
+ * на CSFloat предметы не показывает. Только чтение.
+ */
+async function ownedItems(apiKey) {
+  const out = [];
+  const add = (raw) => {
+    const it = normalizeInventoryItem(raw);
+    if (it.name && it.float != null) out.push({ marketHashName: it.rowKey, float: Number(it.float), source: "csfloat" });
+  };
+  const inv = await api(apiKey, "GET", "/me/inventory");
+  for (const raw of Array.isArray(inv) ? inv : inv?.data || inv?.items || []) add(raw);
+  const me = await api(apiKey, "GET", "/me");
+  const steamId = me?.user?.steam_id;
+  if (steamId) {
+    const stall = await api(apiKey, "GET", `/users/${steamId}/stall?limit=999`).catch(() =>
+      api(apiKey, "GET", `/users/${steamId}/stall?limit=40`)
+    );
+    for (const l of Array.isArray(stall) ? stall : stall?.data || []) if (l.item) add(l.item);
+  }
+  return out;
+}
+
+/**
  * Самый дорогой бай-ордер CSFloat, под который подходит этот предмет (с учётом
  * float-диапазонов ордеров), в долларах; 0 — ордеров нет. Висит наш лот —
  * спрашиваем ордера этого лота; нет — similar-orders с float предмета (то, что
@@ -404,4 +429,4 @@ function summary(report) {
   return `${report.apply ? "" : "план (ничего не менялось): "}выставлено ${count("list")}, переоценено ${count("reprice")}, снято ${count("delist")}, пропущено ${count("skip")}${errors ? `, ошибок ${errors}` : ""}`;
 }
 
-module.exports = { run, summary, settings, decide, api, topBuyOrder };
+module.exports = { run, summary, settings, decide, api, topBuyOrder, ownedItems };

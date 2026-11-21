@@ -31,25 +31,56 @@
 // где-то по пути число округлили до шестого знака; два разных предмета одного
 // скина так близко не встают.
 const FLOAT_EPS = 1e-6;
+const { stripPhaseSuffix } = require("./itemName");
 
 /** Предмет в трейд-бане: инвентарь Skinbux его не показывает, судить по нему нельзя. */
 function isLockedPosition(trade) {
   return trade.isLocked === true;
 }
 
-function sameFloat(a, b) {
-  if (a == null || b == null) return false;
-  return Math.abs(Number(a) - Number(b)) < FLOAT_EPS;
+/** Сколько знаков после точки в записи числа (0.1183 -> 4). */
+function decimals(n) {
+  const s = String(n);
+  if (/e/i.test(s)) return 20;
+  return (s.split(".")[1] || "").length;
 }
 
-/** Инвентарь Skinbux -> название предмета: список float'ов, которые там лежат. */
+/**
+ * Тот же предмет по float. Обычно float приходит с полной точностью и
+ * сравнивается жёстко (FLOAT_EPS). Но вписанный руками бывает короче —
+ * "0.1183" у Bowie Knife, который в инвентаре 0.118346: тогда сравниваем с
+ * точностью до последнего вписанного знака (обрезали или округлили — не
+ * важно). Меньше 4 знаков — не сравниваем вольно: 0.12 подошло бы слишком
+ * многим.
+ */
+function sameFloat(a, b) {
+  if (a == null || b == null) return false;
+  const d = Math.min(decimals(a), decimals(b));
+  const tolerance = d < 6 && d >= 4 ? Math.pow(10, -d) : FLOAT_EPS;
+  return Math.abs(Number(a) - Number(b)) < tolerance;
+}
+
+/**
+ * Название предмета инвентаря так, как его пишет трекер. Skinbux отдаёт фазу
+ * доплера отдельным полем, а в market_hash_name её нет; в трекере же она в
+ * названии (" - Phase 2"). Без этого каждый доплер на месте выглядел
+ * "проданным": имена не сходились, и float искался не там.
+ */
+function inventoryKey(item) {
+  const name = item?.marketHashName;
+  if (!name || !item.phase || !/Doppler/.test(name) || stripPhaseSuffix(name).phase) return name;
+  return `${name} - ${item.phase}`;
+}
+
+/** Инвентарь -> название предмета (как в трекере): список float'ов, которые там лежат. */
 function floatsByName(inventory) {
   const map = new Map();
   for (const item of inventory || []) {
-    if (item?.float == null || !item.marketHashName) continue;
-    const list = map.get(item.marketHashName) || [];
+    const key = inventoryKey(item);
+    if (item?.float == null || !key) continue;
+    const list = map.get(key) || [];
     list.push(Number(item.float));
-    map.set(item.marketHashName, list);
+    map.set(key, list);
   }
   return map;
 }
@@ -59,10 +90,31 @@ function floatsByName(inventory) {
 function countsByName(inventory) {
   const map = new Map();
   for (const item of inventory || []) {
-    if (!item?.marketHashName) continue;
-    map.set(item.marketHashName, (map.get(item.marketHashName) || 0) + 1);
+    const key = inventoryKey(item);
+    if (!key) continue;
+    map.set(key, (map.get(key) || 0) + 1);
   }
   return map;
+}
+
+/**
+ * Инвентарь Skinbux + то, что видит CSFloat (инвентарь и выставленные лоты).
+ * Skinbux показывает не всё: предметы, выставленные на CSFloat, у него
+ * пропадают (так "проданными" выходили Ursus Blue Steel, Talon Case Hardened и
+ * два Huntsman Gamma Doppler, висевшие на столе). Добавляем только то, чьего
+ * float в Skinbux нет, — иначе один предмет посчитался бы дважды.
+ */
+function mergeInventories(primary, extra) {
+  if (!primary) return primary;
+  const merged = [...primary];
+  let added = 0;
+  for (const item of extra || []) {
+    if (item?.float == null || !item.marketHashName) continue;
+    if (merged.some((m) => sameFloat(m.float, item.float))) continue;
+    merged.push(item);
+    added++;
+  }
+  return { items: merged, added };
 }
 
 /**
@@ -82,11 +134,24 @@ function splitByInventory(positions, inventoryFloats) {
   const gone = [];
   const unknown = [];
 
+  // Сначала точные совпадения, потом вписанные руками коротко: иначе "0.1183"
+  // мог бы забрать float, который на самом деле принадлежит другой позиции.
+  const strict = (a, b) => Math.abs(Number(a) - Number(b)) < FLOAT_EPS;
+  const pending = [];
   for (const position of positions) {
     if (!pool || position.floatValue == null) {
       unknown.push(position);
       continue;
     }
+    const at = pool.findIndex((f) => strict(f, position.floatValue));
+    if (at >= 0) {
+      pool.splice(at, 1);
+      held.push(position);
+    } else {
+      pending.push(position);
+    }
+  }
+  for (const position of pending) {
     const at = pool.findIndex((f) => sameFloat(f, position.floatValue));
     if (at >= 0) {
       pool.splice(at, 1);
@@ -296,6 +361,8 @@ module.exports = {
   sameFloat,
   floatsByName,
   countsByName,
+  inventoryKey,
+  mergeInventories,
   splitByInventory,
   planFill,
   applyFillInMemory,
