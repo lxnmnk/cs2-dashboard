@@ -84,16 +84,31 @@ async function skinbuxWithdraw(key, body) {
   return { failed: true, code, error: data?.error?.message || `HTTP ${res.status}` };
 }
 
-/** Поповнення монети, яке ще в дорозі (null — немає). */
-function inFlight(coin) {
-  return (
-    load().find((r) => {
-      if (r.coin !== coin) return false;
-      if (["requesting", "unknown", "pending", "processing"].includes(r.status)) return true;
-      // Skinbux вивів, а Binance ще чекає підтверджень.
-      return r.status === "completed" && Date.now() - new Date(r.completedAt || r.updatedAt).getTime() < ARRIVAL_GRACE_MS;
-    }) || null
-  );
+/**
+ * Поповнення монети, яке ще в дорозі (null — немає). Skinbux уже вивів, але
+ * депозиту ще не видно на Binance — теж "в дорозі", до ARRIVAL_GRACE_MS.
+ * Щойно Binance показав депозит (зараховано, навіть якщо ще підтверджується),
+ * гроші вже у "вільно" — можна рахувати наступну нестачу.
+ */
+async function inFlight(coin) {
+  for (const r of load()) {
+    if (r.coin !== coin) continue;
+    if (["requesting", "unknown", "pending", "processing"].includes(r.status)) return r;
+    if (r.status !== "completed" || r.arrivedAt) continue;
+    if (Date.now() - new Date(r.completedAt || r.updatedAt).getTime() >= ARRIVAL_GRACE_MS) continue;
+    let arrived = null;
+    try {
+      const route = ROUTES[coin];
+      arrived = (await binance.recentDeposits(coin, r.createdAt)).find(
+        (d) => d.network === route.binanceNetwork && [1, 6].includes(d.status) && d.amount <= r.amount + 0.001 && d.amount >= r.amount * 0.9
+      );
+    } catch {
+      return r; // Binance не відповів — вважаємо, що ще в дорозі
+    }
+    if (!arrived) return r;
+    update(r.id, { arrivedAt: arrived.at, arrivedAmount: arrived.amount });
+  }
+  return null;
 }
 
 /**
@@ -104,7 +119,7 @@ async function ensure(config, coin, needUsd, { notify = async () => {} } = {}) {
   const cfg = settings(config);
   const route = ROUTES[coin];
   if (!cfg.enabled || !route || !process.env.SKINBUX_API_KEY || !binance.configured()) return { started: false, reason: "off" };
-  if (inFlight(coin)) return { started: false, inFlight: true };
+  if (await inFlight(coin)) return { started: false, inFlight: true };
 
   // Депозит падає у Funding, а один вивід бере гроші з одного гаманця, тож
   // нестачу рахуємо від Funding: інакше гроші на Spot "зараховувались" би

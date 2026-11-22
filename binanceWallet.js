@@ -214,4 +214,13 @@ async function depositAddress(coin, network) {
   return d.address;
 }
 
-module.exports = { NETWORKS, configured, coins, quote, cachedQuote, invalidate, withdraw, findWithdrawal, depositAddress, mapStatus, BinanceError };
+/**
+ * Депозити монети з моменту since: { amount, network, status, at }.
+ * status Binance: 0 pending, 6 зараховано (ще не можна виводити), 1 success.
+ */
+async function recentDeposits(coin, since) {
+  const list = await signed("GET", "/sapi/v1/capital/deposit/hisrec", { coin, startTime: Math.floor(new Date(since).getTime()) });
+  return (Array.isArray(list) ? list : []).map((d) => ({ amount: Number(d.amount), network: d.network, status: Number(d.status), at: new Date(d.insertTime).toISOString() }));
+}
+
+module.exports = { NETWORKS, configured, coins, quote, cachedQuote, invalidate, withdraw, findWithdrawal, depositAddress, recentDeposits, mapStatus, BinanceError };
