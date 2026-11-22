@@ -270,6 +270,9 @@ async function run(config, { getAvailable, notify = async () => {} }) {
       if (err.ambiguous) {
         skinbuxSales.setAutoPayout(sale.id, { status: "unknown", error: err.message });
         notify(`⚠️ Автовыплата по сделке #${sale.id}: ${err.message}. Проверю по истории Binance — двойной выплаты не будет. Вручную НЕ плати.`).catch(() => {});
+      } else if (err.retryLater) {
+        // Депозит ще підтверджується — наступний прохід спробує знову.
+        skinbuxSales.setAutoPayout(sale.id, { status: "waiting", reason: "deposit-confirming" });
       } else {
         handled.delete(String(sale.id));
         skinbuxSales.setAutoPayout(sale.id, { status: "failed", error: err.message, code: err.code });
@@ -407,6 +410,8 @@ async function sendRecorded(record) {
     return { w: updateWd(record.id, { status: "pending", withdrawalId: r.id }) };
   } catch (err) {
     if (err.ambiguous) return { w: updateWd(record.id, { status: "unknown", error: err.message }), error: err };
+    // Депозит на Binance ще підтверджується — не відмова: у чергу, піде сам.
+    if (err.retryLater) return { w: updateWd(record.id, { status: "waiting-funds", error: err.message }), queued: true };
     const w = updateWd(record.id, { status: "failed", error: err.message, code: err.code ?? null });
     undoDebit(w);
     return { w, error: err };
@@ -478,12 +483,14 @@ async function runHoldReleases(cfg, { getAvailable, notify, demand = {} }) {
     }).id;
     const now = new Date().toISOString();
     set({ status: "sent", withdrawId: id, pay, fee, send });
-    const { error } = await sendRecorded({
+    const { error, queued } = await sendRecorded({
       id, steamId: String(steamId), network: details.network, address: details.address, amount: pay, fee, send,
       key: `hold-${entry.id}`, provider: "binance", requestedAt: now, closedSales: [], adjustmentId,
       source: "hold", entryId: entry.id, status: "requesting", createdAt: now, updatedAt: now,
     });
-    if (error && !error.ambiguous) {
+    if (queued) {
+      notify(`⏳ Вышел ${label}: депозит на Binance ещё подтверждается — выплата в очереди, уйдёт сама через несколько минут.`).catch(() => {});
+    } else if (error && !error.ambiguous) {
       set({ status: "failed", error: error.message });
       notify(`❌ Автовыплата холда не прошла: Binance ответил «${error.message}».\n${label}: деньги у клиента в «доступно», заплати вручную: ${where}, ${money(pay)}`).catch(() => {});
     } else if (error) {
@@ -557,11 +564,15 @@ function clientWithdraw(config, { steamId, network, address, amount, exclusive, 
       await coverShortfall(config, queuedClientDemand(), notify);
       return record;
     }
-    const { w, error } = await sendRecorded({
+    const { w, error, queued: confirming } = await sendRecorded({
       id, steamId: String(steamId), network, address: details.address, amount: sum, fee, send,
       key: `wd-${id}`, provider: "binance", requestedAt: now, closedSales: closed, adjustmentId,
       status: "requesting", createdAt: now, updatedAt: now,
     });
+    if (confirming) {
+      notify(`⏳ Клиент ${steamId} выводит ${money(sum)} (${pair.label}): депозит на Binance ещё подтверждается — вывод в очереди, уйдёт сам через несколько минут.`).catch(() => {});
+      return w;
+    }
     if (error && !error.ambiguous) {
       notify(`⚠️ Вывод клиента ${steamId} ${money(sum)} (${pair.label}) не прошёл: Binance ответил «${error.message}». Деньги вернулись ему на баланс.`).catch(() => {});
       throw new WithdrawError("FAILED", { message: error.message });
@@ -623,6 +634,9 @@ async function syncClientWithdrawals({ notify = async () => {}, config = null } 
     } catch (err) {
       if (err.ambiguous) {
         updateWd(w.id, { status: "unknown", error: err.message });
+      } else if (err.retryLater) {
+        // Депозит ще підтверджується — лишаємо в черзі, наступна хвилина.
+        updateWd(w.id, { status: "waiting-funds", error: err.message });
       } else {
         const f = updateWd(w.id, { status: "failed", error: err.message, code: err.code ?? null });
         undoDebit(f);

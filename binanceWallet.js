@@ -88,7 +88,12 @@ async function signed(method, path, params = {}) {
   const msg = data?.msg || `HTTP ${res.status}`;
   // -1007: "Timeout waiting for response from backend" — результат невідомий.
   const ambiguous = res.status >= 500 || data?.code === -1007;
-  throw new BinanceError(msg, { status: res.status, code: data?.code ?? null, ambiguous });
+  const err = new BinanceError(msg, { status: res.status, code: data?.code ?? null, ambiguous });
+  // RW00441: депозит уже зарахований, але ще добирає підтверджень мережі, і
+  // виводити його Binance поки не дає (для ERC-20 — кілька хвилин). Це не
+  // відмова: вивід не створено, повторимо пізніше.
+  err.retryLater = /RW00441|still being confirmed/i.test(msg);
+  throw err;
 }
 
 // ---- Монети: залишок, комісія й мінімум по мережах ----
