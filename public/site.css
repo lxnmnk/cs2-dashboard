@@ -1,0 +1,185 @@
+/* Спільний шар для всіх клієнтських сторінок — підключається одразу після
+   quote.css (а landing.css / profile.css — вже після нього).
+
+   Навіщо окремим файлом: quote.css виріс до 3,5 тис. рядків, і в ньому кожен
+   розділ з часом отримав своє світіння, тінь і рамку. Разом це й давало
+   "шаблонний" вигляд. Тут — одна мова для всього сайту, як на головній і в
+   профілі: рівні темні поверхні з тонкою рамкою, без золотого туману й важких
+   тіней, заголовки зліва без плашок, золото лише там, де гроші й головна дія. */
+
+:root {
+  --display: "Manrope", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --surface: #0f1013;
+  --surface-2: #14161a;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.12);
+}
+
+body { background: var(--bg); }
+/* Фонова мапа ледь помітна: на рівних поверхнях вона читалась як брудна пляма. */
+.bg-decor { opacity: 0.045; }
+
+h1,
+h2,
+h3,
+.site-brand,
+.cart-total,
+.deal-price {
+  font-family: var(--display);
+}
+
+/* ---- Шапка ---- */
+.site-header {
+  background: rgba(10, 11, 14, 0.94);
+  border-bottom-color: var(--line);
+}
+.site-brand { font-size: 17px; letter-spacing: -0.01em; }
+.site-nav a.active {
+  color: var(--text);
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.06);
+}
+.site-nav a.active .nav-icon { color: var(--gold); }
+.nav-profile-user { background: var(--surface-2); border-color: var(--line); }
+
+/* ---- Заголовок сторінки: зліва, без плашки "CS2 SKINS TRADE" ---- */
+.pg-head {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--s-7) var(--s-5) var(--s-5);
+}
+.pg-head.is-narrow { max-width: 808px; }
+.pg-head h1 {
+  margin: 0;
+  font-size: clamp(28px, 3.2vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+}
+.pg-sub {
+  margin: var(--s-2) 0 0;
+  max-width: 660px;
+  color: var(--muted);
+  font-size: var(--t-md);
+  line-height: 1.55;
+}
+.pg-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin: var(--s-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pg-facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: var(--t-sm);
+  color: #c9c5bc;
+}
+.pg-facts svg,
+.terms-list svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--gold);
+}
+
+/* ---- Поверхні ---- */
+.card {
+  background: var(--surface);
+  border-color: var(--line);
+  border-radius: 18px;
+  box-shadow: none;
+}
+.card h2 { font-size: 19px; letter-spacing: -0.01em; }
+.filters-panel,
+.cart-sidebar,
+.swap-panel {
+  background: var(--surface);
+  border-color: var(--line);
+  box-shadow: none;
+}
+.terms-list li { align-items: center; }
+
+/* Обмін: підсумок і колонки впирались у краї вікна — тепер у тій самій
+   ширині, що й заголовок над ними. */
+.swap-summary,
+.swap-layout {
+  width: min(1352px, calc(100% - 48px));
+  margin-left: auto;
+  margin-right: auto;
+}
+.swap-panel .card-hint {
+  color: var(--muted);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+
+/* Картки предметів: рівна підкладка, світло знизу біле, а не золоте —
+   золото лишається за ціною. */
+.inventory-card,
+.market-card {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+.inventory-card-img {
+  background:
+    radial-gradient(90% 70% at 50% 70%, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 70%),
+    rgba(255, 255, 255, 0.02);
+}
+.inventory-card.selectable:hover {
+  transform: translateY(-2px);
+  box-shadow: none;
+  border-color: var(--gold-line);
+}
+
+/* ---- Поля ---- */
+#itemSearch,
+.inventory-search,
+.inventory-sort,
+.filters-search,
+.filters-range input,
+.trade-url-row input,
+.payout-input {
+  background: #0b0c0f;
+  border-color: var(--line-strong);
+}
+#itemSearch:focus,
+.inventory-search:focus,
+.filters-search:focus,
+.trade-url-row input:focus,
+.payout-input:focus {
+  outline: none;
+  border-color: var(--gold-line);
+}
+
+/* ---- Кнопки ---- */
+.btn-gold { font-weight: 700; }
+.btn-gold:hover { opacity: 1; filter: brightness(1.08); }
+
+/* ---- Підвал ---- */
+.site-footer {
+  background: #08090b;
+  border-top-color: var(--line);
+}
+.site-footer-col h4 {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.site-footer-legal { border-top-color: var(--line); }
+
+@media (max-width: 620px) {
+  .pg-head { padding: var(--s-5) var(--s-4) var(--s-4); }
+  .pg-head h1 { font-size: 27px; }
+  .pg-facts li { padding: 7px 10px; font-size: var(--t-xs); }
+  .card { border-radius: 14px; }
+  .swap-summary,
+  .swap-layout { width: calc(100% - 24px); }
+}
