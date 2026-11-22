@@ -365,6 +365,7 @@ const PUBLIC_PATHS = new Set([
   "/account-deals.js",
   "/sell-offer-modal.js",
   "/quote.css",
+  "/landing.css",
   "/quote-common.js",
   "/bg-map.jpg",
   "/favicon.svg",
