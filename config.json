@@ -205,15 +205,14 @@
   },
   "cryptoPayout": {
     "_comment": "Выплаты клиентам в крипте с Binance владельца (cryptoPayouts.js + binanceWallet.js; ключ BINANCE_API_KEY/SECRET в .env). Skinbux выводит только на наш кошелёк (21.11.2026), поэтому Skinbux -> Binance руками, Binance -> клиент тут. enabled — автовыплата сделок после холда; dryRun: true — ничего не выводит, только пишет в Telegram, что вывел бы. clientWithdraw — кнопка «Вывести» в профиле (dryRun на неё не действует). minUsd — минимум вывода до комиссии; комиссию сети берёт Binance из суммы, её платит клиент.",
-    "_paused": "22.11.2026: Binance заблокировал выводы (RW00458, Risk Control) — кнопка и пополнение на паузе, пока поддержка Binance не разблокирует.",
     "enabled": false,
     "dryRun": true,
-    "clientWithdraw": false,
+    "clientWithdraw": true,
     "minUsd": 5
   },
   "binanceRefill": {
     "_comment": "Автопополнение Binance со Skinbux (binanceRefill.js): не хватает монеты для выплаты — сервер выводит нехватку + extraUsd (комиссия сети) со Skinbux на адрес депозита нашего Binance (берётся из API Binance). USDT -> USDT ERC-20, USDC -> USDC ERC-20. Не меньше minUsd за раз, одно пополнение на монету в дороге.",
-    "enabled": false,
+    "enabled": true,
     "extraUsd": 5,
     "minUsd": 20
   },
