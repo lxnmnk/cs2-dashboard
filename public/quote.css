@@ -982,6 +982,9 @@ a { color: var(--gold); }
 .site-nav a:hover { color: var(--text); background: rgba(255, 255, 255, 0.04); }
 .site-nav a.active { color: var(--gold); border-color: var(--gold-line); background: var(--gold-soft); }
 .site-nav .nav-icon { font-size: 15px; line-height: 1; }
+/* Іконки меню — свої лінійні SVG замість емодзі: емодзі на кожній системі
+   малюються по-своєму й одразу видавали шаблон. */
+.site-nav .nav-icon svg { width: 16px; height: 16px; display: block; }
 
 .site-header-right {
   display: flex;
@@ -2780,6 +2783,7 @@ a.sender-line { color: var(--gold); }
   .site-nav a.active { background: none; color: var(--gold); }
   .site-nav a.active .nav-icon { transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(215, 168, 78, 0.6)); }
   .site-nav .nav-icon { font-size: 20px; }
+  .site-nav .nav-icon svg { width: 20px; height: 20px; }
   /* Місце під нижню панель, щоб вона не закривала кінець сторінки. */
   body:has(.site-nav) { padding-bottom: calc(68px + env(safe-area-inset-bottom)); }
   .site-footer { margin-top: var(--s-6); }

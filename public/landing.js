@@ -94,6 +94,29 @@
     return Array.from({ length: count }, (_, i) => items[Math.floor(i * step)]);
   }
 
+  // Праворуч від заголовка — три найдорожчі з цих шести віялом. Найдорожчий
+  // стоїть попереду: це те, на що людина подивиться першим.
+  const art = document.getElementById("lxArt");
+  function renderArt(items) {
+    if (!art) return;
+    const top = items.slice(-3);
+    if (top.length < 3) {
+      art.classList.add("is-empty");
+      return;
+    }
+    art.innerHTML = top
+      .map(
+        (it) => `<a class="lx-art-card" href="${esc(CFG.buyUrl || "/buy")}?q=${encodeURIComponent(it.name)}" tabindex="-1">
+            <span class="lx-art-img">${it.icon ? `<img src="${esc(it.icon)}" alt="" />` : ""}</span>
+            <span class="lx-art-body">
+              <span class="lx-art-name">${esc(it.name)}</span>
+              <span class="lx-art-price">${esc(price(it.price))}</span>
+            </span>
+          </a>`
+      )
+      .join("");
+  }
+
   let loaded = [];
 
   function load() {
@@ -116,21 +139,90 @@
         // порожня сітка гірша за її відсутність.
         if (items.length < COUNT) {
           document.getElementById("heroShowcase")?.remove();
+          art?.classList.add("is-empty");
           return;
         }
         // Від дешевших до дорожчих: ряд читається зліва направо, і перше, що
         // бачить око, — що вхід сюди не починається з сорока тисяч.
         loaded = items.sort((a, b) => a.price - b.price).slice(0, COUNT);
         render(loaded);
+        renderArt(loaded);
       })
-      .catch(() => document.getElementById("heroShowcase")?.remove());
+      .catch(() => {
+        document.getElementById("heroShowcase")?.remove();
+        art?.classList.add("is-empty");
+      });
   }
 
   // Валюту людина перемикає в шапці — ціни на вітрині мають піти за нею.
-  document.addEventListener("currency-changed", () => loaded.length && render(loaded));
-  document.addEventListener("currency-rate", () => loaded.length && render(loaded));
+  const rerender = () => {
+    if (!loaded.length) return;
+    render(loaded);
+    renderArt(loaded);
+  };
+  document.addEventListener("currency-changed", rerender);
+  document.addEventListener("currency-rate", rerender);
 
   load();
+})();
+
+// ---- Цифри на головній: сума угод, кількість, оцінка ----
+// Ті самі дані, що й у стрічці угод (/api/public/feed): лічильник і сума
+// рахуються з одного журналу, тож на сторінці вони одне одному не суперечать.
+// Не відповів сервер — блок просто ховаємо: нулі на головній гірші за ніщо.
+(function () {
+  const box = document.getElementById("lxStats");
+  const proof = document.getElementById("lxProof");
+  if (!box && !proof) return;
+  const CFG = window.LANDING_CONFIG || {};
+  const fill = (tpl, n) => String(tpl || "").replace("{n}", n);
+  let stats = null;
+
+  function money(usd) {
+    // Велика цифра — без копійок: "$22 133", а не "$22,133.81".
+    if (window.Currency?.code === "UAH" && window.fmtPrice) return window.fmtPrice(usd, "sell");
+    return "$" + Math.round(Number(usd) || 0).toLocaleString("en-US");
+  }
+
+  function render() {
+    if (!stats || !stats.deals) {
+      box?.remove();
+      return;
+    }
+    if (box) {
+      box.querySelector('[data-stat="volume"]').textContent = money(stats.volume);
+      box.querySelector('[data-stat="deals"]').textContent = stats.deals.toLocaleString("en-US");
+      const rating = box.querySelector('[data-stat="rating"]');
+      const reviews = box.querySelector('[data-stat="reviews"]');
+      if (rating && reviews && stats.rating != null && stats.reviews) {
+        rating.textContent = `★ ${stats.rating.toFixed(1)}`;
+        reviews.textContent = fill(CFG.reviewsLabel, stats.reviews);
+      } else {
+        rating?.closest(".lx-stat")?.remove();
+      }
+      box.classList.remove("is-loading");
+    }
+    if (proof) {
+      const parts = [];
+      if (stats.rating != null && stats.reviews) {
+        parts.push(`<span><span class="lx-stars">★★★★★</span> <b>${stats.rating.toFixed(1)}</b></span>`);
+        parts.push(`<span>${fill(CFG.proofReviews, stats.reviews)}</span>`);
+      }
+      parts.push(`<span>${fill(CFG.proofDeals, stats.deals)}</span>`);
+      proof.innerHTML = parts.join('<span class="lx-dot"></span>');
+    }
+  }
+
+  fetch("/api/public/feed?limit=1")
+    .then((r) => r.json())
+    .then((d) => {
+      stats = d.ok ? d.stats : null;
+      render();
+    })
+    .catch(() => box?.remove());
+
+  document.addEventListener("currency-changed", () => stats && render());
+  document.addEventListener("currency-rate", () => stats && render());
 })();
 
 // ---- Поява секцій при скролі ----

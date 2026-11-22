@@ -221,6 +221,9 @@ async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
   let sales = [...skinbuxSales.loadAll().filter(isClientSale), ...manualClientSales()]
     .sort((a, b) => new Date(b.heldAt || b.createdAt) - new Date(a.heldAt || a.createdAt));
   const dealsTotal = sales.length;
+  // Сума всіх угод через сайт, $ — велика цифра на головній. Рахуємо з тих
+  // самих угод, що й лічильник, тож одне з одним не розходиться.
+  const volume = round2(sales.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0));
   if (withReviews) sales = sales.filter((s) => reviewBySale.has(String(s.id)));
   sales = alternateSellers(sales);
 
@@ -260,6 +263,7 @@ async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
   return {
     stats: {
       deals: dealsTotal,
+      volume,
       reviews: ratings.length,
       rating: ratings.length ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10 : null,
     },

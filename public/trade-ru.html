@@ -17,7 +17,11 @@
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&display=swap" />
   <link rel="stylesheet" href="/quote.css" />
+  <link rel="stylesheet" href="/landing.css" />
 </head>
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
@@ -25,9 +29,9 @@
   <header class="site-header">
     <a class="site-brand" href="/ru">GABEN<span class="accent">.MARKET</span></a>
     <nav class="site-nav">
-      <a href="/ru/buy"><span class="nav-icon">🛒</span> Купить скины</a>
-      <a href="/ru/account"><span class="nav-icon">💰</span> Продать скины</a>
-      <a href="/ru/trade"><span class="nav-icon">🔄</span> Обмен</a>
+      <a href="/ru/buy"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9.5" cy="19.5" r="1.4"/><circle cx="17.5" cy="19.5" r="1.4"/><path d="M2.5 3.5h2.8l2.3 10.6a1.5 1.5 0 0 0 1.5 1.2h8.2a1.5 1.5 0 0 0 1.5-1.1L20.5 7.5H6.1"/></svg></span> Купить скины</a>
+      <a href="/ru/account"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/><path d="M6 12h.01M18 12h.01"/></svg></span> Продать скины</a>
+      <a href="/ru/trade"><span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.5h14.5L15 5"/><path d="M20 15.5H5.5L9 19"/></svg></span> Обмен</a>
     </nav>
     <div class="site-header-right">
       <div id="currencySwitch"></div>
@@ -41,96 +45,77 @@
     </div>
   </header>
 
-  <section class="hero">
-    <span class="eyebrow">CS2 SKINS TRADE</span>
-    <h1>Скины CS2: <span class="accent">покупаем, продаём, меняем</span></h1>
-    <p class="hero-sub hero-lead">Продай свои скины за пару минут, купи любой предмет дешевле Steam или обменяй один на другой — без посредников и без ожидания покупателя.</p>
-    <div class="hero-cta">
-      <a class="btn-gold" href="/ru/account">Продать скины</a>
-      <a class="btn-ghost" href="/ru/buy">Купить скины</a>
-    </div>
-  </section>
-
-  <!-- Живий товар під героєм: шість карток із того самого каталогу. Перший
-       екран без жодного скіна нічого не продавав. -->
-  <section class="hero-showcase" id="heroShowcase">
-    <div class="hero-showcase-head">
-      <span class="hero-showcase-title">Сейчас в каталоге</span>
-      <a class="hero-showcase-all" href="/ru/buy">Смотреть все →</a>
-    </div>
-    <div class="hero-showcase-grid" id="showcaseGrid"></div>
-  </section>
-
-  <!-- Жива стрічка угод і відгуків (live-feed.js): показується, коли є хоч одна угода. -->
-  <section class="landing-block live-feed" id="liveFeed"></section>
-
-  <section class="landing-block">
-    <h2>Как это работает</h2>
-    <div class="how-steps">
-      <div class="how-step">
-        <div class="how-num">1</div>
-        <div class="how-title">Входишь через Steam</div>
-        <div class="how-text">Ничего не ставишь и не вводишь пароль — только обычный вход Steam.</div>
+  <main class="lx">
+    <section class="lx-wrap lx-hero">
+      <div>
+        <h1>Скины CS2<span class="lx-h1-muted">покупаем, продаём, обмениваем</span></h1>
+        <p class="lx-lead">Цену на каждый предмет видно сразу, с учётом качества и фазы. Деньги за продажу приходят в USDT или USDC.</p>
+        <div class="lx-cta">
+          <a class="btn-gold" href="/ru/account">Продать скины</a>
+          <a class="btn-ghost" href="/ru/buy">Купить скины</a>
+        </div>
+        <div class="lx-proof" id="lxProof"></div>
       </div>
-      <div class="how-step">
-        <div class="how-num">2</div>
-        <div class="how-title">Видишь цену сразу</div>
-        <div class="how-text">Цена считается по каждому предмету отдельно, с учётом качества и фазы.</div>
-      </div>
-      <div class="how-step">
-        <div class="how-num">3</div>
-        <div class="how-title">Получаешь деньги</div>
-        <div class="how-text">Обмен отправляет торговый бот, деньги идут на баланс и выводятся на карту или крипту.</div>
-      </div>
-    </div>
-  </section>
+      <div class="lx-art" id="lxArt" aria-hidden="true"></div>
+    </section>
 
-  <section class="landing-block">
-    <h2>Оплата и выплаты</h2>
-    <p class="card-hint">И когда платишь за скины, и когда получаешь деньги за продажу: украинские карты или криптовалюта — как тебе удобнее.</p>
-    <div class="pay-badges">
-      <span class="pay-badge pay-mono">
-        <img src="/pay/mono.svg" alt="" onerror="this.remove()" />
-        <span>mono</span>
-      </span>
-      <span class="pay-badge pay-privat24">
-        <img src="/pay/privat24.svg" alt="" onerror="this.remove()" />
-        <span>Privat24</span>
-      </span>
-      <span class="pay-badge pay-abank">
-        <img src="/pay/abank.svg" alt="" onerror="this.remove()" />
-        <span>A-Bank</span>
-      </span>
-      <span class="pay-badge pay-binance">
-        <img src="/pay/binance.svg" alt="" onerror="this.remove()" />
-        <span>Binance</span>
-      </span>
-      <span class="pay-badge pay-usdt">
-        <img src="/pay/usdt.svg" alt="" onerror="this.remove()" />
-        <span>USDT</span>
-      </span>
-      <span class="pay-badge pay-usdc">
-        <img src="/pay/usdc.svg" alt="" onerror="this.remove()" />
-        <span>USDC</span>
-      </span>
-    </div>
-  </section>
+    <section class="lx-wrap lx-stats is-loading" id="lxStats">
+      <div class="lx-stat is-gold"><span class="lx-num" data-stat="volume">$0</span><span class="lx-stat-label">сумма сделок через сайт</span></div>
+      <div class="lx-stat"><span class="lx-num" data-stat="deals">0</span><span class="lx-stat-label">сделок через сайт</span></div>
+      <div class="lx-stat"><span class="lx-num" data-stat="rating">5.0</span><span class="lx-stat-label" data-stat="reviews">средняя оценка в отзывах</span></div>
+      <div class="lx-stat"><span class="lx-num">1000+</span><span class="lx-stat-label">сделок в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a></span></div>
+    </section>
 
-  <section class="landing-block band">
-    <h2>Почему это безопасно</h2>
-    <div class="trust-grid">
-      <div class="trust-item"><h4>Обмен отправляет площадка</h4><p>Скины уходят не случайному человеку: обмен отправляет торговый бот, и в окне видно прямую ссылку именно на твой обмен вместе с данными отправителя.</p></div>
-      <div class="trust-item"><h4>Отзывы и гарант</h4><p>Больше тысячи сделок. Отзывы и гаранты — в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p></div>
-      <div class="trust-item"><h4>Пишу лично</h4><p>Любой вопрос — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>, отвечаю сам.</p></div>
-    </div>
-  </section>
+    <section class="hero-showcase" id="heroShowcase">
+      <div class="lx-head">
+        <h2>Сейчас в каталоге</h2>
+        <a href="/ru/buy">Весь каталог →</a>
+      </div>
+      <div class="hero-showcase-grid" id="showcaseGrid"></div>
+    </section>
+
+    <section class="landing-block live-feed" id="liveFeed"></section>
+
+    <section class="lx-wrap">
+      <div class="lx-head"><h2>Как продать</h2></div>
+      <div class="lx-steps">
+        <div class="lx-step">
+          <div class="lx-step-k">01</div>
+          <h3>Вход через Steam</h3>
+          <p>Обычный вход Steam. Без паролей и программ.</p>
+        </div>
+        <div class="lx-step">
+          <div class="lx-step-k">02</div>
+          <h3>Цена сразу</h3>
+          <p>Каждый предмет считаем отдельно, с качеством и фазой.</p>
+        </div>
+        <div class="lx-step">
+          <div class="lx-step-k">03</div>
+          <h3>Обмен и деньги</h3>
+          <p>Обмен отправляет бот площадки. Деньги идут на баланс, оттуда в крипту.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="lx-wrap lx-pay">
+      <span class="lx-pay-label">Оплата и выплаты</span>
+      <div class="pay-badges">
+        <span class="pay-badge pay-mono"><img src="/pay/mono.svg" alt="" onerror="this.remove()" /><span>mono</span></span>
+        <span class="pay-badge pay-privat24"><img src="/pay/privat24.svg" alt="" onerror="this.remove()" /><span>Privat24</span></span>
+        <span class="pay-badge pay-abank"><img src="/pay/abank.svg" alt="" onerror="this.remove()" /><span>A-Bank</span></span>
+        <span class="pay-badge pay-binance"><img src="/pay/binance.svg" alt="" onerror="this.remove()" /><span>Binance</span></span>
+        <span class="pay-badge pay-usdt"><img src="/pay/usdt.svg" alt="" onerror="this.remove()" /><span>USDT</span></span>
+        <span class="pay-badge pay-usdc"><img src="/pay/usdc.svg" alt="" onerror="this.remove()" /><span>USDC</span></span>
+      </div>
+    </section>
+  </main>
 
   <footer class="site-footer">
     <div class="site-footer-inner">
       <div class="site-footer-col">
         <h4>Связь</h4>
-        <p>Поддержка в Telegram — <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Отвечаю лично.</p>
-        <p>Отзывы о наших сделках — в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
+        <p>Поддержка в Telegram: <a href="https://t.me/gabenmarket_support" target="_blank">@gabenmarket_support</a>. Отвечаю лично.</p>
+        <p>Отзывы о наших сделках в группе <a href="https://t.me/csmarket" target="_blank">@csmarket</a>.</p>
       </div>
       <div class="site-footer-col">
         <h4>Разделы</h4>
@@ -138,7 +123,7 @@
       </div>
       <div class="site-footer-col">
         <h4>Оплата</h4>
-        <p>Пополнение и выплаты — USDT (ERC-20, TRC-20) и USDC (ERC-20).</p>
+        <p>Пополнение и выплаты в USDT и USDC.</p>
       </div>
     </div>
     <p class="site-footer-legal">
@@ -148,7 +133,7 @@
   </footer>
 
   <script>
-    window.LANDING_CONFIG = {"buyUrl":"/ru/buy"};
+    window.LANDING_CONFIG = {"buyUrl":"/ru/buy","reviewsLabel":"средняя оценка, {n} отзывов","proofReviews":"{n} отзывов","proofDeals":"{n} сделок через сайт"};
     window.NAV_CONFIG = {"signInLabel":"Войти","accountUrl":"/ru/account","loginUrl":"/auth/steam?lang=ru","balanceTitle":"Доступно к выплате","holdTitle":"В холде"};
   </script>
   <script src="/currency.js"></script>

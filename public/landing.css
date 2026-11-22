@@ -1,0 +1,311 @@
+/* Головна (trade.html, trade-ru.html, trade-en.html) — поверх quote.css.
+   Фірмові кольори ті самі: чорний і приглушене золото. Змінено розкладку:
+   замість типового "заголовок по центру + три однакові картки" — герой у дві
+   колонки з живими скінами, великі блоки з реальними цифрами, тонка смуга
+   кроків і рядок способів оплати. Золото — акцент (кнопка, цифри, ціни), а не
+   фарба на всьому. */
+
+.lx {
+  --lx-w: 1180px;
+  --lx-display: "Manrope", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+.lx h1,
+.lx h2,
+.lx-num {
+  font-family: var(--lx-display);
+}
+
+.lx-wrap {
+  max-width: var(--lx-w);
+  margin: 0 auto;
+  padding: 0 var(--s-5);
+}
+
+/* ---- Герой: текст ліворуч, скіни праворуч ---- */
+.lx-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-7);
+  padding-top: var(--s-8);
+  padding-bottom: var(--s-7);
+}
+.lx-hero h1 {
+  font-size: clamp(34px, 5.2vw, 64px);
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  font-weight: 800;
+  margin: 0 0 var(--s-5);
+}
+.lx-hero h1 .lx-h1-muted {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.5em;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.lx-lead {
+  font-size: 17px;
+  line-height: 1.55;
+  color: #b9b5ac;
+  max-width: 470px;
+  margin: 0 0 var(--s-6);
+}
+.lx-cta {
+  display: flex;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.lx-cta .btn-gold,
+.lx-cta .btn-ghost {
+  padding: 15px 28px;
+  font-size: 15px;
+  border-radius: 12px;
+}
+.lx-cta .btn-ghost {
+  color: var(--text);
+  border-color: var(--border);
+}
+.lx-cta .btn-ghost:hover {
+  border-color: var(--gold-line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Рядок довіри під кнопками: оцінка й кількість угод — справжні, з сервера. */
+.lx-proof {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-top: var(--s-5);
+  font-size: var(--t-sm);
+  color: var(--muted);
+  min-height: 20px;
+}
+.lx-proof b { color: var(--text); font-weight: 700; }
+.lx-proof .lx-stars { color: var(--gold); letter-spacing: 1px; }
+.lx-proof .lx-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+
+/* Праворуч — три найдорожчі предмети з каталогу віялом. Справжні картинки
+   Steam і справжні ціни, не ілюстрація. */
+.lx-art {
+  position: relative;
+  height: 400px;
+}
+.lx-art::before {
+  content: "";
+  position: absolute;
+  inset: 8% 6%;
+  background: radial-gradient(closest-side, rgba(215, 168, 78, 0.22), transparent 75%);
+  filter: blur(10px);
+}
+.lx-art-card {
+  position: absolute;
+  width: 58%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #17191e, #0f1013);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  transition: transform 0.25s var(--ease);
+}
+.lx-art-card:nth-child(1) { left: 0; top: 14%; transform: rotate(-7deg); z-index: 1; }
+.lx-art-card:nth-child(2) { right: 0; top: 4%; transform: rotate(6deg); z-index: 2; }
+.lx-art-card:nth-child(3) { left: 21%; top: 34%; transform: rotate(-1deg); z-index: 3; }
+.lx-art-card:hover { transform: rotate(0) translateY(-6px); z-index: 4; }
+.lx-art-img {
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(70% 70% at 50% 45%, rgba(215, 168, 78, 0.13), transparent 72%);
+}
+.lx-art-img img { width: 84%; height: auto; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.6)); }
+.lx-art-body {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.lx-art-name {
+  font-size: var(--t-sm);
+  color: #cfcbc2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lx-art-price { font-family: var(--lx-display); font-weight: 800; color: var(--gold); white-space: nowrap; }
+.lx-art.is-empty { display: none; }
+
+/* ---- Цифри: один золотий блок і три темні ---- */
+.lx-stats {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr 1fr;
+  gap: var(--s-3);
+  margin-bottom: var(--s-8);
+}
+.lx-stat {
+  border-radius: 20px;
+  padding: var(--s-5);
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #111317;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.lx-stat.is-gold {
+  background: linear-gradient(135deg, #e2b862, #b98a35);
+  border: none;
+  color: #15110a;
+}
+.lx-num {
+  font-size: clamp(30px, 3.4vw, 46px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.lx-stat-label {
+  font-size: var(--t-sm);
+  color: var(--muted);
+  line-height: 1.4;
+}
+.lx-stat.is-gold .lx-stat-label { color: rgba(21, 17, 10, 0.72); }
+.lx-stat-label a { color: inherit; }
+.lx-stats.is-loading .lx-num { color: transparent; background: rgba(255, 255, 255, 0.05); border-radius: 8px; }
+
+/* ---- Заголовки секцій: ліворуч, без підкладок і плашок ---- */
+.lx-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-bottom: var(--s-4);
+}
+.lx-head h2 {
+  font-size: clamp(22px, 2.4vw, 30px);
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  margin: 0;
+}
+.lx-head a { font-size: var(--t-sm); text-decoration: none; white-space: nowrap; }
+.lx-head a:hover { text-decoration: underline; }
+
+/* Вітрина й стрічка угод з quote.css — вирівнюємо під ширину сторінки. */
+.lx .hero-showcase { max-width: var(--lx-w); }
+.lx .landing-block { max-width: var(--lx-w); }
+
+/* Стрічка угод (live-feed.js): на головній заголовок ліворуч, як решта
+   секцій. Пігулка "Наживо" стає маленькою зеленою точкою біля заголовка, а
+   рядок із цифрами прибираємо — ті самі цифри вже стоять великими вище. */
+.lx .feed-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-4);
+  text-align: left;
+  margin-bottom: var(--s-4);
+}
+.lx .feed-head h2 {
+  order: 0;
+  margin: 0;
+  font-size: clamp(22px, 2.4vw, 30px);
+  letter-spacing: -0.02em;
+}
+.lx .feed-live {
+  order: 1;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.lx .feed-head .card-hint,
+.lx .feed-stats { display: none; }
+.lx .feed-tabs { order: 2; margin-left: auto; }
+@media (max-width: 640px) {
+  .lx .feed-tabs { margin-left: 0; width: 100%; }
+  .lx .feed-tabs button { flex: 1; }
+}
+
+/* ---- Кроки: одна смуга, а не три картки з цифрами ---- */
+.lx-steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s-8);
+}
+.lx-step {
+  padding: var(--s-5) var(--s-5) var(--s-5) 0;
+}
+.lx-step + .lx-step {
+  padding-left: var(--s-5);
+  border-left: 1px solid var(--border);
+}
+.lx-step-k {
+  font-family: var(--lx-display);
+  font-size: var(--t-xs);
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  margin-bottom: var(--s-2);
+}
+.lx-step h3 { margin: 0 0 var(--s-1); font-size: 17px; }
+.lx-step p { margin: 0; font-size: var(--t-sm); color: var(--muted); line-height: 1.55; }
+
+/* ---- Оплата: один рядок ---- */
+.lx-pay {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-8);
+}
+.lx-pay-label { font-size: var(--t-sm); color: var(--muted); }
+.lx-pay .pay-badges { justify-content: flex-start; }
+
+/* ---- Телефон і планшет ---- */
+@media (max-width: 980px) {
+  .lx-hero { grid-template-columns: 1fr; gap: var(--s-5); padding-top: var(--s-6); }
+  .lx-art { height: 300px; max-width: 520px; width: 100%; margin: 0 auto; }
+  .lx-stats { grid-template-columns: repeat(3, 1fr); }
+  .lx-stat.is-gold { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .lx-wrap { padding: 0 var(--s-4); }
+  .lx-lead { font-size: var(--t-md); }
+  .lx-cta .btn-gold,
+  .lx-cta .btn-ghost { flex: 1 1 0; justify-content: center; text-align: center; padding: 14px 12px; }
+  .lx-hero { padding-top: var(--s-5); padding-bottom: var(--s-5); }
+  .lx-art { height: 270px; }
+  .lx-art-card { width: 58%; border-radius: 14px; }
+  .lx-art-card:nth-child(3) { top: 30%; }
+  .lx-art-body { padding: var(--s-2) var(--s-3) var(--s-3); }
+  .lx-art-name { font-size: var(--t-xs); }
+  /* Три темні блоки — в один ряд під золотим: по два виходило 2 + 1 сирота. */
+  .lx-stats { grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
+  .lx-stat { min-height: 104px; padding: var(--s-3); border-radius: 16px; }
+  .lx-stat.is-gold { padding: var(--s-4); }
+  .lx-stat:not(.is-gold) .lx-num { font-size: 24px; }
+  .lx-stat-label { font-size: var(--t-xs); }
+  .lx-steps { grid-template-columns: 1fr; }
+  .lx-step,
+  .lx-step + .lx-step { padding: var(--s-4) 0; border-left: none; }
+  .lx-step + .lx-step { border-top: 1px solid var(--border); }
+  .lx-pay { gap: var(--s-3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lx-art-card { transition: none; }
+}
