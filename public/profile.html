@@ -6,6 +6,7 @@
   <title>Профіль — gaben.market</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="stylesheet" href="/quote.css" />
+  <link rel="stylesheet" href="/profile.css" />
 </head>
 <body>
   <img src="/bg-map.jpg" class="bg-decor" alt="" aria-hidden="true" />
@@ -44,10 +45,6 @@
     </div>
   </header>
 
-  <section class="hero hero-compact">
-    <h1>Твій <span class="accent">профіль</span></h1>
-  </section>
-
   <section id="profileLoggedOut" class="card" style="display:none;">
     <p class="card-hint">Увійди через Steam, щоб побачити профіль.</p>
     <a class="btn-gold" href="/auth/steam?next=/profile">Увійти через Steam</a>
@@ -55,7 +52,8 @@
 
   <!-- Профіль однією сторінкою замість кружка в шапці: хто ти, куди слати
        обмін, твої угоди і баланс — усе в одному місці. -->
-  <section id="profileCard" class="card" style="display:none;">
+  <section id="profileCard" class="pf" style="display:none;">
+    <aside class="pf-side">
     <div class="profile-head">
       <img id="profileAvatar" class="profile-avatar" src="" alt="" />
       <div>
@@ -76,6 +74,8 @@
       </div>
     </div>
 
+    <button class="pf-tradeurl" type="button" data-goto="info" data-focus="profileTradeUrl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg><span>Посилання на обмін</span></button>
+
     <div class="profile-tabs">
       <button class="profile-tab active" type="button" data-tab="info"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg><span>Профіль</span></button>
       <button class="profile-tab" type="button" data-tab="deals"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h12l-3-3"/><path d="M17 17H5l3 3"/></svg><span>Мої угоди</span></button>
@@ -85,13 +85,17 @@
       <button class="profile-tab" type="button" data-tab="referral"><svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M3 7h18v3H3zM12 7v13"/><path d="M12 7c-1.5-3.5-5.5-3-4.5-.2M12 7c1.5-3.5 5.5-3 4.5-.2"/></svg><span>Реферали</span></button>
     </div>
 
-    <div class="profile-pane" data-pane="info">
-      <div class="profile-stats">
-        <div class="profile-stat"><span class="profile-stat-value" id="statDeals">0</span><span class="profile-stat-label">Угод</span></div>
-        <div class="profile-stat"><span class="profile-stat-value" id="statSkins">0</span><span class="profile-stat-label">Продано скінів</span></div>
-        <div class="profile-stat"><span class="profile-stat-value" id="statEarned">$0.00</span><span class="profile-stat-label">Зароблено</span></div>
-      </div>
+    </aside>
 
+    <div class="pf-main">
+    <div class="profile-stats">
+      <div class="profile-stat"><span class="pf-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 7h12l-3-3"/><path d="M17 17H5l3 3"/></svg></span><span class="profile-stat-value" id="statDeals">0</span><span class="profile-stat-label">Угод</span></div>
+      <div class="profile-stat"><span class="pf-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/></svg></span><span class="profile-stat-value" id="statSkins">0</span><span class="profile-stat-label">Продано скінів</span></div>
+      <div class="profile-stat"><span class="pf-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.6"/></svg></span><span class="profile-stat-value" id="statEarned">$0.00</span><span class="profile-stat-label">Зароблено</span></div>
+      <div class="profile-stat"><span class="pf-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span class="profile-stat-value" id="statHold">$0.00</span><span class="profile-stat-label">У холді</span></div>
+    </div>
+
+    <div class="profile-pane" data-pane="info">
       <div class="trade-url-section">
         <label for="profileTradeUrl">Посилання на обмін Steam
           <span class="section-hint">Щоб бот міг надіслати тобі обмін —
@@ -103,6 +107,11 @@
           <button id="profileTradeUrlSave" class="btn-small" type="button">Зберегти</button>
         </div>
         <p id="profileTradeUrlStatus" class="card-hint"></p>
+      </div>
+
+      <div class="pf-recent" id="profileRecent" style="display:none;">
+        <div class="pf-recent-head"><h3>Останні угоди</h3><button type="button" class="pf-link" data-goto="deals">Усі угоди →</button></div>
+        <div id="profileRecentList" class="deals-list"></div>
       </div>
     </div>
 
@@ -139,6 +148,7 @@
 
     <div class="profile-pane" data-pane="referral" style="display:none;">
       <div id="referralRoot"></div>
+    </div>
     </div>
   </section>
 

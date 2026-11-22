@@ -30,7 +30,14 @@ document.querySelectorAll("[data-goto]").forEach((btn) => {
     const tab = document.querySelector(`.profile-tab[data-tab="${btn.dataset.goto}"]`);
     if (!tab) return;
     tab.click();
-    tab.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Кнопка "Посилання на обмін" у бічній колонці веде одразу в поле.
+    const field = btn.dataset.focus && document.getElementById(btn.dataset.focus);
+    if (field) {
+      field.scrollIntoView({ behavior: "smooth", block: "center" });
+      field.focus({ preventScroll: true });
+    } else {
+      tab.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   });
 });
 
@@ -63,7 +70,8 @@ async function loadProfile() {
   }
 
   const c = data.customer;
-  profileCard.style.display = "block";
+  // Пусто, а не "block": розкладку (дві колонки, grid) задає profile.css.
+  profileCard.style.display = "";
   document.getElementById("profileAvatar").src = c.avatar || "";
   document.getElementById("profileName").textContent = c.displayName || "";
   document.getElementById("profileSteamId").textContent = c.steamId || "";
@@ -79,6 +87,8 @@ async function loadProfile() {
   const rate = document.getElementById("balRate");
   if (rate && b.uahRate) rate.textContent = `1 $ = ${b.uahRate} ₴`;
   // Баланс у шапці картки профілю: головне число + холд і trade дрібно.
+  const statHold = document.getElementById("statHold");
+  if (statHold) statHold.textContent = money(b.hold);
   const headAvail = document.getElementById("headAvailable");
   if (headAvail) headAvail.textContent = money(b.available);
   const extra = document.getElementById("headExtra");
@@ -108,6 +118,16 @@ async function loadStats() {
   document.getElementById("statDeals").textContent = String(sales.length);
   document.getElementById("statSkins").textContent = String(skins);
   document.getElementById("statEarned").textContent = money(earned);
+
+  // Три останні угоди одразу на першій вкладці — як транзакції в кабінеті
+  // маркетплейсу: зайшов і бачиш, що з твоїми продажами, без зайвого кліку.
+  const recent = document.getElementById("profileRecent");
+  const recentList = document.getElementById("profileRecentList");
+  if (recent && recentList && sales.length && window.renderDealCard) {
+    recentList.innerHTML = sales.slice(0, 3).map((sale) => window.renderDealCard(sale, T)).join("");
+    window.wireDealButtons?.(recentList);
+    recent.style.display = "";
+  }
 }
 
 // ---- Угоди ----

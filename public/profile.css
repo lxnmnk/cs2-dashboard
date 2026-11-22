@@ -1,0 +1,195 @@
+/* Профіль (profile.html, profile-ru.html, profile-en.html) — поверх quote.css.
+   Розкладка кабінету маркетплейсу: ліворуч колонка "хто ти" — аватар, баланс,
+   кнопки й меню розділів; праворуч — чотири картки з цифрами й вміст розділу.
+   Кольори фірмові: чорний і золото як акцент. */
+
+.pf {
+  --pf-w: 1180px;
+  max-width: var(--pf-w);
+  margin: var(--s-6) auto var(--s-8);
+  padding: 0 var(--s-5);
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+/* referral.js на вкладці рефералів робить картку ширшою (is-wide) — у новій
+   розкладці вона й так на всю ширину. */
+#profileCard.pf.is-wide { max-width: var(--pf-w); padding: 0 var(--s-5); }
+
+/* ---- Ліва колонка ---- */
+.pf-side {
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-5) var(--s-4) var(--s-4);
+  background: #0f1013;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+}
+.pf .profile-head {
+  flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+  gap: var(--s-3);
+  margin: 0;
+}
+.pf .profile-avatar {
+  width: 92px;
+  height: 92px;
+  margin: 0 auto;
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 0 5px rgba(215, 168, 78, 0.1);
+}
+.pf .profile-head h2 {
+  margin: 0 0 2px;
+  font-size: var(--t-lg);
+  overflow-wrap: anywhere;
+}
+.pf .profile-head .card-hint { font-size: var(--t-xs); margin: 0; overflow-wrap: anywhere; }
+
+/* Баланс — головне число колонки. */
+.pf .profile-head-balance {
+  margin: 0;
+  align-items: center;
+  padding: var(--s-4);
+  border: 1px solid var(--gold-line);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(215, 168, 78, 0.16), rgba(215, 168, 78, 0.03));
+}
+.pf .phb-amount { font-size: 32px; }
+.pf .phb-actions { width: 100%; }
+.pf .phb-btn { flex: 1; justify-content: center; }
+
+/* Кнопка "Посилання на обмін" — як Trade URL у кабінетах маркетплейсів. */
+.pf-tradeurl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: 11px var(--s-3);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+.pf-tradeurl svg { width: 16px; height: 16px; color: var(--gold); }
+.pf-tradeurl:hover { border-color: var(--gold-line); }
+
+/* Меню розділів — вертикальне. */
+.pf .profile-tabs {
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--s-2) 0 0;
+  padding-top: var(--s-3);
+  border-bottom: none;
+  border-top: 1px solid var(--border);
+  overflow: visible;
+}
+.pf .profile-tab {
+  width: 100%;
+  padding: 11px var(--s-3);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  text-align: left;
+  font-weight: 600;
+}
+.pf .profile-tab:hover { background: rgba(255, 255, 255, 0.03); }
+.pf .profile-tab.active {
+  color: var(--gold);
+  border-color: var(--gold-line);
+  background: var(--gold-soft);
+}
+
+/* ---- Права частина ---- */
+.pf-main { min-width: 0; }
+
+.pf .profile-stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+.pf .profile-stat {
+  gap: var(--s-1);
+  min-height: 132px;
+  padding: var(--s-4);
+  border-radius: 16px;
+  background: #111317;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.pf-stat-icon {
+  display: inline-flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: auto;
+  border-radius: 10px;
+  background: var(--gold-soft);
+  color: var(--gold);
+}
+.pf-stat-icon svg { width: 19px; height: 19px; }
+.pf .profile-stat-value {
+  margin-top: var(--s-3);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Останні угоди під посиланням на обмін. */
+.pf-recent { margin-top: var(--s-5); }
+.pf-recent-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-3);
+}
+.pf-recent-head h3 { margin: 0; font-size: var(--t-lg); }
+.pf-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--gold);
+  font: inherit;
+  font-size: var(--t-sm);
+  cursor: pointer;
+}
+.pf-link:hover { text-decoration: underline; }
+
+/* ---- Планшет і телефон: колонка зверху, меню — горизонтальна стрічка ---- */
+@media (max-width: 980px) {
+  /* minmax(0, 1fr), а не 1fr: інакше стрічка вкладок і широкі блоки
+     розпирали колонку ширше за екран. */
+  .pf { grid-template-columns: minmax(0, 1fr); margin-top: var(--s-4); }
+  .pf-side { position: static; min-width: 0; }
+  .pf .profile-head { flex-direction: row; flex-wrap: wrap; align-items: center; text-align: left; }
+  .pf .profile-avatar { width: 64px; height: 64px; margin: 0; }
+  .pf .profile-head > div:not(.profile-head-balance) { flex: 1; min-width: 0; }
+  .pf .profile-head-balance { flex-basis: 100%; }
+  .pf .profile-tabs {
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-top: var(--s-2);
+  }
+  .pf .profile-tabs::-webkit-scrollbar { display: none; }
+  .pf .profile-tab { width: auto; flex-shrink: 0; }
+  .pf .profile-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .pf { padding: 0 var(--s-3); gap: var(--s-3); }
+  #profileCard.pf.is-wide { padding: 0 var(--s-3); }
+  .pf-side { padding: var(--s-4) var(--s-3) var(--s-3); border-radius: 16px; }
+  .pf .profile-stat { min-height: 112px; padding: var(--s-3); border-radius: 14px; }
+  .pf .profile-stat-value { font-size: 20px; }
+}
