@@ -30,16 +30,38 @@
   // на Youpin і в каталозі; шкала зносу — смужка від FN до BS з міткою float.
   const WEAR_CODES = { "Factory New": "FN", "Minimal Wear": "MW", "Field-Tested": "FT", "Well-Worn": "WW", "Battle-Scarred": "BS" };
   const wearOf = (name) => WEAR_CODES[(String(name).match(/\(([^()]+)\)(?: - [^-]+)?$/) || [])[1]] || "";
-  const floatBarHtml = (f) =>
+  const floatHtml = (f) =>
     f == null || !Number.isFinite(Number(f))
       ? ""
-      : `<div class="float-bar"><span class="float-value">${Number(f).toFixed(4)}</span><span class="float-track"><i style="left:${Math.min(100, Number(f) * 100).toFixed(1)}%"></i></span></div>`;
+      : `<span class="dc-float"><span class="dc-float-track"><i style="left:${Math.min(100, Number(f) * 100).toFixed(1)}%"></i></span><span class="dc-float-val">${Number(f).toFixed(4)}</span></span>`;
 
-  // Кожен предмет угоди окремим рядком, як на Youpin: картинка з плашкою
-  // якості, назва, float і скільки ми платимо саме за нього. Однією сумою на
-  // всю угоду було незрозуміло, що скільки коштувало. Однакові предмети —
-  // одним рядком з "×N" і ціною за штуку. У старих записах немає ціни чи
-  // float по предмету — тоді їх просто не показуємо.
+  // Зброя дрібно, скін великим; якість уже на плашці, у назві вона зайва.
+  function splitName(name) {
+    const phase = (String(name).match(/ - ([^-]+)$/) || [])[1] || "";
+    const base = String(name).replace(/ - [^-]+$/, "").replace(/\s*\([^()]+\)\s*$/, "");
+    const [weapon, skin] = base.split(" | ");
+    return { weapon: skin ? weapon : "", skin: (skin || weapon) + (phase ? ` · ${phase}` : "") };
+  }
+
+  function itemRow(name, g, showPrice) {
+    const wear = wearOf(name);
+    const { weapon, skin } = splitName(name);
+    const pic = g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy" />` : "";
+    const each = g.qty > 1 && g.priced ? `<span class="dc-each">${esc(format(RT.each, { price: money(g.sum / g.qty) }))}</span>` : "";
+    return `<div class="dc-item">
+      <div class="dc-pic">${pic}${wear ? `<span class="wear-badge wear-${wear}">${wear}</span>` : ""}</div>
+      <div class="dc-info">
+        ${weapon ? `<span class="dc-weapon">${esc(weapon)}</span>` : ""}
+        <span class="dc-skin">${esc(skin)}${g.qty > 1 ? ` <span class="deal-qty">×${g.qty}</span>` : ""}</span>
+        ${g.qty === 1 ? floatHtml(g.floats[0]) : each}
+      </div>
+      ${showPrice && g.priced ? `<div class="dc-item-price">${money(g.sum)}</div>` : ""}
+    </div>`;
+  }
+
+  // Предмети угоди: однакові — одним рядком з "×N". Ціну біля предмета
+  // показуємо, лише коли їх кілька: в угоді з одним вона дублювала б суму.
+  // Довгі угоди (буває 17 предметів) згорнуті: видно перші три.
   function itemsHtml(items) {
     const groups = new Map();
     for (const it of items) {
@@ -50,30 +72,26 @@
       if (it.float != null) g.floats.push(it.float);
       groups.set(it.name, g);
     }
-    return [...groups]
-      .map(([name, g]) => {
-        const wear = wearOf(name);
-        const pic = g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy" />` : "";
-        const each = g.qty > 1 && g.priced ? `<span class="deal-item-each">${esc(format(RT.each, { price: money(g.sum / g.qty) }))}</span>` : "";
-        return `<div class="deal-item">
-          <div class="deal-item-pic">${pic}${wear ? `<span class="wear-badge wear-${wear}">${wear}</span>` : ""}</div>
-          <div class="deal-item-info">
-            <span class="deal-item-name">${esc(name)}${g.qty > 1 ? ` <span class="deal-qty">×${g.qty}</span>` : ""}</span>
-            ${g.qty === 1 ? floatBarHtml(g.floats[0]) : ""}
-          </div>
-          ${g.priced ? `<div class="deal-item-price">${money(g.sum)}${each}</div>` : ""}
-        </div>`;
-      })
-      .join("");
+    const rows = [...groups];
+    const showPrice = rows.length > 1;
+    const row = ([name, g]) => itemRow(name, g, showPrice);
+    const rest = rows.slice(3);
+    const restCount = rest.reduce((sum, [, g]) => sum + g.qty, 0);
+    return (
+      rows.slice(0, 3).map(row).join("") +
+      (rest.length
+        ? `<details class="dc-rest"><summary>${esc(format(RT.moreItems, { n: restCount }))}</summary><div class="dc-rest-list">${rest.map(row).join("")}</div></details>`
+        : "")
+    );
   }
 
   // ---- Відгук на угоду ----
   // Тексти тут, а не в ACCOUNT_CONFIG трьох сторінок: це один маленький
   // блок, і три копії підписів розійшлися б при першій правці.
   const RT = {
-    uk: { invite: "🎁 Гроші розблоковано! Залиш будь-який відгук — отримаєш +{n}% до наступного продажу", bonusGot: "Бонус +{n}% чекає на тебе в наступному продажу", each: "по {price}", total: "Разом", leave: "★ Залишити відгук", edit: "Змінити", save: "Опублікувати", cancel: "Скасувати", placeholder: "Як пройшла угода? (необов'язково)", pick: "Обери оцінку", thanks: "Дякуємо за відгук!", hidden: "прихований модератором" },
-    ru: { invite: "🎁 Деньги разблокированы! Оставь любой отзыв — получишь +{n}% к следующей продаже", bonusGot: "Бонус +{n}% ждёт тебя в следующей продаже", each: "по {price}", total: "Итого", leave: "★ Оставить отзыв", edit: "Изменить", save: "Опубликовать", cancel: "Отмена", placeholder: "Как прошла сделка? (необязательно)", pick: "Выбери оценку", thanks: "Спасибо за отзыв!", hidden: "скрыт модератором" },
-    en: { invite: "🎁 Your money is unlocked! Leave any review and get +{n}% on your next sale", bonusGot: "A +{n}% bonus is waiting for your next sale", each: "{price} each", total: "Total", leave: "★ Leave a review", edit: "Edit", save: "Publish", cancel: "Cancel", placeholder: "How did the deal go? (optional)", pick: "Pick a rating", thanks: "Thanks for the review!", hidden: "hidden by a moderator" },
+    uk: { invite: "🎁 Гроші розблоковано! Залиш будь-який відгук — отримаєш +{n}% до наступного продажу", invitePaid: "🎁 Залиш будь-який відгук — отримаєш +{n}% до наступного продажу", moreItems: "Ще {n}", bonusGot: "Бонус +{n}% чекає на тебе в наступному продажу", each: "по {price}", total: "Разом", leave: "★ Залишити відгук", edit: "Змінити", save: "Опублікувати", cancel: "Скасувати", placeholder: "Як пройшла угода? (необов'язково)", pick: "Обери оцінку", thanks: "Дякуємо за відгук!", hidden: "прихований модератором" },
+    ru: { invite: "🎁 Деньги разблокированы! Оставь любой отзыв — получишь +{n}% к следующей продаже", invitePaid: "🎁 Оставь любой отзыв — получишь +{n}% к следующей продаже", moreItems: "Ещё {n}", bonusGot: "Бонус +{n}% ждёт тебя в следующей продаже", each: "по {price}", total: "Итого", leave: "★ Оставить отзыв", edit: "Изменить", save: "Опубликовать", cancel: "Отмена", placeholder: "Как прошла сделка? (необязательно)", pick: "Выбери оценку", thanks: "Спасибо за отзыв!", hidden: "скрыт модератором" },
+    en: { invite: "🎁 Your money is unlocked! Leave any review and get +{n}% on your next sale", invitePaid: "🎁 Leave any review and get +{n}% on your next sale", moreItems: "{n} more", bonusGot: "A +{n}% bonus is waiting for your next sale", each: "{price} each", total: "Total", leave: "★ Leave a review", edit: "Edit", save: "Publish", cancel: "Cancel", placeholder: "How did the deal go? (optional)", pick: "Pick a rating", thanks: "Thanks for the review!", hidden: "hidden by a moderator" },
   }[{ ru: "ru", en: "en" }[document.documentElement.lang] || "uk"];
 
   const starsHtml = (n) => `<span class="deal-stars">${"★".repeat(n)}<span class="deal-stars-off">${"★".repeat(5 - n)}</span></span>`;
@@ -89,10 +107,10 @@
         <button type="button" class="deal-review-link" data-review-open data-rating="${sale.review.rating}" data-text="${esc(sale.review.text || "")}">${esc(RT.edit)}</button>
       </div>`;
     }
-    // Гроші вже розморожені — запрошуємо з бонусом (сервер ставить
-    // reviewBonusOffer лише на такі угоди без відгуку).
-    const invite = sale.reviewBonusOffer
-      ? `<div class="deal-review-invite">${esc(format(RT.invite, { n: sale.reviewBonusOffer }))}</div>`
+    // Бонус разовий, тож запрошення одне — на найсвіжішій угоді (reviewBonusInvite
+    // ставить сервер). Відгук на будь-яку іншу теж дасть бонус (reviewBonusOffer).
+    const invite = sale.reviewBonusInvite
+      ? `<div class="deal-review-invite">${esc(format(sale.paidAt ? RT.invitePaid : RT.invite, { n: sale.reviewBonusOffer }))}</div>`
       : "";
     return `${invite}<div class="deal-review" data-review-box data-bonus="${sale.reviewBonusOffer || ""}"><button type="button" class="deal-review-btn" data-review-open>${esc(RT.leave)}</button></div>`;
   }
@@ -149,18 +167,18 @@
     }
 
     return `
-      <div class="deal-card is-${state}" data-sale-id="${esc(String(sale.id))}">
-        <div class="deal-card-main">
-          <div class="deal-items">${itemsHtml(sale.items)}</div>
-          <div class="deal-meta">
+      <div class="dc" data-sale-id="${esc(String(sale.id))}">
+        <div class="dc-main">
+          <div class="dc-items">${itemsHtml(sale.items)}</div>
+          <div class="dc-side">
+            <span class="dc-total">${money(sale.totalPrice)}</span>
             <span class="deal-pill is-${state}">${esc(label)}</span>
-            <span class="card-hint">${esc(format(T.dealLineTemplate, { id: sale.id, date }))}</span>
+            ${action}
           </div>
-          ${reviewHtml(sale)}
         </div>
-        <div class="deal-card-side">
-          <span class="deal-price"><small>${esc(RT.total)}</small>${money(sale.totalPrice)}</span>
-          ${action}
+        <div class="dc-foot">
+          <span class="dc-id">${esc(format(T.dealLineTemplate, { id: sale.id, date }))}</span>
+          ${reviewHtml(sale)}
         </div>
       </div>`;
   };
@@ -179,6 +197,7 @@
     const card = btn.closest("[data-sale-id]");
     const before = box.innerHTML;
     let rating = Number(btn.dataset.rating) || 0;
+    box.classList.add("is-editing");
     box.innerHTML = `
       <div class="deal-review-form">
         <div class="deal-star-pick">${[1, 2, 3, 4, 5].map((n) => `<button type="button" data-star="${n}">★</button>`).join("")}</div>
@@ -199,6 +218,7 @@
       })
     );
     box.querySelector("[data-review-cancel]").addEventListener("click", () => {
+      box.classList.remove("is-editing");
       box.innerHTML = before;
       box.querySelectorAll("[data-review-open]").forEach((b) => b.addEventListener("click", () => openReviewForm(b)));
     });
@@ -218,6 +238,7 @@
         const data = await res.json();
         if (!data.ok) throw new Error(data.error);
         const bonus = box.dataset.bonus;
+        box.classList.remove("is-editing");
         box.innerHTML = `${starsHtml(data.review.rating)}${
           data.review.text ? `<span class="deal-review-text">${esc(data.review.text)}</span>` : ""
         }<span class="deal-review-thanks">${esc(RT.thanks)}${bonus ? ` ${esc(format(RT.bonusGot, { n: bonus }))}` : ""}</span>`;

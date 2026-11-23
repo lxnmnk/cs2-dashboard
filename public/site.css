@@ -139,6 +139,172 @@ h3,
   border-color: var(--gold-line);
 }
 
+/* ---- Картка угоди (deal-card.js): профіль і "Мої угоди" ----
+   Сума одна й праворуч, статус під нею, службове — тонким рядком унизу. */
+.dc {
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  transition: border-color 0.2s var(--ease);
+}
+.dc:hover { border-color: var(--line-strong); }
+.dc-main {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+}
+.dc-items,
+.dc-rest-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dc-items { flex: 1; min-width: 0; }
+.dc-rest-list { margin-top: 10px; }
+.dc-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-width: 0;
+}
+.dc-pic {
+  position: relative;
+  flex-shrink: 0;
+  width: 96px;
+  height: 72px;
+  overflow: hidden;
+  border-radius: 10px;
+  background:
+    radial-gradient(75% 65% at 50% 60%, rgba(255, 255, 255, 0.1), transparent 72%),
+    #1a1c21;
+}
+.dc-pic img {
+  width: 100%;
+  height: 100%;
+  padding: 6px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.55));
+}
+.dc-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.dc-weapon,
+.dc-skin {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dc-weapon { font-size: var(--t-xs); color: var(--muted); }
+.dc-skin {
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.dc-each { margin-top: 3px; font-size: var(--t-xs); color: var(--muted); }
+.dc-float {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 210px;
+  margin-top: 7px;
+}
+.dc-float-track {
+  position: relative;
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #4caf6e 0 7%, #8bc34a 7% 15%, #e0b04a 15% 38%, #e08a4a 38% 45%, #d9534f 45% 100%);
+}
+.dc-float-track i {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 9px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+.dc-float-val {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.dc-item-price {
+  flex-shrink: 0;
+  font-size: var(--t-sm);
+  font-weight: 700;
+  color: #cfcbc2;
+  font-variant-numeric: tabular-nums;
+}
+.dc-rest summary {
+  width: fit-content;
+  color: var(--gold);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.dc-side {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 7px;
+  min-width: 120px;
+}
+.dc-total {
+  font-family: var(--display);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--gold);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dc-side .btn-small { padding: 7px 14px; }
+.dc-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-3);
+  padding: 9px var(--s-4);
+  border-top: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.015);
+}
+.dc-id {
+  margin-right: auto;
+  font-size: var(--t-xs);
+  color: var(--muted);
+}
+.dc-foot .deal-review { min-width: 0; max-width: 100%; }
+.dc-foot .deal-review.is-editing { flex-basis: 100%; }
+.dc-foot .deal-review-invite {
+  flex-basis: 100%;
+  order: -1;
+  margin: 0;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--gold-soft);
+  color: var(--gold);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.dc-foot .deal-review-btn {
+  padding: 5px 12px;
+  border-style: solid;
+  border-color: var(--gold-line);
+  font-size: var(--t-xs);
+}
+
 /* ---- Поля ---- */
 #itemSearch,
 .inventory-search,
@@ -182,4 +348,21 @@ h3,
   .card { border-radius: 14px; }
   .swap-summary,
   .swap-layout { width: calc(100% - 24px); }
+  .dc-main {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: var(--s-3);
+  }
+  .dc-pic { width: 76px; height: 57px; }
+  .dc-skin { font-size: 14px; }
+  .dc-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+  }
+  .dc-total { font-size: 19px; }
+  .dc-foot { padding: var(--s-2) var(--s-3); }
 }

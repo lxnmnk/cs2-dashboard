@@ -1453,12 +1453,16 @@ app.get("/api/account/sales", async (req, res) => {
   // Свій відгук — у картці угоди: видно, що вже написав, і можна переписати.
   const mine = reviews.bySaleIds(sales.map((s) => s.id));
   const canEarnBonus = reviews.canEarnBonus(steamId);
+  const inviteSaleId = reviews.reviewInvite(steamId)?.saleId;
   for (const s of sales) {
     const r = mine.get(String(s.id));
     if (r) s.review = { rating: r.rating, text: r.text, hidden: r.hidden };
-    // Гроші розморожені, відгуків у людини ще не було — картка запросить його
-    // з бонусом. Бонус разовий: хто вже писав, просто бачить кнопку відгуку.
-    else if (s.status === "completed" && canEarnBonus) s.reviewBonusOffer = reviews.REVIEW_BONUS_PERCENT;
+    // Гроші розморожені, відгуків у людини ще не було — бонус дасть відгук на
+    // будь-яку таку угоду, але запрошення одне, на найсвіжішій: бонус разовий.
+    else if (s.status === "completed" && canEarnBonus) {
+      s.reviewBonusOffer = reviews.REVIEW_BONUS_PERCENT;
+      s.reviewBonusInvite = String(s.id) === inviteSaleId;
+    }
   }
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS, reviewBonusPercent: reviews.REVIEW_BONUS_PERCENT });
 });

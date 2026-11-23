@@ -98,10 +98,10 @@
   // на Youpin і в каталозі; шкала зносу — смужка від FN до BS з міткою float.
   const WEAR_CODES = { "Factory New": "FN", "Minimal Wear": "MW", "Field-Tested": "FT", "Well-Worn": "WW", "Battle-Scarred": "BS" };
   const wearOf = (name) => WEAR_CODES[(String(name).match(/\(([^()]+)\)(?: - [^-]+)?$/) || [])[1]] || "";
-  const floatBarHtml = (f) =>
+  const floatHtml = (f) =>
     f == null || !Number.isFinite(Number(f))
       ? ""
-      : `<div class="float-bar"><span class="float-value">${Number(f).toFixed(4)}</span><span class="float-track"><i style="left:${Math.min(100, Number(f) * 100).toFixed(1)}%"></i></span></div>`;
+      : `<span class="dl-float"><span class="dl-float-track"><i style="left:${Math.min(100, Number(f) * 100).toFixed(1)}%"></i></span><span class="dl-float-val">${Number(f).toFixed(4)}</span></span>`;
 
   const stars = (n) =>
     `<span class="feed-stars" aria-label="${n}/5">${"★".repeat(n)}<span class="feed-stars-off">${"★".repeat(5 - n)}</span></span>`;
@@ -111,30 +111,36 @@
     const { weapon, skin } = splitName(first.name);
     const extraCount = it.items.slice(1).reduce((s, g) => s + g.qty, 0) + (first.qty - 1);
     const wear = wearOf(first.name);
-    const pics = it.items
-      .slice(0, 3)
-      .map((g) => (g.image ? `<img src="${esc(g.image)}" alt="" loading="lazy" />` : `<span class="feed-pic-empty"></span>`))
-      .join("");
     const badge = wear ? `<span class="wear-badge wear-${wear}">${wear}</span>` : "";
+    // Головний предмет великим, ще до двох — віялом за ним.
+    const backPics = it.items
+      .slice(1, 3)
+      .map((g, i) => (g.image ? `<img class="dl-pic-back dl-pic-back-${i + 1}" src="${esc(g.image)}" alt="" loading="lazy" />` : ""))
+      .join("");
+    const mainPic = first.image ? `<img class="dl-pic" src="${esc(first.image)}" alt="${esc(first.name)}" loading="lazy" />` : "";
+    // Один предмет — його float; кілька — скільки ще в угоді.
+    const detail = extraCount > 0 ? `<span class="dl-more">${esc(fill(T.more2, { n: extraCount }))}</span>` : floatHtml(first.float);
     return `
-      <article class="feed-card ${fresh ? "is-fresh" : ""} ${it.review ? "has-review" : ""}">
-        <div class="feed-pics count-${Math.min(3, it.items.length)}">${pics}${badge}</div>
-        <div class="feed-body">
-          <div class="feed-item">
-            ${weapon ? `<span class="feed-weapon">${esc(weapon)}</span>` : ""}
-            <span class="feed-skin">${esc(skin)}${extraCount > 0 ? ` <span class="feed-more">${esc(fill(T.more2, { n: extraCount }))}</span>` : ""}</span>
-          </div>
-          ${it.items.length === 1 && first.qty === 1 ? floatBarHtml(first.float) : ""}
-          <div class="feed-meta">
-            <b>${esc(it.who)}</b> ${esc(it.kind === "trade" ? T.traded : T.sold)} · ${esc(ago(it.at))}
-          </div>
+      <article class="dl-card ${fresh ? "is-fresh" : ""}">
+        <div class="dl-stage">
+          ${badge}
+          <span class="dl-time">${esc(ago(it.at))}</span>
+          <div class="dl-pics">${backPics}${mainPic}</div>
+        </div>
+        <div class="dl-body">
+          <span class="dl-weapon">${weapon ? esc(weapon) : "&nbsp;"}</span>
+          <span class="dl-skin" title="${esc(skin)}">${esc(skin)}</span>
+          <div class="dl-detail">${detail}</div>
           ${
             it.review
-              ? `<div class="feed-review">${stars(it.review.rating)}${it.review.text ? `<p>${esc(it.review.text)}</p>` : ""}</div>`
+              ? `<div class="dl-review">${stars(it.review.rating)}${it.review.text ? `<p>${esc(it.review.text)}</p>` : ""}</div>`
               : ""
           }
+          <div class="dl-foot">
+            <span class="dl-who"><b>${esc(it.who)}</b> ${esc(it.kind === "trade" ? T.traded : T.sold)}</span>
+            <span class="dl-price">${esc(money(it.total))}</span>
+          </div>
         </div>
-        <div class="feed-price">${esc(money(it.total))}</div>
       </article>`;
   }
 
@@ -161,7 +167,7 @@
       </div>
       ${
         items.length
-          ? `<div class="feed-list">${items.map((it) => cardHtml(it, freshKeys.has(keyOf(it)))).join("")}</div>`
+          ? `<div class="dl-grid">${items.map((it) => cardHtml(it, freshKeys.has(keyOf(it)))).join("")}</div>`
           : `<p class="card-hint feed-empty">${esc(T.noReviews)}</p>`
       }
       ${hasMore ? `<button type="button" class="btn-small feed-more-btn">${esc(T.more)}</button>` : ""}`;
