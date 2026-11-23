@@ -381,6 +381,107 @@ function wdStatus(st) {
   return ["is-ready", W.wdPending];
 }
 
+// ---- Збережені адреси: окремо для кожної мережі ----
+function wdAddrOk(net, s) {
+  if (net.endsWith("trc20")) return /^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(s);
+  if (net.endsWith("-sol")) return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
+  return /^0x[0-9a-fA-F]{40}$/.test(s);
+}
+// EVM-адреса не залежить від регістру, Tron і Solana — залежать.
+function wdSameAddr(net, a, b) {
+  return net.endsWith("trc20") || net.endsWith("-sol") ? a === b : a.toLowerCase() === b.toLowerCase();
+}
+const wdSavedHere = () => (wd.saved || []).filter((s) => s.network === wdNetwork);
+
+function wdSavedHtml(netLabelText) {
+  const list = wdSavedHere();
+  if (!list.length) return "";
+  return `
+    <div class="wd-saved">
+      <div class="wd-saved-title">${wEsc(W.wdSavedTitle)} · ${wEsc(netLabelText)}</div>
+      <div class="wd-saved-list">
+        ${list
+          .map(
+            (s) => `<div class="wd-saved-item" data-saved="${wEsc(s.id)}">
+              <button class="wd-saved-pick" type="button" data-wdpick="${wEsc(s.id)}" title="${wEsc(s.address)}">
+                ${s.label ? `<span class="wd-saved-name">${wEsc(s.label)}</span>` : ""}
+                <code>${wEsc(s.address.slice(0, 6))}…${wEsc(s.address.slice(-4))}</code>
+              </button>
+              <button class="wd-saved-del" type="button" data-wddel="${wEsc(s.id)}" aria-label="${wEsc(W.wdSavedDelete)}" title="${wEsc(W.wdSavedDelete)}">&#10005;</button>
+            </div>`
+          )
+          .join("")}
+      </div>
+    </div>`;
+}
+
+// Підсвітити вибрану адресу й показати "Зберегти", лише коли адреса правильна
+// для цієї мережі і її ще немає у списку.
+function syncWdSaved() {
+  const input = $w("wdAddress");
+  if (!input) return;
+  const value = input.value.trim();
+  const here = wdSavedHere();
+  document.querySelectorAll(".wd-saved-item").forEach((el) => {
+    const s = here.find((x) => x.id === el.dataset.saved);
+    el.classList.toggle("active", !!s && wdSameAddr(wdNetwork, s.address, value));
+  });
+  const canSave = wdAddrOk(wdNetwork, value) && !here.some((s) => wdSameAddr(wdNetwork, s.address, value));
+  $w("wdSaveBox").hidden = !canSave;
+  if (!canSave) {
+    $w("wdSaveForm").hidden = true;
+    $w("wdSaveOpen").hidden = false;
+    $w("wdSaveErr").textContent = "";
+  }
+}
+
+async function wdSavedRequest(method, body) {
+  try {
+    return await (
+      await fetch("/api/account/withdraw/addresses", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+    ).json();
+  } catch {
+    return { ok: false };
+  }
+}
+
+function wdSavedError(data) {
+  if (data.error === "LIMIT") return W.wdSaveLimit.replace("{max}", data.max ?? wd.savedMax);
+  if (data.error === "BAD_ADDRESS") return W.wdBadAddress;
+  return W.wdSavedError;
+}
+
+async function saveWdAddress() {
+  const btn = $w("wdSaveBtn");
+  btn.disabled = true;
+  const data = await wdSavedRequest("POST", {
+    network: wdNetwork,
+    address: $w("wdAddress").value.trim(),
+    label: $w("wdSaveLabel").value,
+  });
+  btn.disabled = false;
+  if (!data.ok) {
+    $w("wdSaveErr").textContent = wdSavedError(data);
+    return;
+  }
+  wd.saved = data.saved;
+  renderWithdraw();
+}
+
+async function removeWdAddress(id) {
+  const data = await wdSavedRequest("DELETE", { id });
+  if (!data.ok) {
+    $w("wdError").textContent = wdSavedError(data);
+    return;
+  }
+  wd.saved = data.saved;
+  renderWithdraw();
+}
+
 function renderWithdraw() {
   const root = $w("withdrawRoot");
   if (!wd?.ok || !wd.enabled) {
@@ -396,7 +497,7 @@ function renderWithdraw() {
   const net = wd.networks.find((n) => n.id === wdNetwork);
   const prevAddress = $w("wdAddress")?.value;
   const prevAmount = $w("wdAmount")?.value;
-  const address = prevAddress ?? (wd.last && wd.last.network === wdNetwork ? wd.last.address : "");
+  const address = prevAddress ?? (wd.last && wd.last.network === wdNetwork ? wd.last.address : wdSavedHere()[0]?.address || "");
   root.innerHTML = `
     <h3 class="panel-title">${wEsc(W.wdTitle)}</h3>
     <p class="card-hint">${wEsc(W.wdIntro.replace("{available}", wMoney(wd.available)))}</p>
@@ -404,6 +505,7 @@ function renderWithdraw() {
     <div class="delivery-switch topup-networks" role="group">
       ${wd.networks.map((n) => `<button class="delivery-btn${n.id === wdNetwork ? " active" : ""}" type="button" data-wdnet="${n.id}">${wEsc(n.label)}</button>`).join("")}
     </div>
+    ${wdSavedHtml(net.label)}
     <div class="topup-form wd-form">
       <label class="topup-label wd-address">${wEsc(W.wdAddress)}
         <input id="wdAddress" class="item-float-input" type="text" autocomplete="off" spellcheck="false" value="${wEsc(address)}" placeholder="${wdNetwork.endsWith("trc20") ? "T…" : wdNetwork.endsWith("-sol") ? "" : "0x…"}" />
@@ -415,6 +517,15 @@ function renderWithdraw() {
         </span>
       </label>
       <button id="wdSubmit" class="btn-gold" type="button">${wEsc(W.wdSubmit)}</button>
+    </div>
+    <div id="wdSaveBox" class="wd-save" hidden>
+      <button id="wdSaveOpen" class="pf-link" type="button">${wEsc(W.wdSaveOpen)}</button>
+      <div id="wdSaveForm" class="wd-save-form" hidden>
+        <input id="wdSaveLabel" class="item-float-input" type="text" maxlength="30" autocomplete="off" placeholder="${wEsc(W.wdSaveName)}" />
+        <button id="wdSaveBtn" class="btn-outline" type="button">${wEsc(W.wdSaveBtn)}</button>
+        <button id="wdSaveCancel" class="btn-clear" type="button">${wEsc(W.wdCancel)}</button>
+      </div>
+      <p id="wdSaveErr" class="buy-err"></p>
     </div>
     <p id="wdReceive" class="card-hint"></p>
     <p id="wdError" class="buy-err"></p>
@@ -444,15 +555,66 @@ function renderWithdraw() {
   });
   root.querySelectorAll("[data-wdnet]").forEach((b) =>
     b.addEventListener("click", () => {
+      // Збережена адреса прив'язана до своєї мережі: в іншу її не переносимо.
+      const wasSaved = wdSavedHere().some((s) => wdSameAddr(wdNetwork, s.address, $w("wdAddress").value.trim()));
       wdNetwork = b.dataset.wdnet;
       // Адреса іншої мережі не підходить — очищаємо, якщо формат інший.
       const keep = $w("wdAddress").value;
       renderWithdraw();
       // Формат адреси — за ланцюгом: Tron "T…", EVM (ERC-20/BEP-20) "0x…", Solana — base58 без префікса.
       const ok = wdNetwork.endsWith("trc20") ? /^T/.test(keep) : wdNetwork.endsWith("-sol") ? /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(keep) : /^0x/i.test(keep);
-      $w("wdAddress").value = ok ? keep : wd.last && wd.last.network === wdNetwork ? wd.last.address : "";
+      // Є збережені для цієї мережі — підставляємо їх, а не адресу з іншої мережі.
+      const savedThere = wdSavedHere();
+      const fallback = wd.last && wd.last.network === wdNetwork ? wd.last.address : "";
+      $w("wdAddress").value = savedThere.length
+        ? savedThere.some((s) => wdSameAddr(wdNetwork, s.address, keep))
+          ? keep
+          : savedThere[0].address
+        : ok && !wasSaved
+        ? keep
+        : fallback;
+      syncWdSaved();
     })
   );
+  root.querySelectorAll("[data-wdpick]").forEach((b) =>
+    b.addEventListener("click", () => {
+      const s = wdSavedHere().find((x) => x.id === b.dataset.wdpick);
+      if (!s) return;
+      $w("wdAddress").value = s.address;
+      syncWdSaved();
+    })
+  );
+  // Видалення у два натискання: випадковий клік не прибере адресу.
+  root.querySelectorAll("[data-wddel]").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (b.dataset.armed) return removeWdAddress(b.dataset.wddel);
+      b.dataset.armed = "1";
+      b.textContent = W.wdSavedDeleteAsk;
+      b.classList.add("is-armed");
+      setTimeout(() => {
+        if (!b.isConnected) return;
+        delete b.dataset.armed;
+        b.innerHTML = "&#10005;";
+        b.classList.remove("is-armed");
+      }, 3000);
+    })
+  );
+  $w("wdAddress").addEventListener("input", syncWdSaved);
+  $w("wdSaveOpen").addEventListener("click", () => {
+    $w("wdSaveOpen").hidden = true;
+    $w("wdSaveForm").hidden = false;
+    $w("wdSaveLabel").focus();
+  });
+  $w("wdSaveCancel").addEventListener("click", () => {
+    $w("wdSaveForm").hidden = true;
+    $w("wdSaveOpen").hidden = false;
+    $w("wdSaveErr").textContent = "";
+  });
+  $w("wdSaveBtn").addEventListener("click", saveWdAddress);
+  $w("wdSaveLabel").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") saveWdAddress();
+  });
+  syncWdSaved();
   $w("wdSubmit").addEventListener("click", submitWithdraw);
 }
 

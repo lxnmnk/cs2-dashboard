@@ -42,6 +42,7 @@ const skinbuxPurchases = require("./skinbuxPurchases");
 const cryptoTopups = require("./cryptoTopups");
 const ownSkins = require("./ownSkins");
 const cryptoPayouts = require("./cryptoPayouts");
+const savedAddresses = require("./savedAddresses");
 const csfloatPurchases = require("./csfloatPurchases");
 const skinbuxSalesImport = require("./skinbuxSalesImport");
 const tradeFloats = require("./tradeFloats");
@@ -393,6 +394,7 @@ const PUBLIC_PATHS = new Set([
   // Вкладки профілю "Покупки" і "Поповнити" (wallet.js, cryptoTopups.js).
   "/api/account/topup",
   "/api/account/withdraw",
+  "/api/account/withdraw/addresses",
   "/wallet.js",
   // QR-код адреси поповнення (бібліотека qrcode-generator, MIT, локальна копія).
   "/qrcode.js",
@@ -2184,6 +2186,49 @@ function publicWithdrawal(w) {
   return { id: w.id, network: w.network, address: w.address, amount: w.amount, fee: w.fee, send: w.send, status: w.status, createdAt: w.createdAt };
 }
 
+// Биті збережені адреси не мають ламати саму форму виводу.
+function savedAddressesOf(steamId) {
+  try {
+    return savedAddresses.listFor(steamId);
+  } catch (err) {
+    console.error("[saved-addresses]", err.message);
+    return [];
+  }
+}
+
+function savedAddressFail(res, err) {
+  if (err instanceof savedAddresses.SavedAddressError) {
+    return res.status(err.code === "NOT_FOUND" ? 404 : 400).json({ ok: false, error: err.code, max: savedAddresses.MAX_PER_CLIENT });
+  }
+  console.error("[saved-addresses]", err.message);
+  res.status(500).json({ ok: false, error: "FAILED" });
+}
+
+app.post("/api/account/withdraw/addresses", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const { network, address, label } = req.body || {};
+  // Лише мережі, в які сайт реально виводить.
+  if (!Object.prototype.hasOwnProperty.call(cryptoPayouts.PAIRS, String(network))) {
+    return res.status(400).json({ ok: false, error: "BAD_ADDRESS" });
+  }
+  try {
+    res.json({ ok: true, saved: savedAddresses.add(customer.steamId, { network: String(network), address: String(address || ""), label }) });
+  } catch (err) {
+    savedAddressFail(res, err);
+  }
+});
+
+app.delete("/api/account/withdraw/addresses", (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  try {
+    res.json({ ok: true, saved: savedAddresses.remove(customer.steamId, String(req.body?.id || "")) });
+  } catch (err) {
+    savedAddressFail(res, err);
+  }
+});
+
 app.get("/api/account/withdraw", async (req, res) => {
   const customer = req.session.customer;
   if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
@@ -2200,6 +2245,8 @@ app.get("/api/account/withdraw", async (req, res) => {
     // Остання адреса з продажу — щоб не вписувати заново.
     last: last?.details?.method === "crypto" && cryptoPayouts.PAIRS[last.details.network] ? last.details : null,
     withdrawals: cryptoPayouts.listWithdrawals(customer.steamId).slice(0, 20).map(publicWithdrawal),
+    saved: savedAddressesOf(customer.steamId),
+    savedMax: savedAddresses.MAX_PER_CLIENT,
   });
 });
 

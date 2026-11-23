@@ -166,6 +166,64 @@
 }
 .pf-link:hover { text-decoration: underline; }
 
+/* ---- Збережені адреси у формі виводу ---- */
+.wd-saved { margin-top: var(--s-3); }
+.wd-saved-title { margin-bottom: var(--s-2); color: var(--muted); font-size: var(--t-xs); }
+.wd-saved-list { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.wd-saved-item {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.wd-saved-item:hover { border-color: rgba(255, 255, 255, 0.22); }
+.wd-saved-item.active { border-color: var(--gold-line); }
+.wd-saved-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 10px 7px 12px;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wd-saved-name {
+  max-width: 190px;
+  overflow: hidden;
+  font-size: var(--t-sm);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wd-saved-pick code { color: var(--muted); font-size: var(--t-xs); }
+.wd-saved-del {
+  flex-shrink: 0;
+  min-width: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--line);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--t-xs);
+  cursor: pointer;
+}
+.wd-saved-del:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.wd-saved-del.is-armed { color: #f0a29e; background: rgba(224, 96, 90, 0.12); }
+.wd-save { margin-top: var(--s-2); }
+.wd-save[hidden],
+.wd-save [hidden] { display: none; }
+.wd-save-form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.wd-save-form input { flex: 1 1 220px; min-width: 0; max-width: 320px; }
+.wd-save .buy-err:empty { display: none; }
+
 /* ---- Планшет і телефон: колонка зверху, меню — горизонтальна стрічка ---- */
 @media (max-width: 980px) {
   /* minmax(0, 1fr), а не 1fr: інакше стрічка вкладок і широкі блоки
