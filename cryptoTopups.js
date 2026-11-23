@@ -39,6 +39,9 @@ const ETH_START_BACK = 400; // перший запуск: ~1.3 год назад
 // Рахунок закритий для нових переказів після expiresAt, але переказ, надісланий
 // вчасно, міг потрапити в блок пізніше — приймаємо ще стільки після.
 const LATE_GRACE_MS = 30 * 60 * 1000;
+// Стільки мережа може не читатись, перш ніж ми перестанемо видавати в ній
+// нові рахунки: короткі збої публічних API — норма.
+const READ_FAIL_HIDE_MS = 10 * 60 * 1000;
 
 const DEFAULTS = {
   minUsd: 25,
@@ -72,16 +75,20 @@ function settings(config) {
  * Мережі, для яких задана адреса, — тільки їх показуємо клієнту. Мережу на
  * паузі (звірка з балансом Skinbux не зійшлась, див. verifyCredits) не
  * показуємо: нові гроші на адресу, яка, можливо, вже не наша, не приймаємо.
+ * Мережу, яку ми давно не можемо прочитати, теж: переказ туди ніхто б не
+ * побачив, і людина чекала б зарахування без кінця.
  * withPaused — для сервера: сканувати перекази треба й на паузі.
  */
-function enabledNetworks(cfg, { withPaused = false } = {}) {
-  const paused = withPaused ? {} : load().paused;
+function enabledNetworks(cfg, { withPaused = false, now = Date.now() } = {}) {
+  const state = withPaused ? null : load();
+  const hidden = (id) =>
+    !!state && (!!state.paused[id] || (state.readFail[id] && now - new Date(state.readFail[id]).getTime() > READ_FAIL_HIDE_MS));
   return Object.entries(cfg.networks)
-    .filter(([id, n]) => n.address && !paused[id])
+    .filter(([id, n]) => n.address && !hidden(id))
     .map(([id, n]) => ({ id, address: n.address, feeUsd: n.feeUsd }));
 }
 
-const EMPTY = () => ({ invoices: [], seen: {}, unmatched: [], eth: {}, tron: {}, snapshots: [], paused: {} });
+const EMPTY = () => ({ invoices: [], seen: {}, unmatched: [], eth: {}, tron: {}, snapshots: [], paused: {}, readFail: {} });
 
 function load() {
   try {
@@ -249,7 +256,11 @@ async function tronTransfers(state, address) {
   for (let page = 0; page < 10 && url; page++) {
     const res = await fetch(url, { signal: AbortSignal.timeout(20000), headers: process.env.TRONGRID_API_KEY ? { "TRON-PRO-API-KEY": process.env.TRONGRID_API_KEY } : {} });
     const data = await res.json().catch(() => null);
-    if (!res.ok || !data?.success) throw new Error(`TronGrid ${res.status}`);
+    if (!res.ok || !data?.success) {
+      // Без ключа TronGrid постійно відповідає 429, і чекати тут марно.
+      const hint = res.status === 429 && !process.env.TRONGRID_API_KEY ? " (нет TRONGRID_API_KEY в .env)" : "";
+      throw new Error(`TronGrid ${res.status}${hint}`);
+    }
     for (const t of data.data || []) {
       if (t.to !== address || t.token_info?.address !== USDT_TRC20) continue;
       out.push({ key: `trc20:${t.transaction_id}`, network: "trc20", tx: t.transaction_id, from: t.from, micros: BigInt(t.value), at: t.block_timestamp });
@@ -403,17 +414,25 @@ async function scan(config, { notify = async () => {}, getAvailableCents = null,
   const state = load();
   const transfers = [];
   const errors = [];
+  const readOk = (id) => delete state.readFail[id];
+  const readFailed = (id) => {
+    if (!state.readFail[id]) state.readFail[id] = new Date().toISOString();
+  };
   if (cfg.networks.erc20.address) {
     try {
       transfers.push(...(await ethTransfers(state, cfg.networks.erc20.address, cfg.ercConfirmations)));
+      readOk("erc20");
     } catch (err) {
+      readFailed("erc20");
       errors.push(`ERC-20: ${err.message}`);
     }
   }
   if (cfg.networks.trc20.address) {
     try {
       transfers.push(...(await tronTransfers(state, cfg.networks.trc20.address)));
+      readOk("trc20");
     } catch (err) {
+      readFailed("trc20");
       errors.push(`TRC-20: ${err.message}`);
     }
   }
@@ -457,8 +476,10 @@ async function scan(config, { notify = async () => {}, getAvailableCents = null,
   }
 
   const now = Date.now();
+  // Поки мережа не читається, рахунки в ній не закриваємо: переказ, зроблений
+  // вчасно, інакше після відновлення лишився б "без рахунку".
   for (const inv of state.invoices) {
-    if (inv.status === "waiting" && !isOpen(inv, now)) inv.status = "expired";
+    if (inv.status === "waiting" && !isOpen(inv, now) && !state.readFail[inv.network]) inv.status = "expired";
   }
 
   // Звірка: знімок балансу Skinbux і перевірка зарахованого. Не вдалось
