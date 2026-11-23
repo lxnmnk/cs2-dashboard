@@ -705,6 +705,35 @@ function priceKeyFor(item) {
 // предмета і свіжіша. Інакше показана клієнту ціна розходилась із тією, з якою
 // Skinbux звіряє продаж: поки прайс-лист відставав, ми пропонували більше, ніж
 // вони платять, і продаж падав (або проходив у мінус).
+// ---- WELCOME: бонус за перший продаж (config.welcomeBonus) ----
+// Вмикається сам, вводити нічого не треба. "Ще не продавав" — немає жодної
+// угоди, крім скасованих: незавершена теж рахується, інакше поки людина не
+// прийняла обмін, можна було б відкрити другий продаж із тим самим бонусом.
+const WELCOME_CODE = "welcome";
+const welcomeInFlight = new Set();
+
+function welcomePercentFor(steamId) {
+  const percent = Number(config.welcomeBonus?.percent);
+  if (!config.welcomeBonus?.enabled || !steamId || !(percent > 0)) return 0;
+  const id = String(steamId);
+  if (skinbuxSales.OWN_STEAM_IDS.has(id)) return 0;
+  const sold = skinbuxSales
+    .loadAll()
+    .some((s) => String(s.steamId) === id && !["cancelled", "reverted"].includes(s.status));
+  return sold ? 0 : percent;
+}
+
+function welcomePromoFor(req) {
+  const percent = welcomePercentFor(req.session?.customer?.steamId);
+  return percent ? { code: WELCOME_CODE, bonusPercent: percent, welcome: true } : null;
+}
+
+// Коди не складаються, тож у кошику показуємо той, що реально діє.
+function effectivePromo(req, promo) {
+  const welcome = welcomePromoFor(req);
+  return welcome && !promo.campaign && welcome.bonusPercent > promo.bonusPercent ? welcome : promo;
+}
+
 /**
  * Знижка для цього відвідувача з урахуванням промокоду: бонус клієнта ми
  * платимо зі своєї маржі, тобто просто зменшуємо власну знижку. Одна функція
@@ -724,7 +753,12 @@ function discountFor(req, { tradeMode = false, payoutMethod = null } = {}) {
   // додається зверху: це окрема нагорода, а не ще один код.
   const steamId = req.session?.customer?.steamId;
   const reviewBonus = !tradeMode && steamId ? reviews.availableBonus(steamId)?.percent || 0 : 0;
-  const codeBonus = Math.max(promo?.bonusPercent || 0, referralBonusFor(req));
+  // WELCOME — теж код: лише на продаж і теж не складається, діє більший.
+  const referralBonus = referralBonusFor(req);
+  const welcomeBonus = tradeMode ? 0 : welcomePercentFor(steamId);
+  const plainBonus = Math.max(referralBonus, welcomeBonus);
+  const codeBonus = Math.max(promo?.bonusPercent || 0, plainBonus);
+  const welcomeUsed = welcomeBonus > 0 && welcomeBonus > (promo?.bonusPercent || 0) && welcomeBonus > referralBonus;
   // Знижка тут — частка (0.05 = 5%), а бонус коду задається у відсотках.
   // Без ділення на 100 код з'їдав би всю знижку одразу: клієнт отримував би
   // повну ціну Skinbux, а ми — нуль.
@@ -734,11 +768,11 @@ function discountFor(req, { tradeMode = false, payoutMethod = null } = {}) {
   const reviewUsed = reviewBonus > 0 && discountWith(codeBonus) > 0;
   // Скільки було б без акції — кошик показує "було → стало".
   const baseDiscount = promo?.campaign
-    ? discountWith(referralBonusFor(req) + reviewBonus)
+    ? discountWith(plainBonus + reviewBonus)
     : discountWith(codeBonus + reviewBonus);
   const bonusPercent = codeBonus + reviewBonus;
-  if (!bonusPercent) return { discount: base, promo: null, promoBlocked, baseDiscount: base, reviewUsed: false };
-  return { discount: discountWith(bonusPercent), promo, promoBlocked, baseDiscount, reviewUsed };
+  if (!bonusPercent) return { discount: base, promo: null, promoBlocked, baseDiscount: base, reviewUsed: false, welcomeBonus: 0 };
+  return { discount: discountWith(bonusPercent), promo, promoBlocked, baseDiscount, reviewUsed, welcomeBonus: welcomeUsed ? welcomeBonus : 0 };
 }
 
 /**
@@ -955,6 +989,15 @@ async function sellCustomerItems(req, res, { tradeMode }) {
 
   // Один розрахунок знижки на весь продаж: від способу виплати залежить акція.
   const disc = discountFor(req, { tradeMode, payoutMethod: method });
+  // WELCOME витрачається, коли угода записана, а запит до Skinbux іде кілька
+  // секунд: другий продаж у цей час теж отримав би бонус.
+  const welcomeLock = disc.welcomeBonus ? String(customer.steamId) : null;
+  if (welcomeLock) {
+    if (welcomeInFlight.has(welcomeLock)) {
+      return res.status(409).json({ ok: false, error: "Попередній продаж ще обробляється — зачекай кілька секунд" });
+    }
+    welcomeInFlight.add(welcomeLock);
+  }
   try {
     // Для продажу — завжди свіжий інвентар, повз хвилинний кеш: у ньому
     // ціна Skinbux, а вона встигає змінитись, і тоді INVALID_PRICE.
@@ -1072,6 +1115,7 @@ async function sellCustomerItems(req, res, { tradeMode }) {
       ...(referrals.accrualForSale(customer.steamId) || {}),
       referralTopUp,
       reviewBonusPercent,
+      welcomeBonusPercent: disc.welcomeBonus,
     });
     // Владельцу в gaben.market_info: кто, что и за сколько продал.
     // Свої акаунти й TARHUN (OWN_STEAM_IDS) — не клієнти, про них не пишемо.
@@ -1085,6 +1129,8 @@ async function sellCustomerItems(req, res, { tradeMode }) {
   } catch (err) {
     console.error(`[${tradeMode ? "trade-sell" : "account-sell"}] Ошибка:`, err.message);
     res.status(400).json({ ok: false, error: err.message });
+  } finally {
+    if (welcomeLock) welcomeInFlight.delete(welcomeLock);
   }
 }
 
@@ -1104,7 +1150,7 @@ app.get("/api/account/promo", (req, res) => {
   if (promo) {
     return res.json({
       ok: true,
-      promo: { code: promo.code, bonusPercent: promo.bonusPercent, campaign: campaignInfo(promo, req) },
+      promo: effectivePromo(req, { code: promo.code, bonusPercent: promo.bonusPercent, campaign: campaignInfo(promo, req) }),
       ...extra,
     });
   }
@@ -1113,7 +1159,9 @@ app.get("/api/account/promo", (req, res) => {
   // той, яким закріпився.
   const bonus = referralBonusFor(req);
   const code = req.session?.referral?.code || (steamId && referrals.referredCodeOf(steamId)) || null;
-  if (bonus && code) return res.json({ ok: true, promo: { code, bonusPercent: bonus, referral: true }, ...extra });
+  if (bonus && code) return res.json({ ok: true, promo: effectivePromo(req, { code, bonusPercent: bonus, referral: true }), ...extra });
+  const welcome = welcomePromoFor(req);
+  if (welcome) return res.json({ ok: true, promo: welcome, ...extra });
   // Код з посилання не підійшов — кажемо чому, один раз.
   const rejected = req.session?.referralRejected || null;
   if (rejected) delete req.session.referralRejected;
@@ -1124,7 +1172,11 @@ app.post("/api/account/promo", (req, res) => {
   const raw = String(req.body?.code || "").trim();
   if (!raw) {
     delete req.session.promo;
-    return res.json({ ok: true, promo: null });
+    return res.json({ ok: true, promo: welcomePromoFor(req) });
+  }
+  if (promoCodes.normalize(raw) === WELCOME_CODE) {
+    const welcome = welcomePromoFor(req);
+    return welcome ? res.json({ ok: true, promo: welcome }) : res.status(400).json({ ok: false, error: "WELCOME_USED" });
   }
   const promo = promoCodes.find(raw);
   if (!promo) {
@@ -1137,12 +1189,12 @@ app.post("/api/account/promo", (req, res) => {
     }
     return res.json({
       ok: true,
-      promo: { code: raw.toLowerCase(), bonusPercent: referrals.FRIEND_BONUS_PERCENT, referral: true },
+      promo: effectivePromo(req, { code: raw.toLowerCase(), bonusPercent: referrals.FRIEND_BONUS_PERCENT, referral: true }),
     });
   }
 
   req.session.promo = promo.code;
-  res.json({ ok: true, promo: { code: promo.code, bonusPercent: promo.bonusPercent, campaign: campaignInfo(promo, req) } });
+  res.json({ ok: true, promo: effectivePromo(req, { code: promo.code, bonusPercent: promo.bonusPercent, campaign: campaignInfo(promo, req) }) });
 });
 
 // ---- Реферальна програма: кабінет клієнта ----
@@ -1400,11 +1452,13 @@ app.get("/api/account/sales", async (req, res) => {
   );
   // Свій відгук — у картці угоди: видно, що вже написав, і можна переписати.
   const mine = reviews.bySaleIds(sales.map((s) => s.id));
+  const canEarnBonus = reviews.canEarnBonus(steamId);
   for (const s of sales) {
     const r = mine.get(String(s.id));
     if (r) s.review = { rating: r.rating, text: r.text, hidden: r.hidden };
-    // Гроші розморожені, відгуку ще немає — картка запросить його з бонусом.
-    else if (s.status === "completed") s.reviewBonusOffer = reviews.REVIEW_BONUS_PERCENT;
+    // Гроші розморожені, відгуків у людини ще не було — картка запросить його
+    // з бонусом. Бонус разовий: хто вже писав, просто бачить кнопку відгуку.
+    else if (s.status === "completed" && canEarnBonus) s.reviewBonusOffer = reviews.REVIEW_BONUS_PERCENT;
   }
   res.json({ ok: true, sales, holdDays: skinbuxSales.HOLD_DAYS, reviewBonusPercent: reviews.REVIEW_BONUS_PERCENT });
 });

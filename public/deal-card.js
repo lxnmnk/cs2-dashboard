@@ -223,6 +223,11 @@
         }<span class="deal-review-thanks">${esc(RT.thanks)}${bonus ? ` ${esc(format(RT.bonusGot, { n: bonus }))}` : ""}</span>`;
         // Запрошення з бонусом над формою більше не потрібне.
         box.previousElementSibling?.classList.contains("deal-review-invite") && box.previousElementSibling.remove();
+        // Бонус разовий: після першого відгуку запрошення зникає з усіх угод.
+        if (bonus) {
+          document.querySelectorAll(".deal-review-invite").forEach((el) => el.remove());
+          document.querySelectorAll("[data-review-box][data-bonus]").forEach((el) => (el.dataset.bonus = ""));
+        }
       } catch (err) {
         status.textContent = err.message;
       }

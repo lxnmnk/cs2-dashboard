@@ -37,6 +37,9 @@ const CODE_RE = /^[a-z0-9_-]{3,20}$/i;
 const RESERVED = new Set([
   "account", "profile", "trade", "buy", "sell", "my-skins", "arbitrage",
   "mytrades", "capital", "login", "ru", "en", "ua", "api", "auth", "uploads",
+  // Бонус новим клієнтам (server.js welcomePercentFor): партнерський чи
+  // реферальний код з такою назвою обходив би умову "ще не продавав".
+  "welcome",
 ]);
 
 // Акції — коди, що живуть у коді, а не в панелі: з датами й умовами, яких у

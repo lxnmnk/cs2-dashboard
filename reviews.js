@@ -17,9 +17,10 @@ const trades = require("./trades");
 const { boughtFromClient } = require("./skinbuxAccount");
 
 const FILE = path.join(__dirname, "reviews.json");
-// Бонуси за відгук: за кожну угоду, на яку людина вперше лишила відгук,
-// +1.5% до її наступного продажу — разово. Дається за будь-який відгук,
-// і за одну зірку теж: платимо за те, що написав, а не за похвалу.
+// Бонус за відгук: +1.5% до наступного продажу, один раз на клієнта — за його
+// перший відгук. Хто вже лишав відгук, запрошення з бонусом більше не бачить,
+// але писати відгуки на інші угоди може. Дається за будь-який відгук, і за
+// одну зірку теж: платимо за те, що написав, а не за похвалу.
 const BONUS_FILE = path.join(__dirname, "reviewBonuses.json");
 const REVIEW_BONUS_PERCENT = 1.5;
 const ACCEPTED = new Set(["hold", "completed"]);
@@ -78,8 +79,9 @@ function upsert(steamId, { saleId, rating, text, displayName }) {
       createdAt: now,
       updatedAt: now,
     };
+    const firstReview = !list.some((r) => r.steamId === String(steamId));
     list.push(review);
-    grantBonus(steamId, saleId);
+    if (firstReview) grantBonus(steamId, saleId);
   }
   save(list);
   return review;
@@ -98,10 +100,10 @@ function saveBonuses(list) {
   fs.writeFileSync(BONUS_FILE, JSON.stringify(list, null, 2));
 }
 
-/** Один бонус на угоду — переписаний відгук другого не дає. */
+/** Один бонус на клієнта — ні переписаний відгук, ні відгук на іншу угоду другого не дають. */
 function grantBonus(steamId, saleId) {
   const list = loadBonuses();
-  if (list.some((b) => b.saleId === String(saleId))) return;
+  if (list.some((b) => b.steamId === String(steamId))) return;
   list.push({
     id: crypto.randomUUID(),
     steamId: String(steamId),
@@ -113,15 +115,38 @@ function grantBonus(steamId, saleId) {
   saveBonuses(list);
 }
 
-/** Невикористаний бонус людини (найстаріший) або null. */
+// Бонус витрачено, якщо його продаж не скасували: не прийняв обмін — бонус
+// лишається, бо другого вже не буде.
+function bonusSpent(bonus, sales) {
+  if (!bonus.usedOnSaleId) return false;
+  const sale = sales.find((s) => String(s.id) === String(bonus.usedOnSaleId));
+  return !sale || !["cancelled", "reverted"].includes(sale.status);
+}
+
+// Бонус разовий на клієнта: у кого їх накопичилось кілька зі старих правил,
+// після першого використаного решта не діє.
+function currentBonus(list, steamId) {
+  const mine = list.filter((b) => b.steamId === String(steamId));
+  if (!mine.length) return null;
+  const sales = skinbuxSales.loadAll();
+  return mine.some((b) => bonusSpent(b, sales)) ? null : mine[0];
+}
+
+/** Бонус, який людина може використати зараз, або null. */
 function availableBonus(steamId) {
-  return loadBonuses().find((b) => b.steamId === String(steamId) && !b.usedOnSaleId) || null;
+  return currentBonus(loadBonuses(), steamId);
+}
+
+/** Чи може людина ще заробити бонус: відгуків і бонусів у неї не було. */
+function canEarnBonus(steamId) {
+  const id = String(steamId);
+  return !load().some((r) => r.steamId === id) && !loadBonuses().some((b) => b.steamId === id);
 }
 
 /** Бонус пішов у продаж saleId — більше не діє. Повертає відсоток або 0. */
 function useBonus(steamId, saleId) {
   const list = loadBonuses();
-  const bonus = list.find((b) => b.steamId === String(steamId) && !b.usedOnSaleId);
+  const bonus = currentBonus(list, steamId);
   if (!bonus) return 0;
   bonus.usedOnSaleId = String(saleId);
   bonus.usedAt = new Date().toISOString();
@@ -134,6 +159,7 @@ function useBonus(steamId, saleId) {
  * ще немає. Найсвіжіша — щоб кошик міг сказати "залиш відгук про угоду #X".
  */
 function reviewInvite(steamId) {
+  if (!canEarnBonus(steamId)) return null;
   const reviewed = new Set(load().filter((r) => r.steamId === String(steamId)).map((r) => r.saleId));
   const sale = skinbuxSales
     .loadAll()
@@ -280,6 +306,7 @@ module.exports = {
   feed,
   maskName,
   availableBonus,
+  canEarnBonus,
   useBonus,
   reviewInvite,
   REVIEW_BONUS_PERCENT,

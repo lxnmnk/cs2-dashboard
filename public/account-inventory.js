@@ -58,9 +58,16 @@ const promoStatus = document.getElementById("promoStatus");
 async function showPromo(promo) {
   if (!promo) {
     promoStatus.textContent = "";
+    // WELCOME підставляє сайт, а не людина: після першого продажу прибираємо.
+    if (promoInput.value === "WELCOME") promoInput.value = "";
     return;
   }
   promoInput.value = promo.code.toUpperCase();
+  if (promo.welcome) {
+    promoStatus.textContent = REF_TEXT.welcomeApplied.replace("{n}", promo.bonusPercent);
+    promoStatus.classList.remove("field-error");
+    return;
+  }
   promoStatus.textContent = (CFG.promoApplied || "")
     .replace("{code}", promo.code.toUpperCase())
     .replace("{n}", promo.bonusPercent);
@@ -99,6 +106,8 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
 // тут, а не в ACCOUNT_CONFIG трьох сторінок: це один рядок на одну галочку.
 const REF_TEXT = {
   uk: {
+    welcomeApplied: "🎁 WELCOME +{n}% — уже в цінах першого продажу. На частині скінів ціна обмежена ринком.",
+    WELCOME_USED: "WELCOME діє лише на перший продаж",
     reviewBonus: "🎁 Бонус за відгук: +{n}% — уже в цінах цього продажу",
     reviewInvite: "🎁 Залиш відгук про угоду #{id} у профілі — і отримай +{n}% до цього продажу",
     add: "Додати реферальні {amount} до цієї виплати",
@@ -111,6 +120,8 @@ const REF_TEXT = {
     USED: "Ти вже продавав за Black Friday — акція діє один раз на клієнта",
   },
   ru: {
+    welcomeApplied: "🎁 WELCOME +{n}% — уже в ценах первой продажи. На части скинов цена ограничена рынком.",
+    WELCOME_USED: "WELCOME действует только на первую продажу",
     reviewBonus: "🎁 Бонус за отзыв: +{n}% — уже в ценах этой продажи",
     reviewInvite: "🎁 Оставь отзыв о сделке #{id} в профиле — и получи +{n}% к этой продаже",
     add: "Добавить реферальные {amount} к этой выплате",
@@ -123,6 +134,8 @@ const REF_TEXT = {
     USED: "Ты уже продавал по Black Friday — акция действует один раз на клиента",
   },
   en: {
+    welcomeApplied: "🎁 WELCOME +{n}% — already in your first sale's prices. Some skins are capped at market price.",
+    WELCOME_USED: "WELCOME only works on your first sale",
     reviewBonus: "🎁 Review bonus: +{n}% — already in this sale's prices",
     reviewInvite: "🎁 Review deal #{id} in your profile and get +{n}% on this sale",
     add: "Add your referral {amount} to this payout",
@@ -198,27 +211,33 @@ function renderCampaignLine(total, baseTotal) {
   campaignLine.style.display = text ? "" : "none";
 }
 
-fetch("/api/account/promo")
-  .then((r) => r.json())
-  .then((d) => {
-    if (d.reviewBonus) {
-      reviewLine.textContent = REF_TEXT.reviewBonus.replace("{n}", d.reviewBonus);
-      reviewLine.style.display = "";
-    } else if (d.reviewInvite) {
-      const profileUrl = { ru: "/ru/profile", en: "/en/profile" }[document.documentElement.lang] || "/profile";
-      reviewLine.innerHTML = `<a href="${profileUrl}">${escapeHtml(
-        REF_TEXT.reviewInvite.replace("{id}", d.reviewInvite.saleId).replace("{n}", d.reviewBonusPercent)
-      )}</a>`;
-      reviewLine.style.display = "";
-    }
-    if (d.promo) return showPromo(d.promo);
-    if (d.rejected) {
-      promoInput.value = d.rejected.code.toUpperCase();
-      promoStatus.textContent = REF_TEXT[d.rejected.reason] || "";
-      promoStatus.classList.add("field-error");
-    }
-  })
-  .catch(() => {});
+function refreshPromoLine() {
+  return fetch("/api/account/promo")
+    .then((r) => r.json())
+    .then((d) => {
+      reviewLine.style.display = "none";
+      if (d.reviewBonus) {
+        reviewLine.textContent = REF_TEXT.reviewBonus.replace("{n}", d.reviewBonus);
+        reviewLine.style.display = "";
+      } else if (d.reviewInvite) {
+        const profileUrl = { ru: "/ru/profile", en: "/en/profile" }[document.documentElement.lang] || "/profile";
+        reviewLine.innerHTML = `<a href="${profileUrl}">${escapeHtml(
+          REF_TEXT.reviewInvite.replace("{id}", d.reviewInvite.saleId).replace("{n}", d.reviewBonusPercent)
+        )}</a>`;
+        reviewLine.style.display = "";
+      }
+      if (d.promo) return showPromo(d.promo);
+      if (d.rejected) {
+        promoInput.value = d.rejected.code.toUpperCase();
+        promoStatus.textContent = REF_TEXT[d.rejected.reason] || "";
+        promoStatus.classList.add("field-error");
+        return;
+      }
+      showPromo(null);
+    })
+    .catch(() => {});
+}
+refreshPromoLine();
 
 // ---- Спосіб виплати і реквізити ----
 // Виплату власник робить руками, тож усе це — дані для нього: куди саме
@@ -579,6 +598,8 @@ sellAutoBtn?.addEventListener("click", async () => {
   cart = [];
   renderInventoryList();
   renderCart();
+  // WELCOME витрачено: рядок промокоду має показати вже новий стан.
+  refreshPromoLine();
 });
 
 // Ціна викупу поїхала вниз: перечитуємо інвентар і ставимо в кошик нові
