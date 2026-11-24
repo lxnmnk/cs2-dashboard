@@ -205,8 +205,8 @@
   },
   "cryptoPayout": {
     "_comment": "Выплаты клиентам в крипте с Binance владельца (cryptoPayouts.js + binanceWallet.js; ключ BINANCE_API_KEY/SECRET в .env). Skinbux выводит только на наш кошелёк (21.11.2026), поэтому Skinbux -> Binance руками, Binance -> клиент тут. enabled — автовыплата сделок после холда; dryRun: true — ничего не выводит, только пишет в Telegram, что вывел бы. clientWithdraw — кнопка «Вывести» в профиле (dryRun на неё не действует). minUsd — минимум вывода до комиссии; комиссию сети берёт Binance из суммы, её платит клиент.",
-    "enabled": false,
-    "dryRun": true,
+    "enabled": true,
+    "dryRun": false,
     "clientWithdraw": true,
     "minUsd": 5
   },

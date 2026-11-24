@@ -1517,10 +1517,14 @@ function askPriceCell(r) {
 // Куди вигідніше продати зараз: найкращий автобай (instant, bid) і
 // найкращий маркет (лістинг, ask) — ціни вже після комісії площадки.
 // Площадки — ті, що відмічені у вікні "де продати" (marketFilter).
+function bestSellOption(r, side) {
+  return (r.sellOptions || [])
+    .filter((o) => marketFilter[o.source] && o.side === side)
+    .reduce((a, o) => (!a || o.price > a.price ? o : a), null);
+}
+
 function bestSaleCell(r) {
-  const opts = (r.sellOptions || []).filter((o) => marketFilter[o.source]);
-  const best = (side) =>
-    opts.filter((o) => o.side === side).reduce((a, o) => (!a || o.price > a.price ? o : a), null);
+  const best = (side) => bestSellOption(r, side);
   const line = (label, title, o) => {
     if (!o) return `<div class="best-sale-line"><span class="na">${label}: —</span></div>`;
     const cls = o.profitUsd >= 0 ? "profit-positive" : "profit-negative";
@@ -1535,10 +1539,103 @@ function bestSaleCell(r) {
   );
 }
 
-function renderHolding(rows) {
-  const tbody = document.getElementById("holdingBody");
+// ---- Holdings: що зараз гірше за все продати ----
+// "Гірше" — найбільший мінус (або найменший плюс), якщо продати прямо зараз
+// найкращим варіантом з обраного боку: Autobuy (миттєво, гарантовано) чи
+// Market (найнижчий лістинг, не гарантовано). Площадки — ті самі, що
+// відмічені у вікні "де продати". Без ціни на цьому боці — на самий верх:
+// їх зараз так не продати взагалі.
+const HOLDING_VIEW_KEY = "trades_holding_view_v1";
+const holdingView = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(HOLDING_VIEW_KEY));
+    if (saved && typeof saved === "object") return { sort: String(saved.sort || "default"), sellableOnly: !!saved.sellableOnly };
+  } catch {}
+  return { sort: "default", sellableOnly: false };
+})();
+
+function saveHoldingView() {
+  try {
+    localStorage.setItem(HOLDING_VIEW_KEY, JSON.stringify(holdingView));
+  } catch {}
+}
+
+function holdingMetric(r, sort) {
+  const [side, unit] = sort.split("-");
+  const o = bestSellOption(r, side);
+  if (!o) return -Infinity;
+  if (unit === "usd") return o.profitUsd;
+  return o.profitPercent ?? Infinity;
+}
+
+function arrangeHoldings(rows) {
+  let out = holdingView.sellableOnly ? rows.filter((r) => !r.isLocked) : rows.slice();
+  if (holdingView.sort !== "default") {
+    out = out
+      .map((r, i) => ({ r, i, m: holdingMetric(r, holdingView.sort) }))
+      .sort((a, b) => (a.m === b.m ? a.i - b.i : a.m - b.m))
+      .map((x) => x.r);
+  }
+  return out;
+}
+
+// Підсумок над таблицею: що вийде, якщо продати все показане зараз.
+function renderHoldingSummary(rows) {
+  const box = document.getElementById("holdingSummary");
+  if (!box) return;
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="11" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
+    box.textContent = "";
+    return;
+  }
+  const side = holdingView.sort.startsWith("ask") ? "ask" : "bid";
+  const label = side === "bid" ? "via Autobuy" : "at Market prices";
+  let total = 0;
+  let losing = 0;
+  let missing = 0;
+  for (const r of rows) {
+    const o = bestSellOption(r, side);
+    if (!o) {
+      missing++;
+      continue;
+    }
+    total += o.profitUsd;
+    if (o.profitUsd < 0) losing++;
+  }
+  const cls = total >= 0 ? "profit-positive" : "profit-negative";
+  box.innerHTML =
+    `If you sold these ${rows.length} now ${label}: <b class="${cls}">${total >= 0 ? "+" : "−"}${fmtMoney(Math.abs(total))}</b>` +
+    ` · <b>${losing}</b> at a loss` +
+    (missing ? ` · <b>${missing}</b> with no ${side === "bid" ? "autobuy" : "listing"} price (not counted)` : "");
+}
+
+document.getElementById("holdingSort")?.addEventListener("change", (e) => {
+  holdingView.sort = e.target.value;
+  saveHoldingView();
+  renderHolding(lastTrades.filter((t) => t.status === "holding"));
+});
+document.getElementById("holdingSellableOnly")?.addEventListener("change", (e) => {
+  holdingView.sellableOnly = e.target.checked;
+  saveHoldingView();
+  renderHolding(lastTrades.filter((t) => t.status === "holding"));
+});
+(() => {
+  const sel = document.getElementById("holdingSort");
+  if (sel) {
+    if (![...sel.options].some((o) => o.value === holdingView.sort)) holdingView.sort = "default";
+    sel.value = holdingView.sort;
+  }
+  const only = document.getElementById("holdingSellableOnly");
+  if (only) only.checked = holdingView.sellableOnly;
+})();
+
+function renderHolding(allRows) {
+  const tbody = document.getElementById("holdingBody");
+  const rows = arrangeHoldings(allRows);
+  renderHoldingSummary(rows);
+  if (!rows.length) {
+    tbody.innerHTML = allRows.length
+      ? `<tr><td colspan="11" class="empty-state">Nothing is sellable right now — everything is still trade-locked</td></tr>`
+      : `<tr><td colspan="11" class="empty-state">No open positions yet — add a purchase above</td></tr>`;
     document.getElementById("holdingSelectAll").checked = false;
     return;
   }

@@ -421,7 +421,19 @@
     <button id="bulkDeleteClearBtn" class="btn-small btn-secondary">Clear Selection</button>
   </div>
 
-  <div class="section-title">Holdings <span class="section-hint">click a row to see sell prices by marketplace</span></div>
+  <div class="section-title-row holding-head">
+    <div class="section-title">Holdings <span class="section-hint">click a row to see sell prices by marketplace</span></div>
+    <div class="holding-tools">
+      <label title="Hide positions still under the Steam trade lock"><input type="checkbox" id="holdingSellableOnly" /> Sellable now only</label>
+      <select id="holdingSort" title="Worst first: what loses the most (or earns the least) if you sell it right now. Uses the markets ticked in the &quot;where to sell&quot; window; items with no price on that side come first.">
+        <option value="default">Newest first</option>
+        <option value="bid-pct">Worst to sell now · Autobuy %</option>
+        <option value="bid-usd">Worst to sell now · Autobuy $</option>
+        <option value="ask-pct">Worst to sell now · Market %</option>
+      </select>
+    </div>
+  </div>
+  <div id="holdingSummary" class="holding-summary"></div>
   <div class="table-card">
     <table id="holdingTable">
       <thead>
