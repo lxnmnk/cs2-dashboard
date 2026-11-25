@@ -4,6 +4,24 @@
 // там, де є #navProfile: у кабінеті замість нього стоїть accountPill зі своєю
 // поведінкою (клік відкриває "Мої угоди", поруч вихід), тому дублювати його
 // тут не треба. Тексти й мовні адреси задаються через window.NAV_CONFIG.
+// Картинки скінів зі Steam: CDN community.akamai.steamstatic.com часом дає
+// 404 на рідкісні предмети (за хвилину той самий адрес уже 200), і в
+// каталозі лишалась бита рамка. Тоді беремо ту саму картинку з дзеркала
+// Steam на Cloudflare, а якщо і там нема — ховаємо зображення, без рамки.
+(function steamImageFallback() {
+  const AKAMAI = "community.akamai.steamstatic.com";
+  const MIRROR = "community.cloudflare.steamstatic.com";
+  function fix(img) {
+    if (!(img instanceof HTMLImageElement)) return;
+    const src = img.currentSrc || img.src || "";
+    if (src.includes(AKAMAI)) img.src = src.replace(AKAMAI, MIRROR);
+    else if (src.includes(MIRROR)) img.style.visibility = "hidden";
+  }
+  document.addEventListener("error", (e) => fix(e.target), true);
+  // Ті, що впали ще до завантаження цього скрипта.
+  for (const img of document.images) if (img.complete && img.naturalWidth === 0 && img.src) fix(img);
+})();
+
 const NAV_T = window.NAV_CONFIG || {};
 const navProfileEl = document.getElementById("navProfile");
 const navBalanceEl = document.getElementById("navBalance");
