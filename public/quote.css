@@ -3465,6 +3465,23 @@ a.market-card { color: inherit; text-decoration: none; }
 .buy-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-top: var(--s-3); }
 .buy-ok { color: #3ecf8e; }
 .buy-err { color: var(--red); }
+/* Подарунок: трейд на чужу trade-ссылку */
+.buy-gift { margin-top: var(--s-3); padding-top: var(--s-3); border-top: 1px solid var(--border); }
+.buy-gift-toggle { display: flex; align-items: center; gap: 8px; font-size: var(--t-sm); cursor: pointer; }
+.buy-gift-toggle input { width: 16px; height: 16px; accent-color: var(--gold); }
+.buy-gift-title { font-size: var(--t-sm); margin: 0; }
+.buy-gift-box { margin-top: var(--s-2); }
+.buy-gift-box[hidden] { display: none; }
+.buy-gift-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-sm); background: transparent; color: inherit; font-size: var(--t-xs); }
+.buy-gift-input:focus { outline: none; border-color: var(--gold); }
+.buy-gift-who { margin-top: var(--s-2); font-size: var(--t-xs); display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+.buy-gift-profile { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--gold); border-radius: var(--r-sm); color: inherit; text-decoration: none; }
+.buy-gift-profile img { width: 36px; height: 36px; border-radius: 50%; flex: none; }
+.buy-gift-profile span { display: flex; flex-direction: column; min-width: 0; }
+.buy-gift-profile b { font-size: var(--t-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.buy-gift-profile small { color: var(--muted); }
+.buy-gift-note { color: var(--muted); }
+.buy-gift-warn { margin: var(--s-2) 0 0; font-size: var(--t-xs); color: var(--muted); line-height: 1.45; }
 
 @media (max-width: 760px) {
   /* Окремим рядком на всю ширину: поруч із сортуванням P2P обрізався. */

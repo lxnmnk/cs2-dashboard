@@ -240,11 +240,8 @@ async function openBuy(lot) {
         <a class="btn-gold" href="${esc(T.loginUrl)}">${esc(T.login)}</a>
       </div>`);
   }
-  if (!me.customer.tradeUrl) {
-    return modal(`${lotSummary(lot)}
-      <p>${esc(T.needTradeUrl)}</p>
-      <div class="buy-actions"><a class="btn-gold" href="${esc(T.profileUrl)}">${esc(T.setTradeUrl)}</a></div>`);
-  }
+  // Своєї ссылки немає — купити можна лише в подарунок (поле відкрите).
+  const ownLink = !!me.customer.tradeUrl;
   const have = spendable();
   if (have + 0.001 < lot.price) {
     return modal(`${lotSummary(lot)}
@@ -268,15 +265,93 @@ async function openBuy(lot) {
       <li>${esc(T.noteFinal)}</li>
       <li>${esc(T.noteRefund)}</li>
     </ul>
+    <div class="buy-gift">
+      ${
+        ownLink
+          ? `<label class="buy-gift-toggle"><input type="checkbox" id="giftToggle" /> ${esc(T.giftToggle)}</label>`
+          : `<p class="buy-gift-title">${esc(T.giftNoOwnLink)} <a href="${esc(T.profileUrl)}">${esc(T.setTradeUrl)}</a></p>`
+      }
+      <div id="giftBox" class="buy-gift-box"${ownLink ? " hidden" : ""}>
+        <input id="giftUrl" class="buy-gift-input" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+          placeholder="https://steamcommunity.com/tradeoffer/new/?partner=...&token=..." />
+        <div id="giftWho" class="buy-gift-who"></div>
+        <p class="buy-gift-warn">${esc(T.giftWarn)}</p>
+      </div>
+    </div>
     <div class="buy-actions">
       <button id="buyConfirm" class="btn-gold" type="button">${esc(T.confirm.replace("{price}", money(lot.price)))}</button>
       <button class="btn-outline" type="button" data-close="1">${esc(T.cancel)}</button>
     </div>`);
+  gift.on = !ownLink;
+  gift.recipient = null;
+  gift.url = "";
+  syncGift();
+  $("giftToggle")?.addEventListener("change", (e) => {
+    gift.on = e.target.checked;
+    $("giftBox").hidden = !gift.on;
+    if (gift.on) $("giftUrl").focus();
+    syncGift();
+  });
+  $("giftUrl").addEventListener("input", () => {
+    // Поки нову ссылку не перевірили — купити не можна.
+    gift.recipient = null;
+    gift.seq++;
+    syncGift();
+    clearTimeout(gift.timer);
+    gift.timer = setTimeout(checkRecipient, 350);
+  });
   $("buyConfirm").addEventListener("click", () => confirmBuy(lot));
+}
+
+// ---- Подарунок: трейд на чужу trade-ссылку ----
+// Купівля лише тоді, коли сервер показав, чий це профіль: людина бачить
+// нік і аватар і помічає опечатку до оплати. На сервер іде лише partner.
+const TRADE_URL_RE = /^https:\/\/steamcommunity\.com\/tradeoffer\/new\/\?partner=(\d+)&token=[\w-]+$/;
+const gift = { on: false, url: "", recipient: null, timer: 0, seq: 0 };
+
+function syncGift() {
+  const btn = $("buyConfirm");
+  if (btn) btn.disabled = gift.on && !gift.recipient;
+}
+
+async function checkRecipient() {
+  const who = $("giftWho");
+  if (!who) return;
+  const url = $("giftUrl").value.trim();
+  const seq = ++gift.seq;
+  gift.recipient = null;
+  gift.url = "";
+  syncGift();
+  if (!url) return (who.innerHTML = "");
+  const m = TRADE_URL_RE.exec(url);
+  if (!m) return (who.innerHTML = `<span class="buy-err">${esc(T.giftBadUrl)}</span>`);
+  who.innerHTML = `<span class="buy-gift-note">${esc(T.giftChecking)}</span>`;
+  let data;
+  try {
+    data = await (await fetch(`/api/account/market/recipient?partner=${encodeURIComponent(m[1])}`)).json();
+  } catch {
+    data = { ok: false };
+  }
+  if (seq !== gift.seq) return;
+  if (!data.ok) return (who.innerHTML = `<span class="buy-err">${esc(data.error === "BAD_TRADE_URL" ? T.giftBadUrl : T.giftCheckFailed)}</span>`);
+  const r = data.recipient;
+  gift.recipient = { ...r, self: !!data.self };
+  gift.url = url;
+  who.innerHTML = `
+    <a class="buy-gift-profile" href="${esc(r.profileUrl)}" target="_blank" rel="noopener">
+      ${r.avatar ? `<img src="${esc(r.avatar)}" alt="" />` : ""}
+      <span><b>${esc(r.name)}</b><small>Steam ID ${esc(r.steamId)} ↗</small></span>
+    </a>
+    <span class="buy-gift-note">${esc(data.self ? T.giftSelf : T.giftCheckProfile)}</span>`;
+  syncGift();
 }
 
 async function confirmBuy(lot) {
   const btn = $("buyConfirm");
+  if (gift.on && !gift.recipient) return;
+  // Що саме оплатили — фіксуємо до запиту: поле можуть змінити, поки чекаємо.
+  const sentTo = gift.on && gift.recipient && !gift.recipient.self ? gift.recipient : null;
+  const giftTradeUrl = gift.on ? gift.url : "";
   btn.disabled = true;
   btn.textContent = T.buying;
   let res;
@@ -285,7 +360,7 @@ async function confirmBuy(lot) {
     res = await fetch("/api/account/market/buy", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stackId, listingId: lot.id, price: lot.price }),
+      body: JSON.stringify({ stackId, listingId: lot.id, price: lot.price, ...(giftTradeUrl ? { giftTradeUrl } : {}) }),
     });
     data = await res.json();
   } catch {
@@ -297,6 +372,15 @@ async function confirmBuy(lot) {
     listings = listings.filter((l) => l.id !== lot.id);
     renderHead();
     renderList();
+    if (sentTo) {
+      return modal(`${lotSummary(lot)}
+      <p class="buy-ok">🎁 ${esc(T.doneGift.replace("{name}", sentTo.name))}</p>
+      ${lot.own && lot.locked ? `<p class="card-hint">${esc(T.noteOwnLocked.replace("{date}", shortDate(lot.unlockAt)))}</p>` : ""}
+      <div class="buy-actions">
+        <a class="btn-gold" href="${esc(T.profileUrl)}?tab=purchases">${esc(T.myPurchases)}</a>
+      </div>
+      <p class="card-hint">${esc(T.refundNote)}</p>`);
+    }
     return modal(`${lotSummary(lot)}
       <p class="buy-ok">✅ ${esc(
         lot.own
@@ -320,6 +404,7 @@ async function confirmBuy(lot) {
       ITEM_GONE: T.errGone,
       INSUFFICIENT_BALANCE: T.notEnough.replace("{balance}", money(data.balance ?? spendable())).replace("{price}", money(data.price ?? lot.price)),
       NO_TRADE_URL: T.needTradeUrl,
+      BAD_TRADE_URL: T.giftBadUrl,
       NOT_LOGGED_IN: T.needLogin,
       PENDING_CHECK: T.errPending,
       SHOP_UNAVAILABLE: T.errShop,

@@ -2334,7 +2334,9 @@ async function loadOwnOrders() {
       }</td>
         <td>${escapeHtml(o.customerName || "")}<br><span class="section-hint">${escapeHtml(o.steamId)}</span></td>
         <td>${fmtMoney(o.price)}</td>
-        <td>${["pending", "sent"].includes(o.status) ? `<a href="${escapeHtml(o.tradeUrl)}" target="_blank">trade link</a>` : ""}</td>
+        <td>${["pending", "sent"].includes(o.status) ? `<a href="${escapeHtml(o.tradeUrl)}" target="_blank">trade link</a>` : ""}${
+          o.recipientSteamId ? `<br><span class="section-hint">🎁 gift → ${escapeHtml(o.recipientName || "")} ${escapeHtml(o.recipientSteamId)}</span>` : ""
+        }</td>
         <td>${label[o.status] || o.status}</td>
         <td>${buttons.join(" ")}</td>
       </tr>`;

@@ -390,6 +390,7 @@ const PUBLIC_PATHS = new Set([
   "/ru/buy/item",
   "/en/buy/item",
   "/api/account/market/buy",
+  "/api/account/market/recipient",
   "/api/account/market/purchases",
   // Вкладки профілю "Покупки" і "Поповнити" (wallet.js, cryptoTopups.js).
   "/api/account/topup",
@@ -2157,13 +2158,46 @@ app.get("/api/public/market/own", async (req, res) => {
   }
 });
 
+// Покупка в подарунок: клієнт платить зі свого балансу, а трейд іде на
+// чужу trade-ссылку. Перед оплатою показуємо, чий це профіль (нік, аватар),
+// щоб опечатка в посиланні не віддала скін незнайомцю. Клієнт шле лише
+// partner із посилання — token до сервера до самої покупки не йде.
+const recipientCache = new Map();
+async function recipientProfile(steamId) {
+  const hit = recipientCache.get(steamId);
+  if (hit && Date.now() - hit.at < 10 * 60 * 1000) return hit.profile;
+  const p = await steamAuth.fetchSteamProfile(steamId);
+  const profile = { steamId, name: p.displayName, avatar: p.avatar, profileUrl: `https://steamcommunity.com/profiles/${steamId}` };
+  if (recipientCache.size > 500) recipientCache.clear();
+  recipientCache.set(steamId, { at: Date.now(), profile });
+  return profile;
+}
+
+app.get("/api/account/market/recipient", async (req, res) => {
+  const customer = req.session.customer;
+  if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
+  const steamId = customers.steamIdFromPartner(req.query.partner);
+  if (!steamId) return res.status(400).json({ ok: false, error: "BAD_TRADE_URL" });
+  res.json({ ok: true, self: steamId === String(customer.steamId), recipient: await recipientProfile(steamId) });
+});
+
 // Покупка лота за баланс на сайті: Skinbux сам шле клієнту трейд.
 app.post("/api/account/market/buy", async (req, res) => {
   const customer = req.session.customer;
   if (!customer) return res.status(401).json({ ok: false, error: "NOT_LOGGED_IN" });
-  const tradeUrl = customers.findBySteamId(customer.steamId)?.tradeUrl || customer.tradeUrl;
+  const { stackId, listingId, price, giftTradeUrl } = req.body || {};
+  // Подарунок: трейд на чужу ссылку. Своя ж ссылка у полі — звичайна покупка.
+  const gift = String(giftTradeUrl || "").trim();
+  let recipientSteamId = null;
+  let recipientName = null;
+  if (gift) {
+    recipientSteamId = customers.steamIdFromTradeUrl(gift);
+    if (!recipientSteamId) return res.status(400).json({ ok: false, error: "BAD_TRADE_URL" });
+    if (recipientSteamId === String(customer.steamId)) recipientSteamId = null;
+    else recipientName = (await recipientProfile(recipientSteamId).catch(() => null))?.name || null;
+  }
+  const tradeUrl = gift || customers.findBySteamId(customer.steamId)?.tradeUrl || customer.tradeUrl;
   if (!tradeUrl) return res.status(400).json({ ok: false, error: "NO_TRADE_URL" });
-  const { stackId, listingId, price } = req.body || {};
   const notify = (text) => sendOwnerMessage(text, payoutBotCredentials());
   try {
     const id = String(listingId || "");
@@ -2172,6 +2206,8 @@ app.post("/api/account/market/buy", async (req, res) => {
       ? await skinbuxPurchases.buyOwn({
           steamId: customer.steamId,
           tradeUrl,
+          recipientSteamId,
+          recipientName,
           ownId: id.slice(4),
           expectedPrice: Number(price),
           getBalance: customerBalanceOf,
@@ -2181,6 +2217,8 @@ app.post("/api/account/market/buy", async (req, res) => {
       : await skinbuxPurchases.buy({
           steamId: customer.steamId,
           tradeUrl,
+          recipientSteamId,
+          recipientName,
           stackId: String(stackId || ""),
           listingId: id,
           expectedPrice: Number(price),
@@ -2214,6 +2252,9 @@ function publicPurchase(p) {
     price: p.price,
     status: p.status,
     steamTradeId: p.steamTradeId || null,
+    // Подарунок: кому пішов трейд.
+    recipientSteamId: p.recipientSteamId || null,
+    recipientName: p.recipientSteamId ? p.recipientName || null : null,
     // Наш скін: трейд шле власник; під локом — після unlockAt.
     own: p.kind === "own",
     locked: p.kind === "own" ? !!p.locked && new Date(p.unlockAt) > new Date() : false,
@@ -2531,6 +2572,8 @@ app.get("/api/own-orders", requireSiteOwner, (req, res) => {
       steamId: p.steamId,
       customerName: customers.findBySteamId(p.steamId)?.displayName || null,
       tradeUrl: p.tradeUrl,
+      recipientSteamId: p.recipientSteamId || null,
+      recipientName: p.recipientName || null,
       unlockAt: p.unlockAt || null,
       createdAt: p.createdAt,
       updatedAt: p.updatedAt,

@@ -60,6 +60,18 @@ function isValidTradeUrl(url) {
   return typeof url === "string" && TRADE_URL_RE.test(url.trim());
 }
 
+// partner у trade-ссылке — это account id (младшие 32 бита SteamID64).
+const STEAM64_BASE = 76561197960265728n;
+function steamIdFromPartner(partner) {
+  const s = String(partner ?? "");
+  if (!/^\d{1,10}$/.test(s) || Number(s) <= 0 || Number(s) > 0xffffffff) return null;
+  return String(STEAM64_BASE + BigInt(s));
+}
+function steamIdFromTradeUrl(url) {
+  if (!isValidTradeUrl(url)) return null;
+  return steamIdFromPartner(new URL(url.trim()).searchParams.get("partner"));
+}
+
 function setTradeUrl(steamId, tradeUrl) {
   if (!isValidTradeUrl(tradeUrl)) {
     throw new Error("Некоректне посилання на обмін Steam");
@@ -77,4 +89,4 @@ function list() {
   return loadCustomers();
 }
 
-module.exports = { list, upsertBySteamId, findBySteamId, setTradeUrl, isValidTradeUrl };
+module.exports = { list, upsertBySteamId, findBySteamId, setTradeUrl, isValidTradeUrl, steamIdFromPartner, steamIdFromTradeUrl };

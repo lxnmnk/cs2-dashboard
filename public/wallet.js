@@ -81,10 +81,13 @@ async function loadPurchases(force) {
   empty.style.display = items.length ? "none" : "block";
   list.innerHTML = items
     .map((p) => {
-      const [cls, pill, hint] = purchaseState(p);
+      const [cls, pill, ownHint] = purchaseState(p);
+      // Подарунок: трейд приймає отримувач, не покупець.
+      const isGift = !!p.recipientSteamId;
+      const hint = isGift && cls === "is-ready" ? W.hintGift : ownHint;
       // Кнопка "Трейди Steam" — коли трейд уже є або от-от буде; наш скін у
       // стані "готуємо" ще без трейду.
-      const waiting = cls === "is-ready" && !(p.own && p.status === "pending");
+      const waiting = !isGift && cls === "is-ready" && !(p.own && p.status === "pending");
       return `
       <div class="deal-card ${cls}">
         <div class="deal-card-main">
@@ -95,6 +98,11 @@ async function loadPurchases(force) {
             ${p.float != null ? `<span class="card-hint">Float ${Number(p.float).toFixed(6)}</span>` : ""}
             <span class="card-hint">${wEsc(wDate(p.createdAt))}</span>
           </div>
+          ${
+            isGift
+              ? `<p class="card-hint deal-gift">🎁 ${wEsc(W.giftTo)} <a href="https://steamcommunity.com/profiles/${wEsc(p.recipientSteamId)}" target="_blank" rel="noopener">${wEsc(p.recipientName || "Steam ID " + p.recipientSteamId)}</a></p>`
+              : ""
+          }
           <p class="card-hint deal-hint">${wEsc(hint)}</p>
         </div>
         <div class="deal-card-side">
@@ -377,7 +385,7 @@ async function loadWithdraw() {
 
 function wdStatus(st) {
   if (st === "paid") return ["is-done", W.wdPaid];
-  if (st === "failed" || st === "rejected") return ["is-cancel", W.wdFailed];
+  if (["failed", "rejected", "cancelled"].includes(st)) return ["is-cancel", W.wdFailed];
   return ["is-ready", W.wdPending];
 }
 

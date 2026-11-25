@@ -123,7 +123,7 @@ async function skinbuxBuy(apiKey, body) {
  * getBalance(steamId) -> { available, hold, trade } уже з поправками і покупками.
  * Повертає запис покупки; кидає BuyError з code для відповіді клієнту.
  */
-function buy({ steamId, tradeUrl, stackId, listingId, expectedPrice, markup, getBalance, isAllowed = () => true, notify = async () => {} }) {
+function buy({ steamId, tradeUrl, recipientSteamId = null, recipientName = null, stackId, listingId, expectedPrice, markup, getBalance, isAllowed = () => true, notify = async () => {} }) {
   return exclusive(async () => {
     const apiKey = process.env.SKINBUX_API_KEY;
     if (!apiKey) throw new BuyError("NOT_CONFIGURED", "SKINBUX_API_KEY не задан");
@@ -164,6 +164,7 @@ function buy({ steamId, tradeUrl, stackId, listingId, expectedPrice, markup, get
       skinbuxCents: listing.skinbuxCents,
       paid: { trade: fromTrade, available: fromAvailable },
       tradeUrl,
+      ...(recipientSteamId ? { recipientSteamId: String(recipientSteamId), recipientName } : {}),
       status: "pending",
       createdAt: now,
       updatedAt: now,
@@ -184,7 +185,8 @@ function buy({ steamId, tradeUrl, stackId, listingId, expectedPrice, markup, get
         `🛒 Клиент купил с сайта: ${record.name}` +
           (record.float != null ? ` (float ${record.float.toFixed(6)})` : "") +
           `\n${record.delivery === "instant" ? "Instant" : "P2P"} · клиенту $${record.price.toFixed(2)}, Skinbux $${(record.skinbuxCents / 100).toFixed(2)}` +
-          `\nSteam ID ${record.steamId} · Skinbux #${res?.id ?? "?"}`
+          `\nSteam ID ${record.steamId} · Skinbux #${res?.id ?? "?"}` +
+          giftLine(record)
       ).catch(() => {});
       return saved;
     } catch (err) {
@@ -207,6 +209,11 @@ function buy({ steamId, tradeUrl, stackId, listingId, expectedPrice, markup, get
   });
 }
 
+// Подарунок: трейд іде не покупцю, а на чужу trade-ссылку.
+function giftLine(p) {
+  return p.recipientSteamId ? `\n🎁 В подарок: ${p.recipientName ? `${p.recipientName} · ` : ""}Steam ID ${p.recipientSteamId}` : "";
+}
+
 // ---- Наші власні скіни (ownSkins.js) ----
 // Та сама покупка за баланс, але трейд шле власник сам: запис kind "own",
 // status pending (чекає відправки) -> sent (власник натиснув "Відправив")
@@ -227,7 +234,7 @@ function reservedOwnIds() {
 /**
  * getOwnItem(ownId) -> предмет із вітрини (ownSkins.available) або null.
  */
-function buyOwn({ steamId, tradeUrl, ownId, expectedPrice, getBalance, getOwnItem, notify = async () => {} }) {
+function buyOwn({ steamId, tradeUrl, recipientSteamId = null, recipientName = null, ownId, expectedPrice, getBalance, getOwnItem, notify = async () => {} }) {
   return exclusive(async () => {
     if (!tradeUrl) throw new BuyError("NO_TRADE_URL", "no trade url");
     if (reservedOwnIds().has(String(ownId))) throw new BuyError("ITEM_GONE", "already ordered");
@@ -259,6 +266,7 @@ function buyOwn({ steamId, tradeUrl, ownId, expectedPrice, getBalance, getOwnIte
       price: item.price,
       paid: { trade: fromTrade, available: fromAvailable },
       tradeUrl,
+      ...(recipientSteamId ? { recipientSteamId: String(recipientSteamId), recipientName } : {}),
       locked: item.locked,
       unlockAt: item.unlockAt,
       status: "pending",
@@ -272,6 +280,7 @@ function buyOwn({ steamId, tradeUrl, ownId, expectedPrice, getBalance, getOwnIte
     notify(
       `🛒 Купили НАШ скин: ${record.name}${record.float != null ? ` (float ${Number(record.float).toFixed(6)})` : ""} — $${record.price.toFixed(2)}\n` +
         `Отправить ${when} на trade-ссылку:\n${tradeUrl}\n` +
+        (record.recipientSteamId ? `${giftLine(record).trim()} — трейд шлём получателю, не покупателю.\n` : "") +
         `Steam ID ${record.steamId}. После отправки отметь в My Trades → Site orders.`
     ).catch(() => {});
     return record;
