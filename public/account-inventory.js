@@ -108,6 +108,7 @@ const REF_TEXT = {
   uk: {
     welcomeApplied: "🎁 WELCOME +{n}% — уже в цінах першого продажу. На частині скінів ціна обмежена ринком.",
     itemBonus: "+{amount} з промокодом",
+    cartBonus: "Бонус за промокод",
     WELCOME_USED: "WELCOME діє лише на перший продаж",
     reviewBonus: "🎁 Бонус за відгук: +{n}% — уже в цінах цього продажу",
     reviewInvite: "🎁 Залиш відгук про угоду #{id} у профілі — і отримай +{n}% до цього продажу",
@@ -123,6 +124,7 @@ const REF_TEXT = {
   ru: {
     welcomeApplied: "🎁 WELCOME +{n}% — уже в ценах первой продажи. На части скинов цена ограничена рынком.",
     itemBonus: "+{amount} с промокодом",
+    cartBonus: "Бонус по промокоду",
     WELCOME_USED: "WELCOME действует только на первую продажу",
     reviewBonus: "🎁 Бонус за отзыв: +{n}% — уже в ценах этой продажи",
     reviewInvite: "🎁 Оставь отзыв о сделке #{id} в профиле — и получи +{n}% к этой продаже",
@@ -138,6 +140,7 @@ const REF_TEXT = {
   en: {
     welcomeApplied: "🎁 WELCOME +{n}% — already in your first sale's prices. Some skins are capped at market price.",
     itemBonus: "+{amount} with promo code",
+    cartBonus: "Promo code bonus",
     WELCOME_USED: "WELCOME only works on your first sale",
     reviewBonus: "🎁 Review bonus: +{n}% — already in this sale's prices",
     reviewInvite: "🎁 Review deal #{id} in your profile and get +{n}% on this sale",
@@ -517,6 +520,18 @@ function saveCart() {
   }
 }
 
+// Що з предмета потрібно кошику: ціна, ціна без акції (basePrice) і ціна
+// зовсім без кодів (plainPrice) — з неї рядок "Бонус за промокод" унизу.
+function cartEntry(item) {
+  return {
+    assetId: item.assetId,
+    marketHashName: item.marketHashName,
+    price: item.price,
+    basePrice: item.basePrice ?? null,
+    plainPrice: item.plainPrice ?? null,
+  };
+}
+
 function restoreCart() {
   let saved = [];
   try {
@@ -529,7 +544,7 @@ function restoreCart() {
     const item = inventoryItems.find((it) => it.assetId === assetId);
     // Продане, у трейд-бані чи без ціни — у кошик не повертаємо.
     if (item && item.tradable && item.sellAccept !== false && item.price != null) {
-      cart.push({ assetId, marketHashName: item.marketHashName, price: item.price, basePrice: item.basePrice ?? null });
+      cart.push(cartEntry(item));
     }
   }
   cartRestored = true;
@@ -772,7 +787,7 @@ function syncCartPrices() {
   cart = cart
     .map((it) => {
       const fresh = inventoryItems.find((i) => i.assetId === it.assetId);
-      return fresh && fresh.price != null ? { ...it, price: fresh.price, basePrice: fresh.basePrice ?? null } : null;
+      return fresh && fresh.price != null ? cartEntry(fresh) : null;
     })
     .filter(Boolean);
 }
@@ -939,7 +954,7 @@ function renderSelectionControls(visible) {
     } else {
       for (const it of sellable) {
         if (!cart.some((c) => c.assetId === it.assetId)) {
-          cart.push({ assetId: it.assetId, marketHashName: it.marketHashName, price: it.price });
+          cart.push(cartEntry(it));
         }
       }
     }
@@ -965,7 +980,7 @@ function addItem(assetId) {
   if (!item || item.price == null) return;
   if (cart.some((c) => c.assetId === assetId)) return;
 
-  cart.push({ assetId, marketHashName: item.marketHashName, price: item.price, basePrice: item.basePrice ?? null });
+  cart.push(cartEntry(item));
   renderInventoryList();
   renderCart();
 }
@@ -1018,6 +1033,7 @@ function renderCart() {
   const topUp = useReferralInput?.checked && cart.length ? referralTopUp : 0;
   cartPayout.textContent = price(total + topUp);
   cartItemsCount.textContent = String(cart.length);
+  renderBonusRow();
   cartEmptyLine.textContent = cart.length ? "" : CFG.cartEmpty || "";
   // Мінімальна сума продажу (config.sales.minTotalUsd на сервері) — кажемо
   // заздалегідь, скільки ще додати, а не після натискання "Продати".
@@ -1033,6 +1049,26 @@ function renderCart() {
     (CFG.payoutDateLine || "").replace("{date}", unlock.toLocaleDateString(CFG.dateLocale || "uk-UA"))
   )}<span class="payout-hint">${escapeHtml(CFG.payoutHint || "")}</span>`;
   sellStatusEl.textContent = "";
+}
+
+// Скільки людина отримує зверху за промокод/бонус на всьому кошику — те саме
+// "+$X", що на картках, тільки разом. Ціни округлені до центів, тож на
+// дешевих скінах (3% від $0.06 — менше цента) бонусу справді немає, і рядок
+// не показуємо, щоб не писати "+$0.00".
+let bonusRow = null;
+function renderBonusRow() {
+  if (!bonusRow) {
+    const feeRow = document.getElementById("feeRowLabel")?.closest(".cart-row");
+    if (!feeRow) return;
+    bonusRow = document.createElement("div");
+    bonusRow.className = "cart-row";
+    bonusRow.innerHTML = '<span></span><span class="cart-row-ok"></span>';
+    feeRow.after(bonusRow);
+  }
+  const extra = cart.reduce((sum, it) => sum + (it.plainPrice != null ? it.price - it.plainPrice : 0), 0);
+  bonusRow.style.display = extra >= 0.005 ? "" : "none";
+  bonusRow.firstElementChild.textContent = REF_TEXT.cartBonus;
+  bonusRow.lastElementChild.textContent = "+" + price(extra);
 }
 
 // Підписи, які не змінюються від вибору — ставимо один раз при завантаженні.
