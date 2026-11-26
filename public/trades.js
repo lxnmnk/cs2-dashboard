@@ -1654,7 +1654,7 @@ function renderHolding(allRows) {
       return `
         <tr data-row-key="${r.id}"${gone ? ' class="row-gone"' : ""}>
           <td><input type="checkbox" class="row-select" data-id="${r.id}" ${checked} /></td>
-          <td>${escapeHtml(r.name)}${
+          <td>${escapeHtml(r.name)} ${r.marketHashName ? `<button type="button" class="pc-btn" data-price-chart="${escapeHtml(r.marketHashName)}" data-chart-title="${escapeHtml(r.marketHashName)}" title="История цен">📈</button>` : ""}${
             gone ? ' <span class="gone-badge" title="Not in your inventory any more — looks sold">not in inventory</span>' : ""
           }</td>
           <td>${escapeHtml(r.wear)}</td>

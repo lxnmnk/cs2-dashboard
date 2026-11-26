@@ -95,6 +95,11 @@
     "maxBuffSpreadPercent": null
   },
   "refreshIntervalMinutes": 20,
+  "priceHistory": {
+    "_comment": "История цен для графика предмета (priceHistory.js): раз в час в :50 пишет buff ask/bid, youpin ask/bid, skinbux bid, cs.money bid в priceHistory/. Только предметы, где хоть одна из этих цен от minUsd. Старше 90 дней — одна точка в сутки (среднее).",
+    "enabled": true,
+    "minUsd": 5
+  },
   "csfloatBidScan": {
     "_comment": "Периодический скан для внешнего бота автоперебития CSFloat buy order. buySource/sellSource в формате 'источник:сторона' (см. Buy On/Sell On в интерфейсе), 'any' = без ограничения. Результат сохраняется в csfloat-bid-watchlist.json и доступен через GET /api/csfloat-bid-scan.",
     "enabled": true,

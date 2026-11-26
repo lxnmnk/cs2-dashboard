@@ -828,3 +828,42 @@ body.show-buyout .buyout-col { display: table-cell; }
 
   .modal-card { width: 100%; max-width: calc(100vw - 16px); padding: 16px; }
 }
+
+/* ---- Графік історії цін (price-chart.js) ---- */
+body.pc-open { overflow: hidden; }
+.pc-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0, 0, 0, 0.72); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pc-overlay[hidden] { display: none; }
+.pc-card { width: min(1160px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px 14px; }
+.pc-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.pc-title { margin: 0; font-size: 18px; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.pc-sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.pc-close { background: none; border: 0; color: var(--muted); font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.pc-close:hover { color: var(--text); }
+.pc-ranges { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 10px; }
+.pc-ranges button { background: transparent; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.pc-ranges button.is-active { border-color: var(--green); color: var(--green); }
+.pc-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; min-height: 30px; }
+.pc-chip { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--c); color: var(--text); border-radius: 6px; padding: 5px 10px; font-size: 13px; cursor: pointer; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.pc-chip i { width: 14px; height: 0; border-top: 2px solid var(--c); }
+.pc-chip i.is-dash { border-top-style: dashed; }
+.pc-chip .up { color: var(--green); }
+.pc-chip .down { color: var(--red); }
+.pc-chip.is-off { opacity: 0.35; border-color: var(--border); }
+.pc-plot { position: relative; min-height: 380px; }
+.pc-plot svg { display: block; }
+.pc-empty { display: flex; align-items: center; justify-content: center; min-height: 380px; color: var(--muted); font-size: 14px; text-align: center; padding: 0 16px; }
+.pc-grid { stroke: rgba(255, 255, 255, 0.06); }
+.pc-axis { fill: var(--muted); font-size: 11px; }
+.pc-end { font-size: 11px; font-weight: 600; }
+.pc-cross { stroke: rgba(255, 255, 255, 0.35); stroke-dasharray: 3 3; }
+.pc-hit { fill: transparent; cursor: crosshair; }
+.pc-tip { position: absolute; width: 190px; background: #0d0f14; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12px; pointer-events: none; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); }
+.pc-tip[hidden] { display: none; }
+.pc-tip-time { color: var(--muted); margin-bottom: 4px; }
+.pc-tip div { display: flex; align-items: center; gap: 6px; }
+.pc-tip i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.pc-tip b { margin-left: auto; }
+.price-chart-link { cursor: pointer; }
+.price-chart-link:hover { text-decoration: underline; text-decoration-style: dotted; }
+.pc-btn { background: none; border: 0; padding: 0 2px; margin-left: 2px; cursor: pointer; font-size: 12px; opacity: 0.55; vertical-align: baseline; }
+.pc-btn:hover { opacity: 1; }

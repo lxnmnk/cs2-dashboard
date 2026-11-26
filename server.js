@@ -20,6 +20,7 @@ const payoutDetails = require("./payoutDetails");
 const { computeSellQuote } = require("./sellQuote");
 const priceOverrides = require("./priceOverrides");
 const { getSteamImages } = require("./steamImages");
+const priceHistory = require("./priceHistory");
 const { computeBuyQuote } = require("./buyQuote");
 const tradeCatalog = require("./tradeCatalog");
 const pricingSettings = require("./pricingSettings");
@@ -3572,6 +3573,56 @@ function parseNullableFloat(value, fallback) {
   return Number.isNaN(n) ? null : n;
 }
 
+// ---- Історія цін (priceHistory.js) ----
+// Знімок о :50 щогодини — з останніх цін у cache. Ціни старші 40 хвилин
+// (оновлення впало) не пишемо: краще дірка на графіку, ніж стара ціна під
+// новою годиною. Стиснення старих точок — раз на добу о 03:10 UTC, далеко
+// від :50, щоб не переписувати файли, у які саме дописуємо.
+function schedulePriceHistory() {
+  const cfg = () => ({ enabled: true, minUsd: 5, ...(config.priceHistory || {}) });
+  let busy = false;
+  let compactedDay = null;
+  setInterval(async () => {
+    if (busy || !cfg().enabled) return;
+    const now = new Date();
+    busy = true;
+    try {
+      const fresh = cache.updatedAt && Date.now() - new Date(cache.updatedAt).getTime() < 40 * 60 * 1000;
+      if (now.getMinutes() >= 50 && fresh && cache.rows.length) {
+        const n = await priceHistory.record(cache.rows, { minUsd: cfg().minUsd });
+        if (n) console.log(`[price-history] Записав ${n} предметів`);
+      }
+      const day = now.toISOString().slice(0, 10);
+      if (now.getUTCHours() === 3 && now.getUTCMinutes() >= 10 && compactedDay !== day) {
+        compactedDay = day;
+        const n = await priceHistory.compact();
+        if (n) console.log(`[price-history] Стиснув старі точки: ${n} файлів`);
+      }
+    } catch (err) {
+      console.error("[price-history]", err.message);
+    } finally {
+      busy = false;
+    }
+  }, 60 * 1000);
+}
+
+const PRICE_HISTORY_RANGES = { "24h": 1, "7d": 7, "30d": 30, "90d": 90, all: null };
+app.get("/api/price-history", async (req, res) => {
+  const name = String(req.query.name || "");
+  if (!name) return res.status(400).json({ ok: false, error: "NO_NAME" });
+  const range = Object.hasOwn(PRICE_HISTORY_RANGES, req.query.range) ? req.query.range : "7d";
+  const days = PRICE_HISTORY_RANGES[range];
+  const fromSec = days ? Math.floor(Date.now() / 1000) - days * 86400 : 0;
+  try {
+    const points = await priceHistory.read(name, { fromSec });
+    const row = cache.rows.find((r) => r.marketHashName === name);
+    res.json({ ok: true, name, range, keys: priceHistory.KEYS, points, linkName: row?.linkName || null });
+  } catch (err) {
+    console.error("[price-history] read:", err.message);
+    res.status(500).json({ ok: false, error: "FAILED" });
+  }
+});
+
 app.listen(PORT, async () => {
   console.log(`CS2 price dashboard: http://localhost:${PORT}`);
   await refreshPrices(); // первая загрузка сразу при старте
@@ -3585,6 +3636,7 @@ app.listen(PORT, async () => {
   }
 
   scheduleSalesWatch();
+  schedulePriceHistory();
 
   // Покупки з вітрини: статус трейду Skinbux раз на хвилину (повернення
   // грошей клієнту, якщо трейд не відбувся — skinbuxPurchases.js).

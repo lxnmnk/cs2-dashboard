@@ -69,7 +69,7 @@ function renderRows(rows) {
       const selected = r.marketHashName === selectedRowKey;
       return `
         <tr class="${selected ? "row-selected" : ""}" data-row-key="${escapeHtml(r.marketHashName)}">
-          <td>${escapeHtml(r.name)}</td>
+          <td>${escapeHtml(r.name)} <button type="button" class="pc-btn" data-price-chart="${escapeHtml(r.marketHashName)}" data-chart-title="${escapeHtml(r.marketHashName)}" title="История цен">📈</button></td>
           <td>${escapeHtml(r.wear)}</td>
           <td class="${cellRole("csfloat", "ask", r)}">${fmtSide(r.prices.csfloat.ask, "csfloat", r.linkName)}</td>
           <td class="${cellRole("csfloat", "bid", r)}">${fmtSide(r.prices.csfloat.bid, "csfloat", r.linkName)}</td>
