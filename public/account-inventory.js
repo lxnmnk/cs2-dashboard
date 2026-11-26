@@ -107,6 +107,7 @@ document.getElementById("promoApplyBtn")?.addEventListener("click", async () => 
 const REF_TEXT = {
   uk: {
     welcomeApplied: "🎁 WELCOME +{n}% — уже в цінах першого продажу. На частині скінів ціна обмежена ринком.",
+    itemBonus: "+{amount} з промокодом",
     WELCOME_USED: "WELCOME діє лише на перший продаж",
     reviewBonus: "🎁 Бонус за відгук: +{n}% — уже в цінах цього продажу",
     reviewInvite: "🎁 Залиш відгук про угоду #{id} у профілі — і отримай +{n}% до цього продажу",
@@ -121,6 +122,7 @@ const REF_TEXT = {
   },
   ru: {
     welcomeApplied: "🎁 WELCOME +{n}% — уже в ценах первой продажи. На части скинов цена ограничена рынком.",
+    itemBonus: "+{amount} с промокодом",
     WELCOME_USED: "WELCOME действует только на первую продажу",
     reviewBonus: "🎁 Бонус за отзыв: +{n}% — уже в ценах этой продажи",
     reviewInvite: "🎁 Оставь отзыв о сделке #{id} в профиле — и получи +{n}% к этой продаже",
@@ -135,6 +137,7 @@ const REF_TEXT = {
   },
   en: {
     welcomeApplied: "🎁 WELCOME +{n}% — already in your first sale's prices. Some skins are capped at market price.",
+    itemBonus: "+{amount} with promo code",
     WELCOME_USED: "WELCOME only works on your first sale",
     reviewBonus: "🎁 Review bonus: +{n}% — already in this sale's prices",
     reviewInvite: "🎁 Review deal #{id} in your profile and get +{n}% on this sale",
@@ -869,6 +872,7 @@ function renderInventoryList() {
           ${img}
           <div class="inventory-card-name">${nameHtml}</div>
           <span class="inventory-card-price">${wasPrice(it)}${price(it.price)}</span>
+          ${bonusExtra(it)}
         </div>`;
     })
     .join("");
@@ -1068,9 +1072,18 @@ function price(usd) {
   return window.fmtPrice ? window.fmtPrice(usd) : `$${(Number(usd) || 0).toFixed(2)}`;
 }
 
-// Ціна без акції, закреслена перед новою: "було → стало" на кожному скіні.
+// Ціна без промокоду/бонусу, закреслена перед новою: "було → стало" на
+// кожному скіні. plainPrice — зовсім без кодів; basePrice — лише без акції.
 function wasPrice(it) {
-  return it.basePrice != null && it.basePrice < it.price ? `<s class="price-was">${price(it.basePrice)}</s> ` : "";
+  const was = it.plainPrice ?? it.basePrice;
+  return was != null && was < it.price ? `<s class="price-was">${price(was)}</s> ` : "";
+}
+
+// Скільки людина отримує зверху за код на цьому скіні — окремим рядком під
+// ціною, щоб не рахувати різницю в голові.
+function bonusExtra(it) {
+  if (it.plainPrice == null || it.price == null) return "";
+  return `<span class="price-bonus">${escapeHtml(REF_TEXT.itemBonus.replace("{amount}", price(it.price - it.plainPrice)))}</span>`;
 }
 
 function escapeHtml(s) {

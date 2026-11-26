@@ -145,6 +145,16 @@ async function refreshPrices() {
 
     const rows = buildRows(cs2shItems, csMoneyMap, skinbuxMap, config);
 
+    // Все источники упали разом (обычно сеть на VPS) — оставляем прошлый
+    // снимок, иначе до следующего обновления пропадают все цены: Unrealized
+    // в My Trades = $0, Arbitrage пустой.
+    if (rows.length === 0 && cache.rows.length > 0) {
+      console.warn(`[refresh] Ни одной цены, оставляю снимок от ${cache.updatedAt}. Ошибки: ${errors.join(" | ")}`);
+      cache.error = errors.join(" | ") || null;
+      cache.isRefreshing = false;
+      return;
+    }
+
     cache = {
       updatedAt: new Date().toISOString(),
       rows,
@@ -772,8 +782,9 @@ function discountFor(req, { tradeMode = false, payoutMethod = null } = {}) {
     ? discountWith(plainBonus + reviewBonus)
     : discountWith(codeBonus + reviewBonus);
   const bonusPercent = codeBonus + reviewBonus;
-  if (!bonusPercent) return { discount: base, promo: null, promoBlocked, baseDiscount: base, reviewUsed: false, welcomeBonus: 0 };
-  return { discount: discountWith(bonusPercent), promo, promoBlocked, baseDiscount, reviewUsed, welcomeBonus: welcomeUsed ? welcomeBonus : 0 };
+  // plainDiscount — зовсім без кодів і бонусів: від неї картка рахує "+$X".
+  if (!bonusPercent) return { discount: base, promo: null, promoBlocked, baseDiscount: base, plainDiscount: base, reviewUsed: false, welcomeBonus: 0 };
+  return { discount: discountWith(bonusPercent), promo, promoBlocked, baseDiscount, plainDiscount: base, reviewUsed, welcomeBonus: welcomeUsed ? welcomeBonus : 0 };
 }
 
 /**
@@ -888,6 +899,9 @@ app.get("/api/account/inventory", async (req, res) => {
         // боці обміну.
         const { quote } = quoteForItem(it, { discount: disc.discount, cap: !disc.promo?.campaign });
         const base = showBase ? quoteForItem(it, { discount: disc.baseDiscount }).quote : null;
+        // Ціна без жодного коду/бонусу — картка показує, скільки людина
+        // отримує зверху за промокод (WELCOME, відгук, акцію) на кожному скіні.
+        const plain = disc.discount !== disc.plainDiscount ? quoteForItem(it, { discount: disc.plainDiscount }).quote : null;
         const { baseName, wear } = parseItemName(it.marketHashName);
         return {
           assetId: it.assetId,
@@ -905,6 +919,7 @@ app.get("/api/account/inventory", async (req, res) => {
           float: it.float ?? null,
           price: quote.ok ? quote.price : null,
           basePrice: base?.ok && quote.ok && base.price < quote.price ? base.price : null,
+          plainPrice: plain?.ok && quote.ok && quote.price - plain.price >= 0.01 ? plain.price : null,
           // Официальные русские/украинские названия — чтобы фильтр в браузере
           // находил предмет по "Красная линия" и т.п.
           searchAlt: localizedAlt(it.marketHashName),
@@ -1446,8 +1461,13 @@ app.get("/api/account/sales", async (req, res) => {
   const sales = skinbuxSales.listByUser(steamId);
   // Картинка біля кожного предмета: без неї "Мої угоди" були стовпчиком
   // однакових на вигляд назв. Картинки кешуються на диск (steamImages.js).
+  // Doppler: фаза в угоді — окремим полем, а картинка у кожної фази своя.
+  // Шукали по голому імені — і всі фази показувались однією картинкою.
+  // Тепер ім'я з фазою (" - Phase 3"): і картинка правильна, і картка
+  // пише фазу ("Doppler · Phase 3"), і різні фази не злипаються в "×2".
   await Promise.all(
     sales.flatMap((s) => (s.items || []).map(async (it) => {
+      if (it.phase && !String(it.name).endsWith(` - ${it.phase}`)) it.name = `${it.name} - ${it.phase}`;
       it.image = (await getSteamImages(it.name))?.thumb || null;
     }))
   );

@@ -3260,6 +3260,7 @@ a.sender-line { color: var(--gold); }
 
 /* Закреслена ціна без акції на картці предмета і рядок акції в кошику. */
 .price-was { color: var(--muted); font-weight: 500; font-size: 0.85em; }
+.price-bonus { display: block; margin-top: 2px; font-size: var(--t-xs, 0.75rem); font-weight: 600; color: var(--green, #4caf50); }
 .cart-campaign { margin: var(--s-2) 0 0; font-size: var(--t-sm); color: var(--gold); font-weight: 600; }
 .cart-campaign.is-off { color: var(--muted); font-weight: 500; }
 

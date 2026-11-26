@@ -258,10 +258,13 @@ async function feed({ limit = 12, offset = 0, withReviews = false, imageOf }) {
     page.map(async (s) => {
       // Однакові предмети в угоді — одним рядком з кількістю.
       const counts = new Map();
+      // Doppler: фаза — окремим полем; з нею в імені і картинка своєї фази
+      // (steamImages), і підпис "Doppler · Phase 3" у стрічці.
       for (const it of s.items || []) {
-        const g = counts.get(it.name) || { qty: 0, float: it.float ?? null };
+        const name = it.phase && !String(it.name).endsWith(` - ${it.phase}`) ? `${it.name} - ${it.phase}` : it.name;
+        const g = counts.get(name) || { qty: 0, float: it.float ?? null };
         g.qty += 1;
-        counts.set(it.name, g);
+        counts.set(name, g);
       }
       const goods = await Promise.all(
         [...counts].map(async ([name, g]) => ({
