@@ -398,6 +398,69 @@ function snapshotSellPrices(row, sourcesConfig) {
   return { capturedAt: new Date().toISOString(), bestBid, bestAsk };
 }
 
+// Той самий знімок, але з точки історії цін (priceHistory.js) на годину
+// покупки. В історії немає CSFloat, тож модалка підписує це окремо.
+function snapshotFromHistory(point, sourcesConfig) {
+  const row = {
+    prices: {
+      buff: { ask: point.buff_ask, bid: point.buff_bid },
+      youpin: { ask: point.youpin_ask, bid: point.youpin_bid },
+      skinbux: { bid: point.skinbux_bid },
+      csmoney: { bid: point.csmoney_bid },
+    },
+  };
+  const snap = snapshotSellPrices(row, sourcesConfig);
+  return snap && { ...snap, capturedAt: new Date(point.t * 1000).toISOString(), fromHistory: true };
+}
+
+/**
+ * Дозаповнює знімок "At purchase" угодам, яким його не зробили при
+ * додаванні: у ту хвилину таблиці цін ще не було (щойно після рестарту
+ * сервера ціни вантажаться кілька хвилин, а імпорт CSFloat чи ручне
+ * додавання могли потрапити саме туди). Куплено щойно — беремо поточні ціни;
+ * інакше — історію цін на годину покупки (±3 год). Якщо і там нічого, а
+ * покупці вже понад 3 години, — позначаємо, щоб не шукати щоразу.
+ */
+async function fillMissingSnapshots({ rows, sourcesConfig, history, now = Date.now() }) {
+  const SLACK = 3 * 3600;
+  const found = new Map();
+  const missing = new Set();
+  for (const t of loadTrades()) {
+    if (t.status !== "holding" || t.buySnapshot || t.buySnapshotMissing) continue;
+    const at = Date.parse(t.buyDate);
+    if (!Number.isFinite(at)) continue;
+    let snap = null;
+    if (Math.abs(now - at) <= 2 * 3600 * 1000) {
+      snap = snapshotSellPrices(rows.find((r) => r.marketHashName === t.marketHashName), sourcesConfig);
+    }
+    if (!snap && history) {
+      const sec = Math.floor(at / 1000);
+      const points = await history.read(t.marketHashName, { fromSec: sec - SLACK });
+      const near = points
+        .filter((p) => Math.abs(p.t - sec) <= SLACK)
+        .sort((a, b) => Math.abs(a.t - sec) - Math.abs(b.t - sec))[0];
+      if (near) snap = snapshotFromHistory(near, sourcesConfig);
+    }
+    if (snap) found.set(t.id, snap);
+    else if (now - at > SLACK * 1000) missing.add(t.id);
+  }
+  if (!found.size && !missing.size) return 0;
+  // Читаємо файл заново: поки ми ходили в історію, угоди могли змінитись.
+  const all = loadTrades();
+  let changed = 0;
+  for (const t of all) {
+    if (t.buySnapshot) continue;
+    if (found.has(t.id)) {
+      t.buySnapshot = found.get(t.id);
+      changed++;
+    } else if (missing.has(t.id)) {
+      t.buySnapshotMissing = true;
+    }
+  }
+  saveTrades(all);
+  return changed;
+}
+
 /**
  * Дополняет сделку производными полями для отображения:
  *  - unlockAt/isLocked/daysLeft — блокировка на продажу после покупки
@@ -720,6 +783,7 @@ module.exports = {
   listRawTrades,
   listAllRawTrades,
   findAllSellOptions,
+  fillMissingSnapshots,
   sellTrade,
   setUnlockAt,
   setBuyDate,

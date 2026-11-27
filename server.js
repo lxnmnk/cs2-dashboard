@@ -169,6 +169,12 @@ async function refreshPrices() {
       console.warn(`[refresh] Частичные ошибки: ${errors.join(" | ")}`);
     }
     console.log(`[refresh] Готово. Предметов с ценой: ${rows.length}`);
+    // Сделки, добавленные, пока цен ещё не было (сразу после рестарта), —
+    // дозаполняем им снимок "At purchase".
+    trades
+      .fillMissingSnapshots({ rows, sourcesConfig: config.sources, history: priceHistory })
+      .then((n) => n && console.log(`[trades] Дозаполнил снимок цен при покупке: ${n}`))
+      .catch((err) => console.warn(`[trades] Снимок цен при покупке: ${err.message}`));
   } catch (err) {
     console.error("[refresh] Ошибка:", err.message);
     cache.error = err.message;

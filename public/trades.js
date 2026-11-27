@@ -72,7 +72,8 @@ function openTradeModal(trade) {
     const parts = [];
     if (snap.bestBid) parts.push(`Instant ${fmtMoney(snap.bestBid.price)} (${sourceLabel(snap.bestBid.source)})`);
     if (snap.bestAsk) parts.push(`List ${fmtMoney(snap.bestAsk.price)} (${sourceLabel(snap.bestAsk.source)})`);
-    snapshotEl.innerHTML = `📸 At purchase: ${parts.join(" · ")}`;
+    const label = snap.fromHistory ? "At purchase (price history, no CSFloat)" : "At purchase";
+    snapshotEl.innerHTML = `📸 ${label}: ${parts.join(" · ")}`;
     snapshotEl.style.display = "block";
   } else {
     snapshotEl.style.display = "none";
